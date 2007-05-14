@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/time.h>
+#include <linux/delay.h>
 
 #define MODULENAME "fsc_btns"
 #define MODULEDESC "Fujitsu Siemens Application Panel Driver for T-Series Lifebooks"
@@ -142,6 +143,7 @@ static void reset_regs(void)
 u8 ioreadb(int offset) {
 	u8 data = inb(fscbtns.io.address + offset);
 	dbg("IOREADB(%d): 0x%02x", offset, data);
+	dbg("IOREADB(6): 0x%02x", inb(fscbtns.io.address + 6));
 	return data;
 }
 
@@ -149,6 +151,7 @@ void iowriteb(u8 data, int offset)
 {
 	outb(data, fscbtns.io.address + offset);
 	dbg("IOWRITEB(%d): 0x%02x", offset, data);
+	dbg("IOREADB(6): 0x%02x", inb(fscbtns.io.address + 6));
 }
 
 static void dump_regs(void)
@@ -329,7 +332,11 @@ static void fscbtns_event(void)
 
 /*** INTERRUPT ****************************************************************/
 
-static void fscbtns_isr_do(struct work_struct *work);
+static void fscbtns_isr_do(struct work_struct *work)
+{
+	fscbtns_event();
+	IOREADB(2);	
+}
 static DECLARE_WORK(isr_wq, fscbtns_isr_do);
 
 static irqreturn_t fscbtns_isr(int irq, void *dev_id)
@@ -344,14 +351,22 @@ static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void fscbtns_isr_do(struct work_struct *work)
-{
-	fscbtns_event();
-	IOREADB(2);	
-}
 
 
 /*** DEVICE *******************************************************************/
+
+static int fscbtns_busywait(void)
+{
+	int timeout_counter = 100;
+
+	while(IOREADB(6) & 0x02 && --timeout_counter) {
+		msleep(10);
+		dbg("status bit 2 set");
+	}
+
+	dbg("busywait done (rest time: %d)", timeout_counter);
+	return !timeout_counter;
+}
 
 static int __devinit fscbtns_probe(struct platform_device *dev)
 {
@@ -386,9 +401,13 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 	}
 
 	IOREADB(2);
-	// TODO: reset
+	IOREADB(6);
 
-	dbg("device ready");
+	if(!fscbtns_busywait())
+		dbg("device ready");
+	else
+		dbg("timeout, need a reset?");
+
 	return 0;
 
 //err_irq:
