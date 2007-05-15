@@ -1,6 +1,6 @@
-/*
- * SMBus client for the Fujitsu Lifebook Application Panel
- * Copyright (C) 2001-2004 Jochen Eisinger <jochen@penguin-breeder.org>
+/* Tablet Buttons Driver for Fujitsu T-Series Lifebook and Stylistic Tablet PCs
+ * Copyright (C) 2006-2007 Robert Gerlach <khnz@users.sourceforge.net>
+ * Copyright (C) 2005-2006 Jan Rychter <jan@rychter.com>
  *
  * You can redistribute and/or modify this program under the terms of the
  * GNU General Public License version 2 as published by the Free Software
