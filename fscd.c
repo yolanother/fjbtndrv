@@ -132,7 +132,7 @@ void osd_init(Display *dpy)
 		die(xosd_error);
 
 	xosd_set_pos(osd, XOSD_bottom);
-	xosd_set_vertical_offset(osd, 50);
+	xosd_set_vertical_offset(osd, 16);
 	xosd_set_align(osd, XOSD_center);
 	xosd_set_horizontal_offset(osd, 0);
 
@@ -161,8 +161,8 @@ void osd_message(const char *message, const unsigned timeout)
 {
 	osd_hide();
 	xosd_set_timeout(osd, timeout);
-	xosd_display(osd, 0, XOSD_string, message);
-	xosd_display(osd, 1, XOSD_string, "");
+	xosd_display(osd, 0, XOSD_string, "");
+	xosd_display(osd, 1, XOSD_string, message);
 }
 
 void osd_slider(const char *message, const int slider)
@@ -232,9 +232,6 @@ int rotate_screen(Display *dpy, int mode)
 	SizeID size;
 	int error = -1;
 
-	if(settings.lock_rotate == UL_LOCKED)
-		return 0;
-
 	rwin = DefaultRootWindow(dpy);
 	sc = XRRGetScreenInfo(dpy, rwin);
 	if(!sc)
@@ -261,12 +258,8 @@ int rotate_screen(Display *dpy, int mode)
 		error = 0;
 
 #ifdef ENABLE_XOSD
-#if XOSD_VERBOSE >= 3
 	osd_init(dpy);
-	osd_message((mode ? "Portrait" : "Landscape"), 1);
 #endif
-#endif
-
 
 err_sc:
 	XRRFreeScreenConfigInfo(sc);
@@ -279,50 +272,50 @@ int _fake_key(Display *dpy, KeySym sym)
 	KeyCode keycode;
 
 	if(sym == 0)
-		return 1;
+		return 0;
 
 	keycode = XKeysymToKeycode(dpy, sym);
 	debug("fake keycode %d (keysym 0x%08x)", keycode, sym);
 
-	if(keycode)
-		return XTestFakeKeyEvent(dpy, keycode, True,  CurrentTime) &&
-		       XTestFakeKeyEvent(dpy, keycode, False, CurrentTime);
+	if(keycode) {
+		debug("fake key %d event", keycode);
+		XTestFakeKeyEvent(dpy, keycode, True,  CurrentTime);
+		XSync(dpy, True);
+		XTestFakeKeyEvent(dpy, keycode, False, CurrentTime);
+		XSync(dpy, True);
+		return 0;
+	}
 
 	fprintf(stderr, "There are no keycode for %s\n", XKeysymToString(sym));
-	return 0;
+	return -1;
 }
 
 int fake_key(Display *dpy, keymap_entry *key)
 {
 
-	Status status = _fake_key(dpy, key->sym);
+	int error = _fake_key(dpy, key->sym);
 
 #ifdef ENABLE_XOSD
-#if XOSD_VERBOSE >= 2
 	if(status && key->text)
 		osd_message(key->text, 1);
 #endif
-#endif
 
-	return (status ? 0 : -1);
+	return error;
 }
 
 int fake_button(Display *dpy, unsigned int button)
 {
-	Status status;
 	int steps = SCROLL_STEPS;
 
 	while(steps--) {
 		debug("fake button %d event", button);
-		status =
-			XTestFakeButtonEvent(dpy, button, True,  CurrentTime) &&
-			XTestFakeButtonEvent(dpy, button, False, CurrentTime);
-
-		if(!status)
-			break;
+		XTestFakeButtonEvent(dpy, button, True,  CurrentTime);
+		XSync(dpy, True);
+		XTestFakeButtonEvent(dpy, button, False, CurrentTime);
+		XSync(dpy, True);
 	}
 
-	return (status ? 0 : -1);
+	return 0;
 }
 
 int get_brightness(int fh)
@@ -450,8 +443,6 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	XSynchronize(display, True);
-
 	osd_init(display);
 	wacom_init(display);
 
@@ -534,9 +525,14 @@ int main(int argc, char **argv)
 				if(input_event.value == 1) {
 					if(key_fn + 3 > input_event.time.tv_sec)
 						fake_key(display, &settings.keymap[3]);
-					else if(key_alt + 3 > input_event.time.tv_sec)
-						fake_key(display, &settings.keymap[8]);
-					else {
+					else if(key_alt + 3 > input_event.time.tv_sec) {
+						osd_message("config...", 3);
+						key_fn  = 0;
+						key_alt = 0;
+						key_cfg = input_event.time.tv_sec;
+						continue;
+						//fake_key(display, &settings.keymap[8]);
+					} else {
 						osd_message("fn...", 3);
 						key_fn = input_event.time.tv_sec;
 						continue;
@@ -546,14 +542,9 @@ int main(int argc, char **argv)
 
 			case KEY_MENU:
 				if(input_event.value == 1) {
-					if(key_fn + 3 > input_event.time.tv_sec) {
-						osd_message("config...", 3);
-						key_fn  = 0;
-						key_alt = 0;
-						key_cfg = input_event.time.tv_sec;
-						continue;
-						//fake_key(display, &settings.keymap[4]);
-					} else if(key_alt + 3 > input_event.time.tv_sec)
+					if(key_fn + 3 > input_event.time.tv_sec)
+						fake_key(display, &settings.keymap[4]);
+					else if(key_alt + 3 > input_event.time.tv_sec)
 						fake_key(display, &settings.keymap[9]);
 					else {
 						osd_message("alt...", 3);
@@ -588,7 +579,8 @@ int main(int argc, char **argv)
 		case EV_SW:
 			switch(input_event.code) {
 			case SW_TABLET_MODE:
-				rotate_screen(display, input_event.value);
+				if(settings.lock_rotate == UL_UNLOCKED)
+					rotate_screen(display, input_event.value);
 				break;
 			default:
 				fprintf(stderr, "unsupported switch event %d", input_event.code);

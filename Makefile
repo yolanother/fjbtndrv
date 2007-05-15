@@ -1,13 +1,13 @@
 FSCD_CFLAGS	:= -g -O2
 FSCD_CXXFLAGS	:= $(CFLAGS)
 
-FSCD_INCLUDES	:= -I/usr/include
+FSCD_INCS	:= -I/usr/include
 FSCD_LIBS	:= -lX11 -lXi -lXext -lXtst -lXrandr
 
 all: modules fscd
 
-
 ################################################################################
+include $(PWD)/config.mk
 
 ifdef DEBUG
 ifneq ($(DEBUG), n)
@@ -18,23 +18,17 @@ endif
 ifdef WACOM
 ifneq ($(WACOM), n)
   FSCD_CFLAGS	+= -DENABLE_WACOM
-  FSCD_INCLUDES	+= -I.
+  FSCD_INCS	+= -I.
   FSCD_LIBS	+= -lwacomcfg
 endif
 endif
 
-ifdef OSD
-ifneq ($(OSD), n)
+ifdef XOSD
+ifneq ($(XOSD), n)
   FSCD_CFLAGS	+= -DENABLE_XOSD
   FSCD_LIBS	+= -lxosd
-  ifdef OSD_VERBOSE # 1..3
-    FSCD_CFLAGS	+= -DXOSD_VERBOSE=$(OSD_VERBOSE)
-  else
-    FSCD_CFLAGS	+= -DXOSD_VERBOSE=2
-  endif
 endif
 endif
-
 
 ################################################################################
 
@@ -51,11 +45,10 @@ clean::
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) clean
 	rm -f Module.symvers
 
-
 ################################################################################
 
 .c.o:
-	$(CC) $(FSCD_CFLAGS) $(FSCD_INCLUDES) -o $@ -c $<
+	$(CC) $(FSCD_CFLAGS) $(FSCD_INCS) -o $@ -c $<
 
 fscd: fscd.o
 	$(CC) $(FSCD_CFLAGS) $(FSCD_LIBS) -o $@ $^
