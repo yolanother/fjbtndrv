@@ -544,7 +544,7 @@ static void __exit fscbtns_module_exit(void)
 
 /*** MODULE *******************************************************************/
 
-MODULE_AUTHOR("Robert Gerlach <r.gerlach@snafu.de>");
+MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
 MODULE_DESCRIPTION(MODULEDESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MODULEVERS);
