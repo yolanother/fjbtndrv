@@ -47,6 +47,11 @@
 #define MODULEDESC "Fujitsu Siemens Application Panel Driver for T-Series Lifebooks"
 #define MODULEVERS "0.30a"
 
+#define FJBTNS_DOCK_BASE	0xfd64
+#define FJBTNS_DOCK_WRITE	0xfd64
+#define FJBTNS_DOCK_READ	0xfd65
+#define FJBTNS_DOCK_READ_STATE	0x52
+
 struct keymap_entry {				/* keymap_entry */
 	unsigned int mask;
 	unsigned int code;
@@ -63,14 +68,29 @@ static struct keymap_entry keymap_t4010[] = {
 	{ 0x0000, 0},
 };
 
-#define default_keymap keymap_t4010
+static struct keymap_entry keymap_stylistic[] = {
+	{ 0x0010, KEY_PRINT },
+	{ 0x0020, KEY_BACKSPACE },
+	{ 0x0040, KEY_SPACE },
+	{ 0x0080, KEY_ENTER },
+	{ 0x0100, KEY_BRIGHTNESSUP },
+	{ 0x0200, KEY_BRIGHTNESSDOWN },
+	{ 0x0400, KEY_UP },
+	{ 0x0800, KEY_DOWN },
+	{ 0x1000, KEY_PAGEUP },
+	{ 0x2000, KEY_PAGEDOWN },
+	{ 0x4000, KEY_FN },
+	{ 0x8000, KEY_MENU },
+	{ 0x0000, 0},
+};
 
 static struct fscbtns_t {				/* fscbtns_t */
 	unsigned int interrupt;
 	unsigned int address;
 
 	struct keymap_entry *keymap;
-	int videomode;
+	int orientation;
+	int docked;
 
 	struct platform_device *pdev;
 
@@ -87,12 +107,11 @@ static struct fscbtns_t {				/* fscbtns_t */
 	.interrupt = 5,
 	.address = 0xfd70,
 #endif
-
-       	.keymap = default_keymap
 };
 
 static unsigned int repeat_rate = 16;
 static unsigned int repeat_delay = 500;
+static unsigned int user_keymap = 0;		// TODO: autodetect (acpi/dmi?)
 
 
 #define IOREADB(offset)		inb(fscbtns.address+(offset));
@@ -216,12 +235,16 @@ static void fscbtns_event(void)
 	static unsigned int prev_keymask = 0;
 	struct keymap_entry *key;
 
+	outb(FJBTNS_DOCK_READ_STATE, FJBTNS_DOCK_WRITE);
+	fscbtns.docked = inb(FJBTNS_DOCK_READ);
+
 	IOWRITEB(0xdd, 0);
 	i = IOREADB(4) ^ 0xff;
-	if(i != fscbtns.videomode) {
-		debug("videomode change (%d)", i);
-		fscbtns.videomode = i;
-		input_report_switch(fscbtns.idev, SW_TABLET_MODE, i);
+	if(i != fscbtns.orientation) {
+		debug("orientation change (%d)", i);
+		fscbtns.orientation = i;
+		input_report_switch(fscbtns.idev, SW_TABLET_MODE,
+				fscbtns.orientation);
 	}
 
 	IOWRITEB(0xde, 0);
@@ -295,10 +318,17 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 	/* TODO: mod parameters? */
 	fscbtns_set_repeat_rate(repeat_delay, 1000 / repeat_rate);
 
+	resource = request_region(FJBTNS_DOCK_BASE, 2, MODULENAME " (dock)");
+	if(!resource) {
+		error("request_region failed (dock)!");
+		error = -EBUSY;
+		goto err_io1;
+	}
+
 	resource = request_region(fscbtns.address, 8, MODULENAME);
 	if(!resource) {
 		error("request_region failed!");
-		error = 1;
+		error = -EBUSY;
 		goto err_input;
 	}
 
@@ -310,7 +340,7 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 			fscbtns_isr, SA_INTERRUPT, MODULENAME, fscbtns_isr);
 	if(error) {
 		error("request_irq failed!");
-		goto err_io;
+		goto err_io2;
 	}
 
 	IOREADB(2);
@@ -323,8 +353,10 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 
 //err_irq:
 //	free_irq(fscbtns.interrupt, fscbtns_isr);
-err_io:
+err_io2:
 	release_region(fscbtns.address, 8);
+err_io1:
+	release_region(FJBTNS_DOCK_BASE, 2);
 err_input:
 	input_fscbtns_remove();
 	return error;
@@ -334,6 +366,7 @@ static int __devexit fscbtns_remove(struct platform_device *dev)
 {
 	free_irq(fscbtns.interrupt, fscbtns_isr);
 	release_region(fscbtns.address, 8);
+	release_region(FJBTNS_DOCK_BASE, 2);
 	input_fscbtns_remove();
 	return 0;
 }
@@ -469,7 +502,7 @@ static int acpi_fscbtns_remove(struct acpi_device *device, int type)
 static struct acpi_driver acpi_fscbtns_driver = {
 	.name  = MODULEDESC,
 	.class = "hotkey",
-	.ids   = "FUJ02BF",
+	.ids   = "FUJ02BD,FUJ02BF",
 	.ops   = {
 		.add    = acpi_fscbtns_add,
 		.remove = acpi_fscbtns_remove
@@ -484,6 +517,15 @@ static struct acpi_driver acpi_fscbtns_driver = {
 static int __init fscbtns_module_init(void)
 {
 	int error = -EINVAL;
+
+	// TODO: test
+	switch(user_keymap) {
+		case 1:
+			fscbtns.keymap = keymap_stylistic;
+			break;
+		default:
+			fscbtns.keymap = keymap_t4010;
+	}
 
 #ifdef CONFIG_ACPI
 	debug("register acpi driver");
@@ -561,8 +603,12 @@ MODULE_PARM_DESC(rate, "repeat rate");
 module_param_named(delay, repeat_delay, uint, 0);
 MODULE_PARM_DESC(delay, "repeat delay");
 
+module_param_named(keymap, user_keymap, uint, 0);
+MODULE_PARM_DESC(keymap, "keymap (0 = T4010, 1 = Stylistic)");
+
 
 static struct pnp_device_id pnp_ids[] = {
+	{ .id = "FUJ02bd" },
 	{ .id = "FUJ02bf" },
 	{ .id = "" }
 };
