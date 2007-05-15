@@ -296,7 +296,7 @@ int fake_key(Display *dpy, keymap_entry *key)
 	int error = _fake_key(dpy, key->sym);
 
 #ifdef ENABLE_XOSD
-	if(status && key->text)
+	if(!error && key->text)
 		osd_message(key->text, 1);
 #endif
 
