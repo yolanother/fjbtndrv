@@ -47,10 +47,12 @@
 #define MODULEDESC "Fujitsu Siemens Application Panel Driver for T-Series Lifebooks"
 #define MODULEVERS "0.30a"
 
+/* TODO: autodetect, but how? */
 #define FJBTNS_DOCK_BASE	0xfd64
 #define FJBTNS_DOCK_WRITE	0xfd64
 #define FJBTNS_DOCK_READ	0xfd65
 #define FJBTNS_DOCK_READ_STATE	0x52
+
 
 struct keymap_entry {				/* keymap_entry */
 	unsigned int mask;
@@ -179,13 +181,7 @@ static int input_fscbtns_setup(void)
 	int error;
 
 	snprintf(fscbtns.idev_phys, sizeof(fscbtns.idev_phys),
-			"%s/input0", 
-#ifdef CONFIG_ACPI
-			acpi_device_hid(fscbtns.adev)
-#else
-			MODULENAME
-#endif
-			);
+			"fsc/input0");
 
 	fscbtns.idev = idev = input_allocate_device();
 	if(!idev)

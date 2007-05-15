@@ -1,0 +1,18 @@
+#!/bin/sh
+# Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
+
+read value
+[ "$value" ] || exit 1
+
+if [ "$HAL_PROP_LAPTOP_PANEL_ACCESS_METHOD" = "fjtbl" ]; then
+	# echo "{1..8}" > /proc/acpi/video/VGA/LCD/brightness
+	[ $value -lt 1 ] && value=1
+	[ $value -gt 8 ] && value=8
+	echo "$value" > /proc/acpi/video/VGA/LCD/brightness
+else
+	echo "org.freedesktop.Hal.Device.LaptopPanel.NotSupported" >&2
+	echo "No ACPI method found" >&2
+	exit 1
+fi
+
+exit 0
