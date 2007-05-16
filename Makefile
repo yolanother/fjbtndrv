@@ -1,8 +1,8 @@
 FSCD_CFLAGS	:= -g -O2
 FSCD_CXXFLAGS	:= $(CFLAGS)
 
-FSCD_INCS	:= -I/usr/include
-FSCD_LIBS	:= -lX11 -lXi -lXext -lXtst -lXrandr
+FSCD_INCS	:= -I/usr/include -I/usr/include/dbus-1.0
+FSCD_LIBS	:= -lX11 -lXi -lXext -lXtst -lXrandr -ldbus-1 -lhal
 
 all: modules fscd
 
