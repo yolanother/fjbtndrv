@@ -670,3 +670,5 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+
+// vim: foldenable foldmethod=marker foldmarker={{{,}}} foldlevel=0
