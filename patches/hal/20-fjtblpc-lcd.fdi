@@ -2,11 +2,11 @@
 
 <deviceinfo version="0.2">
   <device>
-    <match key="info.udi" string="/org/freedesktop/Hal/devices/platform_fsc_btns">
+    <match key="info.udi" string="/org/freedesktop/Hal/devices/pci_8086_3582">
       <append key="info.interfaces" type="strlist">org.freedesktop.Hal.Device.LaptopPanel</append>
 
       <append key="info.capabilities" type="strlist">laptop_panel</append>
-      <merge key="laptop_panel.access_method" type="string">fjtbl</merge>
+      <merge key="laptop_panel.access_method" type="string">custom</merge>
       <merge key="laptop_panel.num_levels" type="int">8</merge>
 
       <append key="org.freedesktop.Hal.Device.LaptopPanel.method_names" type="strlist">SetBrightness</append>
