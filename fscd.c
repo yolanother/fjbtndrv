@@ -27,24 +27,18 @@
 #include <X11/extensions/XTest.h>
 #include <X11/extensions/Xrandr.h>
 
-#ifdef ENABLE_WACOM
-#  include <wacomcfg/wacomcfg.h>
-#  include <Xwacom.h>
-#endif
+#define SCROLL_STEPS		1
 
-#ifdef ENABLE_XOSD
-#  include <xosd.h>
-#endif
+#define XOSD_COLOR "green"
+#define XOSD_OUTLINE_COLOR "darkgreen"
+#define XOSD_FLASH
+#undef  XOSD_FADEIN
 
 #ifdef DEBUG
 #  define debug(msg, a...)	fprintf(stderr, msg "\n", ##a)
 #else
 #  define debug(msg, a...)	/**/
 #endif
-
-#define die(msg)		{ fprintf(stderr, msg); exit(1); }
-
-#define SCROLL_STEPS		1
 
 
 typedef enum {
@@ -115,21 +109,25 @@ int find_and_open_input_device(void)
 
 //{{{ OSD stuff
 #ifdef ENABLE_XOSD
+#include <xosd.h>
+
 static xosd *osd = NULL;
+static int was_visible = 0;
 
-void osd_exit();
 
-void osd_init(Display *dpy)
+int osd_init(Display *dpy)
 {
 	if(osd) {
-		osd_exit();
+		xosd_destroy(osd);
 		debug("reinitalize osd");
 	} else
 		debug("initalize osd");
 
 	osd = xosd_create(2);
-	if(!osd)
-		die(xosd_error);
+	if(!osd) {
+		fprintf(stderr, xosd_error);
+		return -1;
+	}
 
 	xosd_set_pos(osd, XOSD_bottom);
 	xosd_set_vertical_offset(osd, 16);
@@ -137,10 +135,11 @@ void osd_init(Display *dpy)
 	xosd_set_horizontal_offset(osd, 0);
 
 	xosd_set_font(osd, "-*-helvetica-bold-r-normal-*-*-400-*-*-*-*-*-*");
-	xosd_set_colour(osd, "green");
+	xosd_set_colour(osd, XOSD_COLOR);
+	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
 	xosd_set_outline_offset(osd, 1);
-	xosd_set_outline_colour(osd, "darkgreen");
-	xosd_set_shadow_offset(osd, 2);
+	xosd_set_shadow_offset(osd, 3);
+	return 0;
 }
 
 void osd_exit()
@@ -151,11 +150,61 @@ void osd_exit()
 	}
 }
 
-void osd_hide()
+int osd_hide()
 {
-	if(xosd_is_onscreen(osd))
+	was_visible = xosd_is_onscreen(osd);
+	if(was_visible) {
 		xosd_hide(osd);
+#ifdef XOSD_FADE
+	} else {
+		xosd_set_colour(osd, "#000000");
+		xosd_set_outline_colour(osd, "#000000");
+#endif
+	}
+	return was_visible;
 }
+
+#ifdef XOSD_FADEIN
+void osd_fadein(void)
+{
+	int i;
+	char color[7];
+	const duration	= 300000; /* µs */
+	const steps	= 3;
+
+	if(was_visible)
+		return;
+
+	xosd_set_colour(osd, "#000000");
+	xosd_set_outline_colour(osd, "#000000");
+
+	for(i = (256/steps)-1; i < 256; i += (256/steps)) {
+		sprintf(color, "#%02x%02x%02x", (i/2), i, (i/8));
+		xosd_set_colour(osd, color);
+		xosd_set_outline_colour(osd, color);
+		usleep(duration/(steps*2));
+	}
+
+	//osd_flash();
+}
+#endif
+
+#ifdef XOSD_FLASH
+void osd_flash(void) {
+	const duration = 100000;	/* µs */
+
+	if(was_visible)
+		return;
+
+	xosd_set_colour(osd, "#ffffff");
+	xosd_set_outline_colour(osd, "#ffffff");
+	usleep(duration/4);
+	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
+	usleep(duration/2);
+	xosd_set_colour(osd, XOSD_COLOR);
+	//usleep(duration/2);
+}
+#endif
 
 void osd_message(const char *message, const unsigned timeout)
 {
@@ -163,6 +212,12 @@ void osd_message(const char *message, const unsigned timeout)
 	xosd_set_timeout(osd, timeout);
 	xosd_display(osd, 0, XOSD_string, "");
 	xosd_display(osd, 1, XOSD_string, message);
+#ifdef XOSD_FADEIN
+	osd_fadein();
+#endif
+#ifdef XOSD_FLASH
+	osd_flash();
+#endif
 }
 
 void osd_slider(const char *message, const int slider)
@@ -171,20 +226,31 @@ void osd_slider(const char *message, const int slider)
 	xosd_set_timeout(osd, 1);
 	xosd_display(osd, 0, XOSD_string, message);
 	xosd_display(osd, 1, XOSD_slider, slider);
+#ifdef XOSD_FADEIN
+	osd_fadein();
+#endif
+#ifdef XOSD_FLASH
+	osd_flash();
+#endif
 }
 
+
 #else
-#define osd_init(a...)		/**/
-#define osd_exit(a...)		/**/
-#define osd_message(a...)	/**/
-#define osd_slider(a...)	/**/
-#define osd_hide(a...)		/**/
+#define osd_init(a...)		NOTHING
+#define osd_exit(a...)		NOTHING
+#define osd_message(a...)	NOTHING
+#define osd_slider(a...)	NOTHING
+#define osd_hide(a...)		NOTHING
 #endif
 // }}}
 
 //{{{ WACOM stuff
 #ifdef ENABLE_WACOM
+#include <wacomcfg/wacomcfg.h>
+#include <Xwacom.h>
+
 static WACOMCONFIG * wacom_config = NULL;
+
 
 void wacom_init(Display *dpy)
 {
