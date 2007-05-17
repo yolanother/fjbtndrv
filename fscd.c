@@ -69,19 +69,21 @@ static keymap_entry keymap_t4010[] = {
 #include <string.h>
 
 #ifdef DEBUG
-#  define debug(msg, a...) \
+#  define debug(msg, a...)						\
 	fprintf(stderr, PROGRAM ": " msg "\n", ##a)
 #else
-#  define debug(msg, a...) \
+#  define debug(msg, a...)						\
 	NOTHING
 #endif
 
-#define info(msg, a...) \
-	fprintf(stderr, PROGRAM ": "           msg "\n", ##a)
-#define error(msg, a...) \
-	fprintf(stderr, PROGRAM ": " "ERROR: " msg "\n", ##a)
+#define info(msg, a...)							\
+	fprintf(stderr, PROGRAM ": " msg "\n", ##a)
+#define error(msg, a...)						\
+	fprintf(stderr, PROGRAM ": ERROR: " msg " at %s:%s\n", ##a,	\
+			__FILE__, __LINE__)
 
-#define NOTHING			do {} while (0)
+#define NOTHING								\
+	do {} while (0)
 
 
 typedef enum {
@@ -407,17 +409,15 @@ int _fake_key(Display *dpy, KeySym sym)
 	debug("fake keycode %d (keysym 0x%08x)", keycode, sym);
 
 	if(keycode) {
-/*
 		debug("fake key %d event", keycode);
 		XTestFakeKeyEvent(dpy, keycode, True,  CurrentTime);
 		XSync(dpy, True);
 		XTestFakeKeyEvent(dpy, keycode, False, CurrentTime);
 		XSync(dpy, True);
-*/
 		return 0;
 	}
 
-	error("There are no keycode for %s\n", XKeysymToString(sym));
+	error("There are no keycode for %s", XKeysymToString(sym));
 	return -1;
 }
 
@@ -531,10 +531,11 @@ int dbus_loop(void)
 #include <hal/libhal.h>
 static LibHalContext *hal;
 static char *LaptopPanelDevice;
+static char *FSCTabletDevice;
 
-#define HAL_ERROR(msg, a...) DBUS_ERROR(msg, ##a)
-#define IF_HAL_ERROR(msg, code) \
-	if(dbus_error_is_set(&dbus_error)) { HAL_ERROR(msg); code; }
+#define HAL_ERROR(msg, a...)						\
+	DBUS_ERROR(msg, ##a)
+
 
 int hal_init(void)
 {
@@ -551,34 +552,85 @@ int hal_init(void)
 
 
 	libhal_ctx_init(hal, &dbus_error);
-	IF_HAL_ERROR("init hal ctx failed",
-			goto err_ctx_free);
+	if(dbus_error_is_set(&dbus_error)) {
+		HAL_ERROR("init hal ctx failed");
+		goto err_free_ctx;
+	}
 
 	libhal_ctx_set_dbus_connection(hal, dbus);
 
+
+	/* search laptop_panel device for brightness control */
 	devices = libhal_find_device_by_capability(hal,
 			"laptop_panel", &count, &dbus_error);
-	IF_HAL_ERROR("find_device_by_capability",
-			goto err_ctx_free);
-
-	if((devices == NULL) || (count < 0)) {
-		HAL_ERROR("find failed");
-		goto err_ctx_free;
+	if(dbus_error_is_set(&dbus_error)) {
+		HAL_ERROR("find_device_by_capability");
+		goto err_free_ctx;
 	}
 
-	if(count == 0) {
-		HAL_ERROR("no devices found");
-		goto err_ctx_free;
+	if((devices == NULL) || (count < 0)) {
+		HAL_ERROR("no laptop panel device found");
+		goto err_free_devices;
 	}
 
 	debug("hal: %d laptop_panel device(s) found, using %s",
 			count, devices[0]);
 
-	LaptopPanelDevice = devices[0];
+	LaptopPanelDevice = strdup(devices[0]);
+	libhal_free_string_array(devices);
+
+
+	/* search fsc_btns driver */
+	devices = libhal_find_device_by_capability(hal,
+			"input.switch", &count, &dbus_error);
+	if(dbus_error_is_set(&dbus_error)) {
+		HAL_ERROR("find_device_by_capability");
+		goto err_free_devices;
+	}
+
+	if((devices == NULL) || (count < 0)) {
+		HAL_ERROR("no tablet device found");
+		goto err_free_devices;
+	}
+
+	if(count == 0) {
+		HAL_ERROR("no devices found");
+		goto err_free_devices;
+	}
+
+	debug("hal: %d input.switch device(s) found:", count);
+	while(count-- && devices[count]) {
+		char *type;
+		debug("hal:   check device %s", devices[count]);
+
+		type = libhal_device_get_property_string(hal,
+				devices[count], "button.type",
+				&dbus_error);
+		if(dbus_error_is_set(&dbus_error)) {
+			HAL_ERROR("prop get failed");
+			goto err_input_next_device;
+		}
+
+		if(type && !strcmp("tablet_mode", type)) {
+			debug("hal:   found: %s @ %s",
+					type, devices[count]);
+
+			FSCTabletDevice = strdup(devices[count]);
+			break;
+		}
+
+		debug("hal:   check done, next?");
+ err_input_next_device:
+		libhal_free_string(type);
+	}
+	libhal_free_string_array(devices);
+
 
 	return 0;
 
-err_ctx_free:
+ err_free_devices:
+	libhal_free_string_array(devices);
+ err_free_ctx:
 	libhal_ctx_free(hal);
 	return -1;
 }
@@ -603,14 +655,18 @@ int get_brightness(void)
 
 	reply = dbus_connection_send_with_reply_and_block(dbus,
 			message, -1, &dbus_error);
-	IF_HAL_ERROR("send get brightness message",
-		goto err_free_msg);
+	if(dbus_error_is_set(&dbus_error)) {
+		HAL_ERROR("send get brightness message");
+		goto err_free_msg;
+	}
 	dbus_message_unref(message);
 
 	if( !dbus_message_get_args(reply, NULL,
 			DBUS_TYPE_UINT32, &level,
-			DBUS_TYPE_INVALID))
+			DBUS_TYPE_INVALID)) {
+		HAL_ERROR("dbus_message_get_args failed");
 		goto err_free_msg;
+	}
 
 	dbus_message_unref(reply);
 	debug("get done");
@@ -654,6 +710,20 @@ void set_brightness(int level)
 err_free_msg:
 	dbus_message_unref(message);
 	return;
+}
+
+int get_tablet_sw(void)
+{
+	dbus_bool_t tablet_mode;
+
+	tablet_mode = libhal_device_get_property_bool(hal, FSCTabletDevice,
+			"button.state.value", &dbus_error);
+	if(dbus_error_is_set(&dbus_error)) {
+		HAL_ERROR("query button state failed");
+		return -1;
+	}
+
+	return (tablet_mode == TRUE);
 }
 
 //}}}
@@ -814,10 +884,8 @@ int event(const char *name)
 		osd_clear());
 
 	FOR("tablet_mode") DO (
-		if(settings.lock_rotate == UL_UNLOCKED) {
-			int state = 1;	// TODO: ask hal for state
-			rotate_screen(display, state);
-		}
+		if(settings.lock_rotate == UL_UNLOCKED)
+			rotate_screen(display, get_tablet_sw());
 	);
 
 	error("unsupported event - %s\n", name);
