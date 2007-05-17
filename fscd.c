@@ -474,7 +474,8 @@ int dbus_event(DBusMessageIter *iter)
 
 	if(dbus_message_iter_get_arg_type(iter) == DBUS_TYPE_STRING) {
 		dbus_message_iter_get_basic(iter, &value);
-		if(strcmp("ButtonPressed", value) == 0) {
+		if((strcmp("ButtonPressed", value) == 0) ||
+		   (strcmp("ButtonRepeat",  value) == 0)) {
 			debug("dbus: button pressed message");
 			dbus_message_iter_next(iter);
 			dbus_message_iter_get_basic(iter, &value);

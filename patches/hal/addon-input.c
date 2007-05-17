@@ -186,6 +186,7 @@ main_loop (LibHalContext *ctx, FILE* eventfp)
 {
 	DBusError error;
 	struct input_event event;
+	char *event_name;
 
 
 	while (fread (&event, sizeof(event), 1, eventfp)) {
@@ -240,10 +241,21 @@ main_loop (LibHalContext *ctx, FILE* eventfp)
 					}
 				}
 			}
-		} else if (event.type == EV_KEY && key_name[event.code] != NULL && event.value == 1) {
+		} else if (event.type == EV_KEY && key_name[event.code] != NULL) {
+			switch(event.value) {
+				case 0:
+					event_name = "ButtonReleased";
+					break;
+				case 1:
+					event_name = "ButtonPressed";
+					break;
+				case 2:
+					event_name = "ButtonRepeat";
+					break;
+			}
 			dbus_error_init (&error);
-			libhal_device_emit_condition (ctx, udi, 
-						      "ButtonPressed",
+			libhal_device_emit_condition (ctx, udi,
+						      event_name,
 						      key_name[event.code],
 						      &error);
 		}

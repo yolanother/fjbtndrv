@@ -67,7 +67,11 @@ else
   exit 1
 fi
 
-if ! grep -q '\<fn\>' $aipt; then
+if grep -q '\<fn\>' $aipt &&
+   grep -q 'ButtonRepeat' $aipt
+then
+  :
+else
   echo "building hald-addon-input"
   hal_user=`getent passwd haldaemon | awk -F: '{ print $3 }'`
   hal_group=`getent group haldaemon | awk -F: '{ print $3 }'`
