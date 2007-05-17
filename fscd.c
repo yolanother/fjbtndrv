@@ -69,10 +69,17 @@ static keymap_entry keymap_t4010[] = {
 #include <string.h>
 
 #ifdef DEBUG
-#  define debug(msg, a...)	fprintf(stderr, msg "\n", ##a)
+#  define debug(msg, a...) \
+	fprintf(stderr, PROGRAM ": " msg "\n", ##a)
 #else
-#  define debug(msg, a...)	NOTHING
+#  define debug(msg, a...) \
+	NOTHING
 #endif
+
+#define info(msg, a...) \
+	fprintf(stderr, PROGRAM ": "           msg "\n", ##a)
+#define error(msg, a...) \
+	fprintf(stderr, PROGRAM ": " "ERROR: " msg "\n", ##a)
 
 #define NOTHING			do {} while (0)
 
@@ -103,135 +110,148 @@ static struct {
 #include <X11/Xlib.h>
 #include <xosd.h>
 
-static xosd *osd = NULL;
-static int was_visible = 0;
+#if ( defined XOSD_FADEIN || defined XOSD_FLASH )
+#include <pthread.h>
+pthread_t effect_thread;
+#endif
+
+static xosd *_S_osd = NULL;
+static int _S_was_visible = 0;
 
 int osd_init(Display *dpy)
 {
-	if(osd) {
-		xosd_destroy(osd);
-		debug("reinitalize osd");
-	} else
-		debug("initalize osd");
-
-	osd = xosd_create(2);
-	if(!osd) {
-		fprintf(stderr, xosd_error);
-		return -1;
+	if(_S_osd) {
+		pthread_join(effect_thread, NULL);
+		xosd_destroy(_S_osd);
+		_S_osd = NULL;
 	}
-
-	xosd_set_pos(osd, XOSD_bottom);
-	xosd_set_vertical_offset(osd, 16);
-	xosd_set_align(osd, XOSD_center);
-	xosd_set_horizontal_offset(osd, 0);
-
-	xosd_set_font(osd, "-*-helvetica-bold-r-normal-*-*-400-*-*-*-*-*-*");
-	xosd_set_colour(osd, XOSD_COLOR);
-	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
-	xosd_set_outline_offset(osd, 1);
-	xosd_set_shadow_offset(osd, 3);
 	return 0;
 }
 
-void osd_exit()
+void osd_exit(void)
 {
-	if(osd) {
-		xosd_destroy(osd);
-		osd = NULL;
-	}
+	osd_init(NULL);
 }
 
-int osd_hide()
+xosd *osd_new(int lines)
 {
-	was_visible = xosd_is_onscreen(osd);
-	if(was_visible) {
-		xosd_hide(osd);
-#ifdef XOSD_FADE
-	} else {
-		xosd_set_colour(osd, "#000000");
-		xosd_set_outline_colour(osd, "#000000");
-#endif
+	debug("osd_new: _S_osd(%p)", _S_osd);
+	if(_S_osd) {
+		_S_was_visible = xosd_is_onscreen(_S_osd);
+
+		debug("_S_osd EXISTS WITH %d LINES", xosd_get_number_lines(_S_osd));
+		if(xosd_get_number_lines(_S_osd) == lines)
+			return _S_osd;
+
+		pthread_join(effect_thread, NULL);
+		xosd_destroy(_S_osd);
+		_S_was_visible = 0;
 	}
-	return was_visible;
-}
+
+	if(lines <= 0)
+		return _S_osd = NULL;
+
+	_S_osd = xosd_create(lines);
+
+	xosd_set_pos(_S_osd, XOSD_bottom);
+	xosd_set_vertical_offset(_S_osd, 16);
+	xosd_set_align(_S_osd, XOSD_center);
+	xosd_set_horizontal_offset(_S_osd, 0);
+
+	xosd_set_font(_S_osd, "-*-helvetica-bold-r-normal-*-*-400-*-*-*-*-*-*");
+	xosd_set_outline_offset(_S_osd, 1);
+	xosd_set_outline_colour(_S_osd, XOSD_OUTLINE_COLOR);
+	xosd_set_shadow_offset(_S_osd, 3);
 
 #ifdef XOSD_FADEIN
-void osd_fadein(void)
+	if(!_S_was_visible) {
+		xosd_set_colour(_S_osd, "#000000");
+	} else
+#endif
+		xosd_set_colour(_S_osd, XOSD_COLOR);
+
+	return _S_osd;
+}
+#  define osd_clear()	osd_new(0)
+
+#ifdef XOSD_FLASH
+void* osd_flash(void *a) {
+	const duration = 40000;	/* µs */
+
+	usleep(duration/8);
+	xosd_set_outline_colour(_S_osd, "#ffffff");
+	usleep(duration/8);
+	xosd_set_colour(_S_osd, "#ffffff");
+	usleep(duration/2);
+	xosd_set_colour(_S_osd, XOSD_COLOR);
+	usleep(duration/4);
+	xosd_set_outline_colour(_S_osd, XOSD_OUTLINE_COLOR);
+	return NULL;
+}
+#endif
+
+#ifdef XOSD_FADEIN
+void* osd_fadein(void *a)
 {
 	int i;
-	char color[7];
-	const duration	= 300000; /* µs */
-	const steps	= 3;
+	char color[8];
+	const duration	= 250000; /* µs */
+	const steps	= 4;
 
-	if(was_visible)
-		return;
-
-	xosd_set_colour(osd, "#000000");
-	xosd_set_outline_colour(osd, "#000000");
+	xosd_set_colour(_S_osd, "#000000");
 
 	for(i = (256/steps)-1; i < 256; i += (256/steps)) {
-		sprintf(color, "#%02x%02x%02x", (i/2), i, (i/8));
-		xosd_set_colour(osd, color);
-		xosd_set_outline_colour(osd, color);
+		sprintf(color, "#%02x%02x%02x", (i/2), i, (i/3));
+		xosd_set_colour(_S_osd, color);
 		usleep(duration/(steps*2));
 	}
 
-	//osd_flash();
-}
-#endif
-
 #ifdef XOSD_FLASH
-void osd_flash(void) {
-	const duration = 100000;	/* µs */
+	osd_flash(NULL);
+#else
+	xosd_set_colour(_S_osd, XOSD_COLOR);
+#endif
 
-	if(was_visible)
-		return;
-
-	xosd_set_colour(osd, "#ffffff");
-	xosd_set_outline_colour(osd, "#ffffff");
-	usleep(duration/4);
-	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
-	usleep(duration/2);
-	xosd_set_colour(osd, XOSD_COLOR);
-	//usleep(duration/2);
+	return NULL;
 }
 #endif
+
+inline void osd_effect(void) {
+	if(!_S_was_visible)
+#if defined XOSD_FADEIN
+		pthread_create(&effect_thread, NULL, osd_fadein, NULL);
+#elif defined XOSD_FLASH
+		pthread_create(&effect_thread, NULL, osd_flash, NULL);
+#else
+		NOTHING;
+#endif
+}
 
 void osd_message(const char *message, const unsigned timeout)
 {
-	osd_hide();
+	xosd *osd = osd_new(1);
+
+	xosd_display(osd, 0, XOSD_string, message);
 	xosd_set_timeout(osd, timeout);
-	xosd_display(osd, 0, XOSD_string, "");
-	xosd_display(osd, 1, XOSD_string, message);
-#ifdef XOSD_FADEIN
-	osd_fadein();
-#endif
-#ifdef XOSD_FLASH
-	osd_flash();
-#endif
+
+	osd_effect();
 }
 
 void osd_slider(const char *message, const int slider)
 {
-	osd_hide();
-	xosd_set_timeout(osd, 1);
+	xosd *osd = osd_new(2);
+
 	xosd_display(osd, 0, XOSD_string, message);
 	xosd_display(osd, 1, XOSD_slider, slider);
-#ifdef XOSD_FADEIN
-	osd_fadein();
-#endif
-#ifdef XOSD_FLASH
-	osd_flash();
-#endif
+	xosd_set_timeout(osd, 1);
+
+	osd_effect();
 }
 
-
 #else
-#define osd_init(a...)		NOTHING
-#define osd_exit(a...)		NOTHING
-#define osd_message(a...)	NOTHING
-#define osd_slider(a...)	NOTHING
-#define osd_hide(a...)		NOTHING
+#  define osd_message(a...)	NOTHING
+#  define osd_slider(a...)	NOTHING
+#  define osd_clear()		NOTHING
 #endif
 // }}}
 
@@ -247,7 +267,7 @@ int wacom_init(Display *dpy)
 {
 	wacom_config = WacomConfigInit(dpy, NULL);
 	if(!wacom_config) {
-		fprintf(stderr, "Can't open Wacom Device\n");
+		error("Can't open Wacom Device\n");
 		//return -1;	// don't fail if wacom failed
 	}
 
@@ -279,9 +299,7 @@ void wacom_rotate(int mode)
 }
 
 #else
-#define wacom_init(a...)   NOTHING
-#define wacom_rotate(a...) NOTHING
-#define wacom_exit(a...)   NOTHING
+#  define wacom_rotate(a...) NOTHING
 #endif
 //}}} WACOM stuff
 
@@ -306,7 +324,7 @@ Display* x11_init(void)
 			debug("Found XTest extension (%d, %d, %d)",
 				&opcode, &event, &error);
 		else
-			fprintf(stderr, "No XTest extension\n");
+			error("No XTest extension\n");
 
 
 		randr = XQueryExtension(display, "RANDR",
@@ -315,7 +333,7 @@ Display* x11_init(void)
 			debug("Found RandR extension (%d, %d, %d)",
 					opcode, event, error);
 		else
-			fprintf(stderr, "No RandR extension\n");
+			error("No RandR extension\n");
 
 
 		if(xtest && randr) {
@@ -326,7 +344,7 @@ Display* x11_init(void)
 		}
 	}
 
-	fprintf(stderr, "Can't open display");
+	error("Can't open display");
 	return NULL;
 }
 
@@ -382,11 +400,6 @@ int _fake_key(Display *dpy, KeySym sym)
 {
 	KeyCode keycode;
 
-#ifdef ENABLE_XOSD
-	osd_hide();
-#endif
-	debug("FAKE_KEY!");
-
 	if(sym == 0)
 		return -1;
 
@@ -404,7 +417,7 @@ int _fake_key(Display *dpy, KeySym sym)
 		return 0;
 	}
 
-	fprintf(stderr, "There are no keycode for %s\n", XKeysymToString(sym));
+	error("There are no keycode for %s\n", XKeysymToString(sym));
 	return -1;
 }
 
@@ -447,7 +460,7 @@ int event(const char *name);
 #define IS_DBUS_ERROR \
 	dbus_error_is_set(&dbus_error)
 #define DBUS_ERROR(msg, a...) \
-	fprintf(stderr, msg " - %s\n", ##a, dbus_error.message)
+	error(msg " - %s\n", ##a, dbus_error.message)
 
 int dbus_init(void)
 {
@@ -455,7 +468,7 @@ int dbus_init(void)
 
 	dbus = dbus_bus_get(DBUS_BUS_SYSTEM, &dbus_error);
 	if(!dbus) {
-		fprintf(stderr, "Failed to connect to the D-BUS daemon: %s",
+		error("Failed to connect to the D-BUS daemon: %s",
 				dbus_error.message);
 		dbus_error_free(&dbus_error);
 		return -1;
@@ -491,7 +504,7 @@ int dbus_loop(void)
 
 	dbus_bus_add_match(dbus, "type='signal',interface='org.freedesktop.Hal.Device'", &dbus_error);
 	if (dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "Failed to connect to the D-BUS daemon: %s",
+		error("Failed to connect to the D-BUS daemon: %s",
 				dbus_error.message);
 		dbus_error_free(&dbus_error);
 		return -1;
@@ -532,7 +545,7 @@ int hal_init(void)
 
 	hal = libhal_ctx_new();
 	if(!hal) {
-		fprintf(stderr, "new hal ctx failed\n");
+		error("new hal ctx failed\n");
 		return -1;
 	}
 
@@ -711,6 +724,7 @@ int event(const char *name)
 				__both;					\
 				return key_both = 0;			\
 			} else if(key_cfg + 3 > current_time) {		\
+				osd_clear();				\
 				__cfg;					\
 				return key_cfg = 0;			\
 			} else {					\
@@ -783,7 +797,7 @@ int event(const char *name)
 		  DEBUG_STATE;
 		  return 0; },
 		fake_key(display, &settings.keymap[13]),
-		osd_hide());
+		osd_clear());
 
 	FOR("menu") DO_MOD(
 		{ osd_message("alt...", 3);
@@ -797,7 +811,7 @@ int event(const char *name)
 		  return 0; },
 		fake_key(display, &settings.keymap[9]),
 		fake_key(display, &settings.keymap[14]),
-		osd_hide());
+		osd_clear());
 
 	FOR("tablet_mode") DO (
 		if(settings.lock_rotate == UL_UNLOCKED) {
@@ -806,7 +820,7 @@ int event(const char *name)
 		}
 	);
 
-	fprintf(stderr, "unsupported event - %s\n", name);
+	error("unsupported event - %s\n", name);
 	return -1;
 }
 
@@ -814,42 +828,50 @@ int event(const char *name)
 int main (int argc, char **argv)
 {
 	int error;
+
 	Display *display = x11_init();
 	if(!display) {
-		fprintf(stderr, "x initalisation failed");
+		error("x initalisation failed");
 		goto x_failed;
 	}
 
-
 	error = dbus_init();
 	if(error) {
-		fprintf(stderr, "dbus initalisation failed");
+		error("dbus initalisation failed");
 		goto dbus_failed;
 	}
 
 	error = hal_init();
 	if(error) {
-		fprintf(stderr, "hal initalisation failed");
+		error("hal initalisation failed");
 		goto hal_failed;
 	}
 
+#ifdef ENABLE_WACOM
 	error = wacom_init(display);
 	if(error) {
-		fprintf(stderr, "wacom initalisation failed");
+		error("wacom initalisation failed");
 		goto wacom_failed;
 	}
+#endif
 
+#ifdef ENABLE_XOSD
 	error = osd_init(display);
 	if(error) {
-		fprintf(stderr, "osd initalisation failed");
+		error("osd initalisation failed");
 	}
+#endif
 
 	osd_message(PROGRAM " " VERSION " started", 1);
 
 	dbus_loop();
 
+#ifdef ENABLE_XOSD
 	osd_exit();
+#endif
+#ifdef ENABLE_WACOM
 	wacom_exit();
+#endif
 	x11_exit();
  wacom_failed:
 	hal_exit();
