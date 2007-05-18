@@ -88,7 +88,8 @@ static keymap_entry keymap_t4010[] = {
 
 typedef enum {
 	SM_ZAXIS,
-	SM_KEY_PAGE
+	SM_KEY_PAGE,
+	SM_KEY_SPACE
 } ScrollMode;
 
 typedef enum {
@@ -738,9 +739,13 @@ void toggle_scrollmode(void)
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
 			settings.scrollmode = SM_KEY_PAGE;
-			osd_message("Scroll: Page Up/Down (FakeKeys)", 1);
+			osd_message("Scroll: Page Up/Down", 1);
 			break;
 		case SM_KEY_PAGE:
+			settings.scrollmode = SM_KEY_SPACE;
+			osd_message("Scroll: Space/Backspace", 1);
+			break;
+		case SM_KEY_SPACE:
 			settings.scrollmode = SM_ZAXIS;
 			osd_message("Scroll: Z-Axis", 1);
 			break;
@@ -832,6 +837,9 @@ int event(const char *name)
 			case SM_KEY_PAGE:
 				_fake_key(display, XK_Next);
 				break;
+			case SM_KEY_SPACE:
+				_fake_key(display, XK_space);
+				break;
 		},
 		fake_key(display, &settings.keymap[0]),
 		fake_key(display, &settings.keymap[5]),
@@ -845,6 +853,9 @@ int event(const char *name)
 				break;
 			case SM_KEY_PAGE:
 				_fake_key(display, XK_Prior);
+				break;
+			case SM_KEY_SPACE:
+				_fake_key(display, XK_BackSpace);
 				break;
 		},
 		fake_key(display, &settings.keymap[1]),
