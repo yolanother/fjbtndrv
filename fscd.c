@@ -123,7 +123,9 @@ static int _S_was_visible = 0;
 int osd_init(Display *dpy)
 {
 	if(_S_osd) {
+#if ( defined XOSD_FADEIN || defined XOSD_FLASH )
 		pthread_join(effect_thread, NULL);
+#endif
 		xosd_destroy(_S_osd);
 		_S_osd = NULL;
 	}
@@ -145,7 +147,9 @@ xosd *osd_new(int lines)
 		if(xosd_get_number_lines(_S_osd) == lines)
 			return _S_osd;
 
+#if ( defined XOSD_FADEIN || defined XOSD_FLASH )
 		pthread_join(effect_thread, NULL);
+#endif
 		xosd_destroy(_S_osd);
 		_S_was_visible = 0;
 	}
