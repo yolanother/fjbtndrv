@@ -79,7 +79,7 @@ static keymap_entry keymap_t4010[] = {
 #define info(msg, a...)							\
 	fprintf(stderr, PROGRAM ": " msg "\n", ##a)
 #define error(msg, a...)						\
-	fprintf(stderr, PROGRAM ": ERROR: " msg " at %s:%s\n", ##a,	\
+	fprintf(stderr, PROGRAM ": ERROR: " msg " at %s:%d\n", ##a,	\
 			__FILE__, __LINE__)
 
 #define NOTHING								\
