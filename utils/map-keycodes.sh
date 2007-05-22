@@ -4,7 +4,7 @@
 keycode=240
 
 function in_range() {
-	[ $1 -ge $keycode -a $1 -le $[$keycode+14] ]
+  [ $1 -ge $keycode -a $1 -le $[$keycode+14] ]
 }
 
 {
@@ -16,8 +16,8 @@ function in_range() {
 
   # set
   for key in 1 2 3 4 5 6 7 8 9 0 A B C D E; do
-	  echo "keycode $keycode = XF86Launch$key"
-	  keycode=$[ $keycode + 1 ]
+    echo "keycode $keycode = XF86Launch$key"
+    keycode=$[ $keycode + 1 ]
   done
 } | xmodmap -
 
