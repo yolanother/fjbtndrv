@@ -303,12 +303,14 @@ if [ "$install" = "y" ]; then
   ) | gauge
   err=$?
 
-  if [ "$install" = "y" ]; then
-    info "Installation completed successfully." "" \
-         "Now you can load the kernel module with \`modprobe fsc_btns' and then start the daemon with \`$prefix/bin/fscd'."
-  else
-    info "Building complete successfully." "" \
-         "Now you can load the kernel module with \`insmod ./fsc_btns.ko' and then start the daemon with \`./fscd'."
+  if [ "$err" = 0 ]; then
+    if [ "$install" = "y" ]; then
+      info "Installation completed successfully." "" \
+           "Now you can load the kernel module with \`modprobe fsc_btns' and then start the daemon with \`$prefix/bin/fscd'."
+    else
+      info "Building complete successfully." "" \
+           "Now you can load the kernel module with \`insmod ./fsc_btns.ko' and then start the daemon with \`./fscd'."
+    fi
   fi
 fi
 
