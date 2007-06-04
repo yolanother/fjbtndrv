@@ -332,8 +332,8 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 	dump_regs();
 #endif
 
-	error = request_irq(fscbtns.interrupt,
-			fscbtns_isr, SA_INTERRUPT, MODULENAME, fscbtns_isr);
+	error = request_irq(fscbtns.interrupt, fscbtns_isr,
+			IRQF_SHARED, MODULENAME, fscbtns_isr);
 	if(error) {
 		error("request_irq failed!");
 		goto err_io2;
