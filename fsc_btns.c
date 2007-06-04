@@ -109,6 +109,7 @@ static struct fscbtns_t {				/* fscbtns_t */
 	.interrupt = 5,
 	.address = 0xfd70,
 #endif
+       	.keymap = keymap_t4010,
 };
 
 static unsigned int repeat_rate = 16;
@@ -119,15 +120,8 @@ static unsigned int user_keymap = 0;		// TODO: autodetect (acpi/dmi?)
 #define IOREADB(offset)		inb(fscbtns.address+(offset));
 #define IOWRITEB(data, offset)	outb((data), fscbtns.address+(offset));
 
-#ifdef DEBUG
-#  define debug(m, a...)	printk( KERN_DEBUG   MODULENAME ": " m "\n", ##a)
-#else
-#  define debug(m, a...)	do {} while(0)
-#endif
-
-#define info(m, a...)	printk( KERN_INFO    MODULENAME ": " m "\n", ##a)
-#define warn(m, a...)	printk( KERN_WARNING MODULENAME ": " m "\n", ##a)
-#define error(m, a...)	printk( KERN_ERR     MODULENAME ": " m "\n", ##a)
+#define pr_err(fmt, arg...) \
+	printk(KERN_ERR fmt ,##arg)
 
 
 /*** DEBUG HELPER *************************************************************/
@@ -136,8 +130,8 @@ static unsigned int user_keymap = 0;		// TODO: autodetect (acpi/dmi?)
 
 u8 ioreadb(int offset) {
 	u8 data = inb(fscbtns.address + offset);
-	debug("IOREADB(%d): 0x%02x", offset, data);
-	debug("IOREADB(6): 0x%02x", inb(fscbtns.address + 6));
+	pr_debug("IOREADB(%d): 0x%02x\n", offset, data);
+	pr_debug("IOREADB(6): 0x%02x\n", inb(fscbtns.address + 6));
 	return data;
 }
 #undef  IOREADB
@@ -147,8 +141,8 @@ u8 ioreadb(int offset) {
 void iowriteb(u8 data, int offset)
 {
 	outb(data, fscbtns.address + offset);
-	debug("IOWRITEB(%d): 0x%02x", offset, data);
-	debug("IOREADB(6): 0x%02x", inb(fscbtns.address + 6));
+	pr_debug("IOWRITEB(%d): 0x%02x\n", offset, data);
+	pr_debug("IOREADB(6): 0x%02x\n", inb(fscbtns.address + 6));
 }
 #undef  IOWRITEB
 #define IOWRITEB(data, offset) iowriteb(data, offset)
@@ -157,7 +151,7 @@ static void dump_regs(void)
 {
 	unsigned char x, y;
 
-	debug("register dump:");
+	pr_debug("register dump:\n");
 	for(y = 0; y < 8; y++) {
 		printk(KERN_DEBUG MODULENAME ": 0x%02x: ", 0xc0+(y*8));
 		for(x = 0; x < 8; x++) {
@@ -237,7 +231,7 @@ static void fscbtns_event(void)
 	IOWRITEB(0xdd, 0);
 	i = IOREADB(4) ^ 0xff;
 	if(i != fscbtns.orientation) {
-		debug("orientation change (%d)", i);
+		pr_debug("orientation change (%d)", i);
 		fscbtns.orientation = i;
 		input_report_switch(fscbtns.idev, SW_TABLET_MODE,
 				fscbtns.orientation);
@@ -249,12 +243,12 @@ static void fscbtns_event(void)
 	keymask |= (IOREADB(4) ^ 0xff) << 8;
 
 	changed = keymask ^ prev_keymask;
-	debug("keymask: 0x%04x (0x%04x)", keymask, changed);
+	pr_debug("keymask: 0x%04x (0x%04x)\n", keymask, changed);
 
 	if(changed) {
 		for(key = fscbtns.keymap; key->mask; key++)
 			if(key->mask == changed) {
-				debug("send %d %s", key->code, (keymask & changed ? "pressed" : "released"));
+				pr_debug("send %d %s", key->code, (keymask & changed ? "pressed" : "released\n"));
 				input_report_key(fscbtns.idev, key->code, !!(keymask & changed));
 				break;
 			}
@@ -278,7 +272,7 @@ static DECLARE_WORK(isr_wq, fscbtns_isr_do);
 static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 {
 	int irq_me = IOREADB(6) & 0x01;
-	debug("INTERRUPT (0:%d)", irq_me);
+	pr_debug("INTERRUPT (0:%d)\n", irq_me);
 
 	if(!irq_me)
 		return IRQ_NONE;
@@ -298,7 +292,7 @@ static int fscbtns_busywait(void)
 	while(IOREADB(6) & 0x02 && --timeout_counter)
 		msleep(10);
 
-	debug("busywait done (rest: %d)", timeout_counter);
+	pr_debug("busywait done (rest: %d)\n", timeout_counter);
 	return !timeout_counter;
 }
 
@@ -316,14 +310,14 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 
 	resource = request_region(FJBTNS_DOCK_BASE, 2, MODULENAME " (dock)");
 	if(!resource) {
-		error("request_region failed (dock)!");
+		pr_err("request_region failed (dock)!");
 		error = -EBUSY;
 		goto err_io1;
 	}
 
 	resource = request_region(fscbtns.address, 8, MODULENAME);
 	if(!resource) {
-		error("request_region failed!");
+		pr_err("region 0x%04x busy\n", fscbtns.address);
 		error = -EBUSY;
 		goto err_input;
 	}
@@ -335,15 +329,16 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 	error = request_irq(fscbtns.interrupt, fscbtns_isr,
 			IRQF_SHARED, MODULENAME, fscbtns_isr);
 	if(error) {
-		error("request_irq failed!");
+		pr_err("unable to use irq %d\n", fscbtns.interrupt);
 		goto err_io2;
 	}
 
 	IOREADB(2);
+
 	if(!fscbtns_busywait())
-		debug("device ready");
+		pr_debug("device ready\n");
 	else
-		debug("timeout, need a reset?");
+		pr_debug("timeout, need a reset?\n");
 
 	return 0;
 
@@ -369,13 +364,13 @@ static int __devexit fscbtns_remove(struct platform_device *dev)
 
 static int fscbtns_suspend(struct platform_device *dev, pm_message_t state)
 {
-	debug("suspend (%d)", state.event);
+	pr_debug("suspend (%d)\n", state.event);
 	return 0;
 }
 
 static int fscbtns_resume(struct platform_device *dev)
 {
-	debug("resume:");
+	pr_debug("resume:\n");
 	IOREADB(2);
 	return 0;
 }
@@ -397,7 +392,7 @@ static inline int fscbtns_register_platfrom_driver(void)
 {
 	int error;
 
-	debug("register platform driver");
+	pr_debug("register platform driver\n");
 	error = platform_driver_register(&fscbtns_platform_driver);
 	if(error)
 		goto err;
@@ -412,7 +407,7 @@ static inline int fscbtns_register_platfrom_driver(void)
 	if(error)
 		goto err_pdev;
 
-	debug("platform driver registered");
+	pr_debug("platform driver registered\n");
 	return 0;
 
 err_pdev:
@@ -420,7 +415,7 @@ err_pdev:
 err_pdrv:
 	platform_driver_unregister(&fscbtns_platform_driver);
 err:
-	debug("failed to register driver");
+	pr_debug("failed to register driver\n");
 	return error;
 }
 
@@ -430,14 +425,14 @@ err:
 
 static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 {
-	debug("acpi walk: %d", res->type);
+	pr_debug("acpi walk: %d\n", res->type);
 
 	switch(res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
 			if(fscbtns.interrupt)
 				return_ACPI_STATUS(AE_OK);
 
-			debug("acpi walk: res: interrupt (nr=%d)",
+			pr_debug("acpi walk: res: interrupt (nr=%d)\n",
 					res->data.irq.interrupts[0]);
 
 			fscbtns.interrupt = res->data.irq.interrupts[0];
@@ -447,7 +442,7 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 			if(fscbtns.address)
 				return_ACPI_STATUS(AE_OK);
 
-			debug("acpi walk: res: ioports (min=0x%08x max=0x%08x len=0x%08x)",
+			pr_debug("acpi walk: res: ioports (min=0x%08x max=0x%08x len=0x%08x)\n",
 					res->data.io.minimum,
 					res->data.io.maximum,
 					res->data.io.address_length);
@@ -456,15 +451,15 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 			return_ACPI_STATUS(AE_OK);
 
 		case ACPI_RESOURCE_TYPE_END_TAG:
-			debug("acpi walk: end");
+			pr_debug("acpi walk: end\n");
 			if(fscbtns.interrupt && fscbtns.address)
 				return_ACPI_STATUS(AE_OK);
 
-			warn("acpi walk: incomplete");
+			pr_debug("acpi walk: incomplete\n");
 			return_ACPI_STATUS(AE_NOT_FOUND);
 
 		default:
-			debug("acpi walk: other (type=0x%08x)", res->type);
+			pr_debug("acpi walk: other (type=0x%08x)\n", res->type);
 			return_ACPI_STATUS(AE_ERROR);
 	}
 }
@@ -474,16 +469,16 @@ static int acpi_fscbtns_add(struct acpi_device *device)
 	acpi_status status;
 
 	if(!device) {
-		error("acpi device not found");
+		pr_debug("acpi device not found");
 		return -EINVAL;
 	}
 
 	fscbtns.adev = device;
 
-	debug("acpi: walking...");
+	pr_debug("acpi: walking...\n");
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS, fscbtns_walk_resources, NULL);
 	if(ACPI_FAILURE(status)) {
-		error("acpi walk failed");
+		pr_debug("acpi walk failed");
 		return -ENODEV;
 	}
 
@@ -524,10 +519,10 @@ static int __init fscbtns_module_init(void)
 	}
 
 #ifdef CONFIG_ACPI
-	debug("register acpi driver");
+	pr_debug("register acpi driver\n");
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
 	if(ACPI_FAILURE(error)) {
-		error("acpi_bus_register_driver failed");
+		pr_err("unable to register acpi driver");
 		return error;
 	}
 
@@ -537,7 +532,7 @@ static int __init fscbtns_module_init(void)
 	if(!fscbtns.interrupt || !fscbtns.address)
 		goto err;
 
-	debug("register platform driver");
+	pr_debug("register platform driver\n");
 	error = platform_driver_register(&fscbtns_platform_driver);
 	if(error)
 		goto err;
@@ -552,7 +547,7 @@ static int __init fscbtns_module_init(void)
 	if(error)
 		goto err_pdev;
 
-	debug("module loaded");
+	pr_debug("module loaded\n");
 	return 0;
 
 err_pdev:
@@ -563,7 +558,7 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-	debug("failed to register driver");
+	pr_debug("failed to register driver\n");
 	return error;
 }
 
@@ -576,7 +571,7 @@ static void __exit fscbtns_module_exit(void)
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
 
-	debug("module removed");
+	pr_debug("module removed\n");
 }
 
 
