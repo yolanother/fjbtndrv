@@ -30,16 +30,22 @@ ifneq ($(XOSD), n)
 endif
 endif
 
+PREFIX		?= /usr/local
+
 ################################################################################
 
 obj-m	+= fsc_btns.o
 
 KERNELRELEASE	?= $(shell uname -r)
 KERNEL_SOURCE	?= /lib/modules/$(KERNELRELEASE)/build
-PWD		:= $(shell pwd)
 
-modules:
+modules: fsc_btns.ko
+fsc_btns.ko:
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules
+
+install:: fsc_btns.ko modules_install
+modules_install:
+	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules_install
 
 clean::
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) clean
@@ -53,6 +59,11 @@ clean::
 fscd: fscd.o
 	$(CC) $(FSCD_CFLAGS) $(FSCD_LIBS) -o $@ $^
 
+install:: fscd
+	install --mode=0755 --owner=root --group=root fscd $(PREFIX)/bin
+
 clean::
 	rm -f *.o fscd
 
+
+.PHONY: modules modules_install install clean

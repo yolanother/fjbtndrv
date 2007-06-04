@@ -1,3 +1,6 @@
+### installation prefix
+PREFIX=/usr/local
+
 ### enable wacom rotation support
 # need wacom-tools >= 0.7.6 [http://sourceforge.net/projects/linuxwacom]
 WACOM = y
