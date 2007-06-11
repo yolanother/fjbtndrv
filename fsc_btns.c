@@ -53,6 +53,10 @@
 #define FJBTNS_DATA_PORT	FJBTNS_BASE+4
 #define FJBTNS_STATUS_PORT	FJBTNS_BASE+6
 
+#ifndef KEY_DISPLAYTOGGLE
+#define KEY_DISPLAYTOGGLE	0x1af
+#endif
+
 #define default_keymap keymap_Tseries
 static unsigned int keymap_Tseries[16] = {
   /* 0x0001 */	KEY_UNKNOWN,
