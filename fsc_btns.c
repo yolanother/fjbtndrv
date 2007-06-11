@@ -47,12 +47,6 @@
 #define MODULEDESC "Fujitsu Siemens Application Panel Driver for T-Series Lifebooks"
 #define MODULEVERS "0.30a"
 
-/* TODO: autodetect, but how? */
-#define FJBTNS_DOCK_BASE	0xfd64
-#define FJBTNS_DOCK_WRITE	0xfd64
-#define FJBTNS_DOCK_READ	0xfd65
-#define FJBTNS_DOCK_READ_STATE	0x52
-
 #define FJBTNS_BASE		fscbtns.address
 #define FJBTNS_ADDRESS_PORT	FJBTNS_BASE
 #define FJBTNS_RESET_PORT	FJBTNS_BASE+2
@@ -269,11 +263,6 @@ inline void fscbtns_handle_rotating(void)
 	}
 }
 
-inline void fscbtns_handle_docking(void)
-{
-	outb(FJBTNS_DOCK_READ_STATE, FJBTNS_DOCK_WRITE);
-	fscbtns.docked = inb(FJBTNS_DOCK_READ);
-}
 
 /*** INTERRUPT ****************************************************************/
 
@@ -379,13 +368,6 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 
 	fscbtns_set_repeat_rate(repeat_delay, 1000 / repeat_rate);
 
-	resource = request_region(FJBTNS_DOCK_BASE, 2, MODULENAME " (dock)");
-	if(!resource) {
-		pr_err("request_region failed (dock)!");
-		error = -EBUSY;
-		goto err_io1;
-	}
-
 	resource = request_region(fscbtns.address, 8, MODULENAME);
 	if(!resource) {
 		pr_err("region 0x%04x busy\n", fscbtns.address);
@@ -404,11 +386,10 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 		pr_debug("reseting...\n");
 		error = fscbtns_reset();
 		if(error)
-			goto err_io2;
+			goto err_io;
 	} else
 		pr_debug("device ready!\n");
 
-	fscbtns_handle_docking();
 	fscbtns_handle_rotating();
 	input_sync(fscbtns.idev);
 
@@ -416,17 +397,13 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 			IRQF_SHARED, MODULENAME, fscbtns_isr);
 	if(error) {
 		pr_err("unable to use irq %d\n", fscbtns.interrupt);
-		goto err_io2;
+		goto err_io;
 	}
 
 	return 0;
 
-//err_irq:
-//	free_irq(fscbtns.interrupt, fscbtns_isr);
-err_io2:
+err_io:
 	release_region(fscbtns.address, 8);
-err_io1:
-	release_region(FJBTNS_DOCK_BASE, 2);
 err_input:
 	input_fscbtns_remove();
 	return error;
@@ -436,7 +413,6 @@ static int __devexit fscbtns_remove(struct platform_device *dev)
 {
 	free_irq(fscbtns.interrupt, fscbtns_isr);
 	release_region(fscbtns.address, 8);
-	release_region(FJBTNS_DOCK_BASE, 2);
 	input_fscbtns_remove();
 	return 0;
 }
