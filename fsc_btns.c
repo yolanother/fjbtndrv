@@ -102,7 +102,6 @@ static struct fscbtns_t {				/* fscbtns_t */
 
 	unsigned int *keymap;
 	int orientation;
-	int docked;
 
 	struct platform_device *pdev;
 
@@ -134,9 +133,6 @@ reset_sequence reset_jan   = { 0x02, 0x0c, 0x05 };
 
 #define IOREADB(offset)		inb(offset)
 #define IOWRITEB(data, offset)	outb(data, offset)
-
-#define pr_err(fmt, arg...) \
-	printk(KERN_ERR fmt ,##arg)
 
 
 /*** DEBUG HELPER *************************************************************/
@@ -276,7 +272,6 @@ static void fscbtns_isr_do(struct work_struct *work)
 	unsigned long changed;
 	static unsigned long prev_keymask = 0;
 
-	fscbtns_handle_docking();
 	fscbtns_handle_rotating();
 
 	keymask  = fscbtns_read_register(0xde);
@@ -284,7 +279,8 @@ static void fscbtns_isr_do(struct work_struct *work)
 	keymask ^= 0xffff;
 
 	changed = keymask ^ prev_keymask;
-	pr_debug("keymask: 0x%04lx (0x%04lx)\n", keymask, changed);
+	dev_dbg(&(fscbtns.pdev->dev), "keymask: 0x%04lx (0x%04lx)\n",
+			keymask, changed);
 
 	if(changed) {
 		int key = 0;
@@ -307,7 +303,9 @@ static void fscbtns_isr_do(struct work_struct *work)
 			input_report_key(fscbtns.idev, fscbtns.keymap[key],
 					pressed);
 		} else
-			pr_info("BUG? key > %d\n", ARRAY_SIZE(default_keymap));
+			printk(KERN_ERR MODULENAME ": BUG! key > %d\n",
+					ARRAY_SIZE(default_keymap));
+
 	}
 
 	input_sync(fscbtns.idev);
@@ -325,7 +323,6 @@ static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 	}
 	return IRQ_NONE;
 }
-
 
 
 /*** DEVICE *******************************************************************/
@@ -361,7 +358,7 @@ static int fscbtns_reset(void)
 }
 
 
-static int __devinit fscbtns_probe(struct platform_device *dev)
+static int __devinit fscbtns_probe(struct platform_device *pdev)
 {
 	int error;
 	struct resource *resource;
@@ -374,7 +371,8 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 
 	resource = request_region(fscbtns.address, 8, MODULENAME);
 	if(!resource) {
-		pr_err("region 0x%04x busy\n", fscbtns.address);
+		dev_err(&(pdev->dev), "request_region failed! (0x%04x)\n",
+				fscbtns.address);
 		error = -EBUSY;
 		goto err_input;
 	}
@@ -400,7 +398,8 @@ static int __devinit fscbtns_probe(struct platform_device *dev)
 	error = request_irq(fscbtns.interrupt, fscbtns_isr,
 			IRQF_SHARED, MODULENAME, fscbtns_isr);
 	if(error) {
-		pr_err("unable to use irq %d\n", fscbtns.interrupt);
+		dev_err(&(pdev->dev), "unable to use irq %d\n",
+				fscbtns.interrupt);
 		goto err_io;
 	}
 
@@ -413,7 +412,7 @@ err_input:
 	return error;
 }
 
-static int __devexit fscbtns_remove(struct platform_device *dev)
+static int __devexit fscbtns_remove(struct platform_device *pdev)
 {
 	free_irq(fscbtns.interrupt, fscbtns_isr);
 	release_region(fscbtns.address, 8);
@@ -421,13 +420,13 @@ static int __devexit fscbtns_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int fscbtns_suspend(struct platform_device *dev, pm_message_t state)
+static int fscbtns_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	pr_debug("suspend (%d)\n", state.event);
+	dev_dbg(&(pdev->dev), "suspend (%d)\n", state.event);
 	return 0;
 }
 
-static int fscbtns_resume(struct platform_device *dev)
+static int fscbtns_resume(struct platform_device *pdev)
 {
 	pr_debug("resume:\n");
 	IOREADB(FJBTNS_RESET_PORT);
@@ -474,7 +473,7 @@ err_pdev:
 err_pdrv:
 	platform_driver_unregister(&fscbtns_platform_driver);
 err:
-	pr_debug("failed to register driver\n");
+	printk(KERN_ERR MODULENAME ": failed to register platform driver\n");
 	return error;
 }
 
@@ -484,8 +483,6 @@ err:
 
 static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 {
-	pr_debug("acpi walk: %d\n", res->type);
-
 	switch(res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
 			if(fscbtns.interrupt)
@@ -523,30 +520,30 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 	}
 }
 
-static int acpi_fscbtns_add(struct acpi_device *dev)
+static int acpi_fscbtns_add(struct acpi_device *adev)
 {
 	acpi_status status;
 
-	if(!dev) {
+	if(!adev) {
 		pr_debug("acpi device not found\n");
 		return -EINVAL;
 	}
 
 	if(!fscbtns.keymap) {
-		if(!strcmp("FUJ02BD", acpi_device_hid(dev)))
+		if(!strcmp("FUJ02BD", acpi_device_hid(adev)))
 			fscbtns.keymap = keymap_Stylistic;
-		else if(!strcmp("FUJ02BF", acpi_device_hid(dev)))
+		else if(!strcmp("FUJ02BF", acpi_device_hid(adev)))
 			fscbtns.keymap = keymap_Tseries;
 	}
 
-	status = acpi_walk_resources(dev->handle, METHOD_NAME__CRS, fscbtns_walk_resources, NULL);
+	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS, fscbtns_walk_resources, NULL);
 	if(ACPI_FAILURE(status))
 		return -ENODEV;
 
 	return 0;
 }
 
-static int acpi_fscbtns_remove(struct acpi_device *dev, int type)
+static int acpi_fscbtns_remove(struct acpi_device *adev, int type)
 {
 	return 0;
 }
@@ -585,7 +582,7 @@ static int __init fscbtns_module_init(void)
 	pr_debug("register acpi driver\n");
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
 	if(ACPI_FAILURE(error)) {
-		pr_err("unable to register acpi driver");
+		printk(KERN_ERR MODULENAME ": failed to register platform driver\n");
 		return error;
 	}
 
