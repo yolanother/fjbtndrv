@@ -3,11 +3,12 @@
 Title="Fujitsu Siemens Tablet Buttons Driver"
 Version="0.90"
 
+EXEC=${DEBUG:+echo}
+
 #IMODE=
+CSIZE="`stty size`"
 DIALOG_BIN="`type -p dialog`"
 WHIPTAIL_BIN="`type -p whiptail`"
-
-EXEC=${DEBUG:+echo}
 
 
 config_regex='[[:space:]]*$name[[:space:]]*=[[:space:]]*'
@@ -43,19 +44,28 @@ push()
 
 dialog()
 {
+  local title="$1"; shift
+
   $EXEC $DIALOG_BIN --stdout \
-    --backtitle "$Title $Version" \
+    --title " $title " --backtitle "$Title $Version" \
     "$@"
 }
 
 _wt_tty=`tty`
 whiptail()
 {
+  local title="$1"; shift
+
   $EXEC $WHIPTAIL_BIN \
-    --backtitle "$Title $Version" \
+    --title "$title" --backtitle "$Title $Version" \
     "$@" 2>&1 >$_wt_tty
 }
 
+
+dcol=$(( ${CSIZE#* } - 12 ))
+[ "$dcol" -a "$dcol" -gt 28 ] || dcol=0
+drow=$(( ${CSIZE% *} - 8 ))
+[ "$drow" -a "$drow" -gt  6 ] || drow=0
 
 menu()
 {
@@ -71,7 +81,7 @@ menu()
       shift
     done
 
-    $IMODE --default-item $default --menu "${title:- }" 0 0 0 "${list[@]}"
+    $IMODE "$title" --default-item $default --menu " " 0 0 0 "${list[@]}"
     [ $? -eq 0 ] || echo 0
     ;;
   console)
@@ -106,7 +116,7 @@ info()
   case "$IMODE" in
   dialog|whiptail)
     local msg=$( for s in "$@"; do echo "$s"; done )
-    $IMODE --msgbox "$msg" 0 0
+    $IMODE "INFO" --msgbox "$msg" 0 0
     ;;
   console)
     local s=
@@ -116,6 +126,24 @@ info()
     done
     echo >&2
     read -n1
+    ;;
+  esac
+}
+
+show()
+{
+  case "$IMODE" in
+  dialog)
+    $IMODE "$1" --textbox "$1" $drow $dcol
+    ;;
+  whiptail)
+    $IMODE "$1" --textbox "$1" $drow $dcol --scrolltext
+    ;;
+  console)
+    echo "*** $1 ***" >&2
+    cat  "$1" >&2
+    echo >&2
+    read -n1 
     ;;
   esac
 }
@@ -131,7 +159,7 @@ error()
       shift
       for s in "$@"; do echo "$s"; done
     )
-    $IMODE --colors --msgbox "$msg" 0 0
+    $IMODE "ERROR" --colors --msgbox "$msg" 0 0
     ;;
   whiptail|console)
     local msg=()
@@ -161,13 +189,12 @@ input()
   esac
 }
 
-CSIZE="`stty size`"
 gauge()
 {
   case "$IMODE" in
   dialog|whiptail)
     local cols=${CSIZE#* }
-    $IMODE --gauge "..." 0 $[ ${cols:-0} * 9 / 10 ] 0
+    $IMODE "progressing" --gauge "..." 0 $[ ${cols:-0} * 9 / 10 ] 0
     ;;
   console)
     local in=
@@ -233,7 +260,7 @@ install=n
 ret=1
 err=0
 while true; do
-  ret=$( menu "" $ret \
+  ret=$( menu "Main" $ret \
     "Wacom TabletPC support `endis $wacom`" \
     "On-Screen display `endis $osd`" \
     "Install fscd in $prefix/bin" \
@@ -312,6 +339,8 @@ if [ "$install" = "y" ]; then
       info "Building complete successfully." "" \
            "Now you can load the kernel module with \`insmod ./fsc_btns.ko' and then start the daemon with \`./fscd'."
     fi
+  else
+    show make.log
   fi
 fi
 
