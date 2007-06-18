@@ -40,7 +40,7 @@ KERNELRELEASE	?= $(shell uname -r)
 KERNEL_SOURCE	?= /lib/modules/$(KERNELRELEASE)/build
 
 modules: fsc_btns.ko
-fsc_btns.ko:
+fsc_btns.ko: fsc_btns.c
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules
 
 install:: fsc_btns.ko modules_install
