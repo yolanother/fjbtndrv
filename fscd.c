@@ -260,7 +260,7 @@ void osd_slider(const char *message, const int slider)
 #  define osd_slider(a...)	NOTHING
 #  define osd_clear()		NOTHING
 #endif
-// }}}
+//}}}
 
 //{{{ WACOM stuff
 #ifdef ENABLE_WACOM
@@ -308,7 +308,7 @@ void wacom_rotate(int mode)
 #else
 #  define wacom_rotate(a...) NOTHING
 #endif
-//}}} WACOM stuff
+//}}}
 
 //{{{ X11 stuff
 #include <X11/Xlib.h>
@@ -360,7 +360,7 @@ void x11_exit(void)
 	XCloseDisplay(display);
 }
 
-int rotate_screen(Display *dpy, int mode)
+int rotate_screen(int mode)
 {
 	Window rwin;
 	XRRScreenConfiguration *sc;
@@ -368,12 +368,12 @@ int rotate_screen(Display *dpy, int mode)
 	SizeID size;
 	int error = -1;
 
-	rwin = DefaultRootWindow(dpy);
-	sc = XRRGetScreenInfo(dpy, rwin);
+	rwin = DefaultRootWindow(display);
+	sc = XRRGetScreenInfo(display, rwin);
 	if(!sc)
 		goto err;
 
-	rotation = XRRRotations(dpy, 0, &current_rotation);
+	rotation = XRRRotations(display, 0, &current_rotation);
 	if(!(rotation & RR_Rotate_0) || !(rotation & RR_Rotate_270))
 		goto err_sc;
 
@@ -386,7 +386,7 @@ int rotate_screen(Display *dpy, int mode)
 	rotation |= (mode ? RR_Rotate_270 : RR_Rotate_0);
 
 	if(rotation != current_rotation) {
-		error = XRRSetScreenConfig(dpy, sc, rwin, size, rotation, CurrentTime);
+		error = XRRSetScreenConfig(display, sc, rwin, size, rotation, CurrentTime);
 
 		if(!error)
 			wacom_rotate(mode);
@@ -394,31 +394,31 @@ int rotate_screen(Display *dpy, int mode)
 		error = 0;
 
 #ifdef ENABLE_XOSD
-	osd_init(dpy);
+	osd_init(display);
 #endif
 
-err_sc:
+ err_sc:
 	XRRFreeScreenConfigInfo(sc);
-err:
+ err:
 	return error;
 }
 
-int _fake_key(Display *dpy, KeySym sym)
+int fake_key(KeySym sym)
 {
 	KeyCode keycode;
 
 	if(sym == 0)
 		return -1;
 
-	keycode = XKeysymToKeycode(dpy, sym);
+	keycode = XKeysymToKeycode(display, sym);
 	debug("fake keycode %d (keysym 0x%08x)", keycode, sym);
 
 	if(keycode) {
 		debug("fake key %d event", keycode);
-		XTestFakeKeyEvent(dpy, keycode, True,  CurrentTime);
-		XSync(dpy, True);
-		XTestFakeKeyEvent(dpy, keycode, False, CurrentTime);
-		XSync(dpy, True);
+		XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
+		XSync(display, True);
+		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
+		XSync(display, True);
 		return 0;
 	}
 
@@ -426,11 +426,10 @@ int _fake_key(Display *dpy, KeySym sym)
 	return -1;
 }
 
-int fake_key(Display *dpy, keymap_entry *key)
+int fake_key_m(keymap_entry *key)
 {
 
-	int error = _fake_key(dpy, key->sym);
-
+	int error = fake_key(key->sym);
 #ifdef ENABLE_XOSD
 	if(!error && key->text)
 		osd_message(key->text, 1);
@@ -439,16 +438,16 @@ int fake_key(Display *dpy, keymap_entry *key)
 	return error;
 }
 
-int fake_button(Display *dpy, unsigned int button)
+int fake_button(unsigned int button)
 {
 	int steps = ZAXIS_SCROLL_STEPS;
 
 	while(steps--) {
 		debug("fake button %d event", button);
-		XTestFakeButtonEvent(dpy, button, True,  CurrentTime);
-		XSync(dpy, True);
-		XTestFakeButtonEvent(dpy, button, False, CurrentTime);
-		XSync(dpy, True);
+		XTestFakeButtonEvent(display, button, True,  CurrentTime);
+		XSync(display, True);
+		XTestFakeButtonEvent(display, button, False, CurrentTime);
+		XSync(display, True);
 	}
 
 	return 0;
@@ -529,7 +528,6 @@ int dbus_loop(void)
 		}
 	}
 }
-
 //}}}
 
 //{{{ HAL stuff
@@ -677,7 +675,7 @@ int get_brightness(void)
 	debug("get done");
 	return level;
 
-err_free_msg:
+ err_free_msg:
 	debug("get brightness: error");
 	dbus_message_unref(message);
 	return -1;
@@ -712,7 +710,7 @@ void set_brightness(int level)
 
 	osd_slider("Brightness", (100/8)*level);
 
-err_free_msg:
+ err_free_msg:
 	dbus_message_unref(message);
 	return;
 }
@@ -730,10 +728,9 @@ int get_tablet_sw(void)
 
 	return (tablet_mode == TRUE);
 }
-
 //}}}
 
-
+//{{{ RC stuff
 void toggle_scrollmode(void)
 {
 	switch(settings.scrollmode) {
@@ -765,6 +762,7 @@ void toggle_lock_rotate(void)
 			break;
 	}
 }
+//}}}
 
 int event(const char *name)
 {
@@ -832,42 +830,42 @@ int event(const char *name)
 	FOR("scroll-down") DO_MOD(
 		switch(settings.scrollmode) {
 			case SM_ZAXIS:
-				fake_button(display, 5);
+				fake_button(5);
 				break;
 			case SM_KEY_PAGE:
-				_fake_key(display, XK_Next);
+				fake_key(XK_Next);
 				break;
 			case SM_KEY_SPACE:
-				_fake_key(display, XK_space);
+				fake_key(XK_space);
 				break;
 		},
-		fake_key(display, &settings.keymap[0]),
-		fake_key(display, &settings.keymap[5]),
-		fake_key(display, &settings.keymap[10]),
+		fake_key_m(&settings.keymap[0]),
+		fake_key_m(&settings.keymap[5]),
+		fake_key_m(&settings.keymap[10]),
 		toggle_scrollmode());
 
 	FOR("scroll-up") DO_MOD(
 		switch(settings.scrollmode) {
 			case SM_ZAXIS:
-				fake_button(display, 4);
+				fake_button(4);
 				break;
 			case SM_KEY_PAGE:
-				_fake_key(display, XK_Prior);
+				fake_key(XK_Prior);
 				break;
 			case SM_KEY_SPACE:
-				_fake_key(display, XK_BackSpace);
+				fake_key(XK_BackSpace);
 				break;
 		},
-		fake_key(display, &settings.keymap[1]),
-		fake_key(display, &settings.keymap[6]),
-		fake_key(display, &settings.keymap[11]),
+		fake_key_m(&settings.keymap[1]),
+		fake_key_m(&settings.keymap[6]),
+		fake_key_m(&settings.keymap[11]),
 		toggle_scrollmode());
 
 	FOR("direction") DO_MOD(
-		rotate_screen(display, -1),
-		fake_key(display, &settings.keymap[2]),
-		fake_key(display, &settings.keymap[7]),
-		fake_key(display, &settings.keymap[12]),
+		rotate_screen(-1),
+		fake_key_m(&settings.keymap[2]),
+		fake_key_m(&settings.keymap[7]),
+		fake_key_m(&settings.keymap[12]),
 		toggle_lock_rotate());
 
 	FOR("fn") DO_MOD(
@@ -875,13 +873,13 @@ int event(const char *name)
 		  key_fn = current_time;
 		  DEBUG_STATE;
 		  return 0; },
-		fake_key(display, &settings.keymap[3]),
+		fake_key_m(&settings.keymap[3]),
 		{ osd_message("alt+fn...", 3);		 // alt+fn -> both
 		  key_alt = 0;
 		  key_both = current_time;
 		  DEBUG_STATE;
 		  return 0; },
-		fake_key(display, &settings.keymap[13]),
+		fake_key_m(&settings.keymap[13]),
 		osd_clear());
 
 	FOR("menu") DO_MOD(
@@ -894,13 +892,13 @@ int event(const char *name)
 		  key_cfg = current_time;
 		  DEBUG_STATE;
 		  return 0; },
-		fake_key(display, &settings.keymap[9]),
-		fake_key(display, &settings.keymap[14]),
+		fake_key_m(&settings.keymap[9]),
+		fake_key_m(&settings.keymap[14]),
 		osd_clear());
 
 	FOR("tablet_mode") DO (
 		if(settings.lock_rotate == UL_UNLOCKED)
-			rotate_screen(display, get_tablet_sw());
+			rotate_screen(get_tablet_sw());
 	);
 
 	error("unsupported event - %s\n", name);
