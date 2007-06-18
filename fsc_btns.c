@@ -35,7 +35,11 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#ifdef CONFIG_ACPI
 #include <linux/acpi.h>
+#else
+#include <linux/dmi.h>
+#endif
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -96,6 +100,41 @@ static unsigned int keymap_Stylistic[16] = {
   /* 0x8000 */	KEY_MENU
 };
 
+#ifndef CONFIG_ACPI
+static int __init dmi_matched(struct dmi_system_id *dmi);
+
+static struct dmi_system_id dmi_ids[] __initdata = {
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu-Siemens Lifebook T-Series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T"),
+		},
+		.driver_data = keymap_Tseries
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu-Siemens Lifebook P-Series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK P"),	/* not sure */
+		},
+		.driver_data = keymap_Tseries
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu-Siemens Stylistic ST-Series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STYLISTIC"),	/* not sure */
+		},
+		.driver_data = keymap_Stylistic
+	}
+};
+#endif
+
+
 static struct fscbtns_t {				/* fscbtns_t */
 	unsigned int interrupt;
 	unsigned int address;
@@ -122,7 +161,7 @@ static struct fscbtns_t {				/* fscbtns_t */
 
 static unsigned int repeat_rate = 16;
 static unsigned int repeat_delay = 500;
-static unsigned int user_keymap = 0;		// TODO: autodetect (acpi/dmi?)
+static unsigned int user_keymap = 0;
 
 #ifdef __ONLY_A_COLLECTION_OF_CODES__
 typedef u8 reset_sequence[3];
@@ -189,6 +228,7 @@ inline void fscbtns_write_register(const u8 addr, const u8 data)
 	IOWRITEB(data, FJBTNS_DATA_PORT);
 }
 #endif
+
 
 /*** INPUT ********************************************************************/
 
@@ -561,6 +601,22 @@ static struct acpi_driver acpi_fscbtns_driver = {
 #endif /* CONFIG_ACPI */
 
 
+/*** DMI **********************************************************************/
+#ifndef CONFIG_ACPI
+
+static int __init dmi_matched(struct dmi_system_id *dmi)
+{
+	pr_debug("DMI: %s\n", dmi->ident);
+
+	if(!fscbtns.keymap)
+		fscbtns.keymap = dmi->driver_data;
+
+	return 1;
+}
+
+#endif /* !CONFIG_ACPI */
+
+
 /*** LOADING ******************************************************************/
 
 static int __init fscbtns_module_init(void)
@@ -587,6 +643,9 @@ static int __init fscbtns_module_init(void)
 	}
 
 	error = -ENODEV;
+#endif
+#ifndef CONFIG_ACPI
+	dmi_check_system(dmi_ids);
 #endif
 
 	if(!fscbtns.interrupt || !fscbtns.address)
@@ -659,7 +718,7 @@ module_param_named(keymap, user_keymap, uint, 0);
 MODULE_PARM_DESC(keymap, "keymap (1 = Stylistic, 2 = T- and P-Series)");
 
 
-static struct pnp_device_id pnp_ids[] = {
+static struct pnp_device_id pnp_ids[] __initdata = {
 	{ .id = "FUJ02bd" },
 	{ .id = "FUJ02bf" },
 	{ .id = "" }
