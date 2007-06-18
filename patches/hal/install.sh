@@ -67,6 +67,7 @@ else
 fi
 
 if grep -q '\<fn\>' $aipt &&
+   grep -q '\<display-toggle\>' $aipt &&
    grep -q 'ButtonRepeat' $aipt
 then
   echo " * input addon is up to date"

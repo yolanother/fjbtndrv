@@ -166,6 +166,10 @@ static char *key_name[KEY_MAX + 1] = {
 #define KEY_WLAN 238
 #endif
 	[KEY_WLAN] = "wlan",
+#ifndef KEY_DISPLAYTOGGLE
+#define KEY_DISPLAYTOGGLE 431
+#endif
+	[KEY_DISPLAYTOGGLE] = "display-toggle",
 #ifndef KEY_FN
 #define KEY_FN 464
 #endif

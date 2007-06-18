@@ -316,13 +316,14 @@ void wacom_rotate(int mode)
 #include <X11/XF86keysym.h>
 #include <X11/extensions/XTest.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/extensions/dpms.h>
 static Display *display;
 
 Display* x11_init(void)
 {
 	display = XOpenDisplay(NULL);
 	if(display) {
-		Bool xtest, randr;
+		Bool xtest, randr, dpms;
 		int opcode, event, error;
 
 		xtest = XQueryExtension(display, "XTEST",
@@ -342,8 +343,15 @@ Display* x11_init(void)
 		else
 			error("No RandR extension\n");
 
+		dpms = XQueryExtension(display, "DPMS",
+				&opcode, &event, &error);
+		if(dpms)
+			debug("Found DPMS extension (%d, %d, %d)",
+					opcode, event, error);
+		else
+			error("No DPMS extension\n");
 
-		if(xtest && randr) {
+		if(xtest && randr && dpms) {
 			return display;
 		} else {
 			XCloseDisplay(display);
@@ -358,6 +366,40 @@ Display* x11_init(void)
 void x11_exit(void)
 {
 	XCloseDisplay(display);
+}
+
+inline int dpms_enabled(void)
+{
+	CARD16 state;
+	BOOL on;
+	DPMSInfo(display, &state, &on);
+	return (on == True);
+}
+
+inline void enable_dpms(void)
+{
+	DPMSEnable(display);
+}
+
+inline void disable_dpms(void)
+{
+	DPMSDisable(display);
+}
+
+void dpms_force_off(void)
+{
+	CARD16 state;
+	BOOL on;
+
+	DPMSInfo(display, &state, &on);
+	if(!on)
+		enable_dpms();
+
+	/* give some time to release the key(s) */
+	debug("dpms: ... off in 1 sec.");
+	sleep(1);
+	DPMSForceLevel(display, DPMSModeOff);
+	XSync(display, True);
 }
 
 int rotate_screen(int mode)
@@ -762,6 +804,18 @@ void toggle_lock_rotate(void)
 			break;
 	}
 }
+
+void toggle_dpms(void)
+{
+	debug("toggle dpms");
+	if(dpms_enabled()) {
+		disable_dpms();
+		osd_message("DPMS disabled", 1);
+	} else {
+		enable_dpms();
+		osd_message("DPMS enabled", 1);
+	}
+}
 //}}}
 
 int event(const char *name)
@@ -824,8 +878,17 @@ int event(const char *name)
 	#define DEBUG_STATE NOTHING
 #endif
 
-	FOR("brightness-down") DO( set_brightness(get_brightness()-1) );
-	FOR("brightness-up")   DO( set_brightness(get_brightness()+1) );
+	FOR("brightness-down") DO(
+		int x = get_brightness() - 1;
+		if(x)
+			set_brightness(x);
+		else
+			dpms_force_off();
+	);
+ 
+	FOR("brightness-up")   DO(
+		set_brightness(get_brightness()+1)
+	);
 
 	FOR("scroll-down") DO_MOD(
 		switch(settings.scrollmode) {
@@ -894,9 +957,16 @@ int event(const char *name)
 		  return 0; },
 		fake_key_m(&settings.keymap[9]),
 		fake_key_m(&settings.keymap[14]),
-		osd_clear());
+		toggle_dpms());
 
-	FOR("tablet_mode") DO (
+	FOR("display-toggle") DO_MOD(
+		dpms_force_off(),
+		dpms_force_off(),
+		dpms_force_off(),
+		dpms_force_off(),
+		toggle_dpms());
+
+ 	FOR("tablet_mode") DO (
 		if(settings.lock_rotate == UL_UNLOCKED)
 			rotate_screen(get_tablet_sw());
 	);
