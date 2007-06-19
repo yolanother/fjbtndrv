@@ -476,37 +476,6 @@ static struct platform_driver fscbtns_platform_driver = {
 	.resume		= fscbtns_resume,
 };
 
-static inline int fscbtns_register_platfrom_driver(void)
-{
-	int error;
-
-	pr_debug("register platform driver\n");
-	error = platform_driver_register(&fscbtns_platform_driver);
-	if(error)
-		goto err;
-
-	fscbtns.pdev = platform_device_alloc(MODULENAME, -1);
-	if(!fscbtns.pdev) {
-		error = -ENOMEM;
-		goto err_pdrv;
-	}
-
-	error = platform_device_add(fscbtns.pdev);
-	if(error)
-		goto err_pdev;
-
-	pr_debug("platform driver registered\n");
-	return 0;
-
-err_pdev:
-	platform_device_put(fscbtns.pdev);
-err_pdrv:
-	platform_driver_unregister(&fscbtns_platform_driver);
-err:
-	printk(KERN_ERR MODULENAME ": failed to register platform driver\n");
-	return error;
-}
-
 
 /*** ACPI *********************************************************************/
 #ifdef CONFIG_ACPI
