@@ -460,6 +460,12 @@ static int __devexit fscbtns_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int fscbtns_resume(struct platform_device *pdev)
+{
+	IOREADB(FJBTNS_RESET_PORT);
+	return 0;
+}
+
 static struct platform_driver fscbtns_platform_driver = {
 	.driver		= {
 		.name	= MODULENAME,
@@ -467,6 +473,7 @@ static struct platform_driver fscbtns_platform_driver = {
 	},
 	.probe		= fscbtns_probe,
 	.remove		= __devexit_p(fscbtns_remove),
+	.resume		= fscbtns_resume,
 };
 
 static inline int fscbtns_register_platfrom_driver(void)
