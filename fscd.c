@@ -324,31 +324,45 @@ Display* x11_init(void)
 	display = XOpenDisplay(NULL);
 	if(display) {
 		Bool xtest, randr, dpms;
-		int opcode, event, error;
+		int opcode, event, error, major, minor;
 
 		xtest = XQueryExtension(display, "XTEST",
 				&opcode, &event, &error);
-		if(xtest)
-			debug("Found XTest extension (%d, %d, %d)",
+		if(xtest) {
+#ifdef DEBUG
+			XTestQueryExtension(display,
+					&event, &error,
+					&major, &minor);
+			debug("Found XTest %d.%d extension (%d, %d, %d)",
+				major, minor,
 				&opcode, &event, &error);
-		else
+#endif
+		} else
 			error("No XTest extension\n");
 
 
 		randr = XQueryExtension(display, "RANDR",
 				&opcode, &event, &error);
-		if(randr)
-			debug("Found RandR extension (%d, %d, %d)",
+		if(randr) {
+#ifdef DEBUG
+			XRRQueryVersion(display, &major,&minor);
+			debug("Found RandR %d.%d extension (%d, %d, %d)",
+					major, minor,
 					opcode, event, error);
-		else
+#endif
+		} else
 			error("No RandR extension\n");
 
 		dpms = XQueryExtension(display, "DPMS",
 				&opcode, &event, &error);
-		if(dpms)
-			debug("Found DPMS extension (%d, %d, %d)",
+		if(dpms) {
+#ifdef DEBUG
+			DPMSGetVersion(display, &major,&minor);
+			debug("Found DPMS %d.%d extension (%d, %d, %d)",
+					major, minor,
 					opcode, event, error);
-		else
+#endif
+		} else
 			error("No DPMS extension\n");
 
 		if(xtest && randr && dpms) {
