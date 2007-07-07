@@ -548,7 +548,7 @@ static int acpi_fscbtns_remove(struct acpi_device *adev, int type)
 }
 
 static struct acpi_driver acpi_fscbtns_driver = {
-	.name  = MODULEDESC,
+	.name  = MODULENAME,
 	.class = "hotkey",
 	.ids   = "FUJ02BD,FUJ02BF",
 	.ops   = {
