@@ -45,7 +45,6 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/time.h>
-#include <linux/delay.h>
 
 #define MODULENAME "fsc_btns"
 #define MODULEDESC "Fujitsu Siemens Application Panel Driver for T-Series Lifebooks"
@@ -369,10 +368,11 @@ static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 
 static int fscbtns_busywait(void)
 {
-	int timeout_counter = 255;
+	int timeout_counter = 100;
 
-	while(IOREADB(FJBTNS_STATUS_PORT) & 0x02 && --timeout_counter)
-		udelay(100);
+	do {
+		msleep(1);
+	} while((IOREADB(FJBTNS_STATUS_PORT) & 0x02) && (--timeout_counter));
 
 	pr_debug("busywait rest: %d\n", timeout_counter);
 	return !timeout_counter;
@@ -380,17 +380,16 @@ static int fscbtns_busywait(void)
 
 static int fscbtns_reset(void)
 {
-	int timeout = 1024;
+	int timeout = 100;
 
 	/* TODO: write machine specific reset seq. to regs 0xe8..0xea */
 	/* TODO: write 0 to status port */
 
 	do {
 		inb(FJBTNS_RESET_PORT);
-		if(!inb(FJBTNS_STATUS_PORT) & 1)
+		msleep(1);
+		if((inb(FJBTNS_STATUS_PORT) & 0x01) == 0)
 			return 0;
-
-		udelay(100);
 	} while(--timeout);
 
 	printk(KERN_WARNING MODULENAME ": timeout during reset, this should not happen\n");
