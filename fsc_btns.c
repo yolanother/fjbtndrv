@@ -134,7 +134,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 #endif
 
 
-static struct fscbtns_t {				/* fscbtns_t */
+static struct {					/* fscbtns_t */
 	unsigned int interrupt;
 	unsigned int address;
 
@@ -461,7 +461,18 @@ static int __devexit fscbtns_remove(struct platform_device *pdev)
 
 static int fscbtns_resume(struct platform_device *pdev)
 {
-	IOREADB(FJBTNS_RESET_PORT);
+	int error;
+
+	inb(FJBTNS_RESET_PORT);
+	error = fscbtns_busywait();
+	if(error) {
+		pr_debug("reseting...\n");
+		error = fscbtns_reset();
+		if(error)
+			dev_err(&(fscbtns.pdev->dev), "reset failed!\n");
+	} else
+		pr_debug("device ready!\n");
+
 	return 0;
 }
 
