@@ -627,7 +627,7 @@ int hal_init(void)
 		goto err_free_ctx;
 	}
 
-	if((devices == NULL) || (count < 0)) {
+	if((devices == NULL) || (count <= 0)) {
 		HAL_ERROR("no laptop panel device found");
 		goto err_free_devices;
 	}
