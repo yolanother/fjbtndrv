@@ -1,0 +1,53 @@
+# German translations for fscd package.
+# Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforce.net>
+# This file is distributed under the same license as the fscd package.
+# Robert Gerlach <khnz@users.sourceforge.net>, 2007.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fscd 0.50\n"
+"Report-Msgid-Bugs-To: fjbtndrv-devel@lists.sourceforge.net\n"
+"POT-Creation-Date: 2007-09-05 12:35+0200\n"
+"PO-Revision-Date: 2007-08-16 21:43+0200\n"
+"Last-Translator: Robert Gerlach <khnz@users.sourceforge.net>\n"
+"Language-Team: German\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Brightness"
+msgstr "Helligkeit"
+
+msgid "Scrolling"
+msgstr "Scrollen"
+
+msgid "Page Up/Down"
+msgstr "Bild Auf/Ab"
+
+msgid "Space/Backspace"
+msgstr "Leer-/Rücktaste"
+
+msgid "Z-Axis"
+msgstr "Z-Achse"
+
+msgid "Rotation locked"
+msgstr "Bildschirm drehen gesperrt"
+
+msgid "Rotation unlocked"
+msgstr "Bildschirm drehen entgesperrt"
+
+msgid "DPMS disabled"
+msgstr "DPMS deaktiviert"
+
+msgid "DPMS enabled"
+msgstr "DPMS aktiviert"
+
+msgid "off"
+msgstr "aus"
+
+msgid "configuration..."
+msgstr "Konfiguration..."
+
+msgid "started"
+msgstr "gestarted"

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=fscd
+GenericName=fscd
+Exec=@bindir@/fscd
+Icon=exec
+Type=Application
+Terminal=false
+X-KDE-StartupNotify=false
+X-KDE-autostart-after=panel

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
+
+read value
+if [ $value -ge 1 -a $value -le 8 ]; then
+	# echo "{1..8}" > /proc/acpi/video/VGA/LCD/brightness
+	echo "$value" > /proc/acpi/video/VGA/LCD/brightness
+fi
+
+exit 0

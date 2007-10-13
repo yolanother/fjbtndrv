@@ -1,0 +1,1 @@
+ACTION=="add", ENV{PHYSDEVDRIVER}=="fsc_btns", GROUP="users", MODE="640"

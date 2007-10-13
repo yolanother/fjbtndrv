@@ -1,0 +1,12 @@
+Source: fscd
+Section: utils
+Priority: extra
+Maintainer: Robert Gerlach <khnz@users.sourceforge.net>
+Build-Depends: debhelper (>= 5), autotools-dev, libxosd-dev
+Standards-Version: 3.7.2
+
+Package: fscd
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, module-init-tools
+Description: helper for fsc tablet buttons driver (fsc_btns)
+ 
