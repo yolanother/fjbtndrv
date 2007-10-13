@@ -191,7 +191,7 @@ static inline void fscbtns_use_config(struct fscbtns_config *config)
 
 /*** INPUT ********************************************************************/
 
-static int __devinit input_fscbtns_setup(void)
+static int __devinit input_fscbtns_setup(struct device *dev)
 {
 	struct input_dev *idev;
 	int error;
@@ -201,13 +201,15 @@ static int __devinit input_fscbtns_setup(void)
 	if(!idev)
 		return -ENOMEM;
 
+	idev->dev.parent = dev;
+	idev->cdev.dev = dev;
+
 	idev->phys = "fsc/input0";
 	idev->name = "fsc tablet buttons";
 	idev->id.bustype = BUS_HOST;
 	idev->id.vendor  = 0x1734;	/* "Fujitsu Siemens Computer GmbH" from pci.ids */
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0101;
-	idev->cdev.dev = &(fscbtns.pdev->dev);
 
 	idev->keycode = fscbtns.config.keymap;
 	idev->keycodesize = sizeof(unsigned int);
@@ -335,7 +337,7 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 {
 	int error;
 
-	error = input_fscbtns_setup();
+	error = input_fscbtns_setup(&pdev->dev);
 	if(error)
 		return error;
 
