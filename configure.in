@@ -66,6 +66,35 @@ if test x$enable_debug = xyes; then
   AC_DEFINE(DEBUG, [], [debug output])
 fi
 
+
+AC_ARG_WITH(repeat-rate,
+  [  --with-repeat-rate=rate     repeat rate for autorepeat (Default: 16)],
+  rep_rate=$withval,
+  rep_rate=16)
+if test x$rep_rate != xno; then
+  AC_DEFINE_UNQUOTED(DEFAULT_REP_RATE, [$rep_rate], [autorepeat rate])
+fi
+
+AC_ARG_WITH(repeat-delay,
+  [  --with-repeat-delay=msec    delay befor autorepeat (Default: 500)],
+  rep_delay=$withval,
+  rep_delay=500)
+if test x$rep_rate != xno; then
+  if test x$rep_delay = xno; then
+    rep_delay=0
+  fi
+  AC_DEFINE_UNQUOTED(DEFAULT_REP_DELAY, [$rep_delay], [autorepeat delay])
+fi
+
+AC_ARG_WITH(sticky-timeout,
+  [  --with-sticky-timeout=msec  timeout for sticky modification keys (Default: 3000)],
+  sticky_timeout=$withval,
+  sticky_timeout=3000)
+if test x$sticky_timeout != xno; then
+  AC_DEFINE_UNQUOTED(DEFAULT_STICKY_TIMEOUT, [$sticky_timeout], [sticky timeout])
+fi
+
+
 AC_CONFIG_FILES([
   Makefile
   src/Makefile

@@ -17,6 +17,10 @@
  * 59 Temple Place Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#  include "../../config.h"
+#endif
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -174,13 +178,6 @@ MODULE_PARM_DESC(irq, "interrupt");
 module_param_named(io, fscbtns.address, uint, 0);
 MODULE_PARM_DESC(io, "io base address");
 
-/* start repeating after DELAY msec */
-#define DEFAULT_REP_DELAY	 500
-/* report RATE presses at repeating */
-#define DEFAULT_REP_RATE	  16
-/* modification keys are sticky for TIMEOUT msec (0 to disable) */
-#define DEFAULT_STICKY_TIMEOUT	3000
-
 static unsigned int user_model;
 module_param_named(model, user_model, uint, 0);
 MODULE_PARM_DESC(model, "model (1 = Stylistic, 2 = T- and P-Series, 3 = Stylistic ST5xxx)");
@@ -236,7 +233,9 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->keycodesize = sizeof(unsigned int);
 	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
 
+#ifdef DEFAULT_REP_RATE
 	set_bit(EV_REP, idev->evbit);
+#endif
 	set_bit(EV_MSC, idev->evbit);
 	set_bit(EV_KEY, idev->evbit);
 	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
@@ -251,8 +250,10 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		return error;
 	}
 
+#ifdef DEFAULT_REP_RATE
 	idev->rep[REP_DELAY]  = DEFAULT_REP_DELAY;
 	idev->rep[REP_PERIOD] = 1000 / DEFAULT_REP_RATE;
+#endif
 
 	return 0;
 }

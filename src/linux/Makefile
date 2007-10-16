@@ -4,6 +4,8 @@ KERNELRELEASE	= $(shell uname -r)
 KERNEL_SOURCE	= /lib/modules/$(KERNELRELEASE)/build
 PWD		= $(shell pwd)
 
+EXTRA_CFLAGS	= -DHAVE_CONFIG_H
+
 all: modules
 modules: fsc_btns.ko
 modules_install: install
