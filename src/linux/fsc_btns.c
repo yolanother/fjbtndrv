@@ -33,7 +33,9 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/time.h>
+#include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 
 #define MODULENAME "fsc_btns"
 
@@ -62,6 +64,20 @@ MODULE_DEVICE_TABLE(pnp, fscbtns_ids);
 #ifndef KEY_BRIGHTNESS_ZERO
 #define KEY_BRIGHTNESS_ZERO 244
 #endif
+
+static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
+		[LONG(KEY_LEFTSHIFT)]	= BIT(KEY_LEFTSHIFT),
+		[LONG(KEY_RIGHTSHIFT)]	= BIT(KEY_RIGHTSHIFT),
+		[LONG(KEY_LEFTCTRL)]	= BIT(KEY_LEFTCTRL),
+		[LONG(KEY_RIGHTCTRL)]	= BIT(KEY_RIGHTCTRL),
+		[LONG(KEY_LEFTALT)]	= BIT(KEY_LEFTALT),
+		[LONG(KEY_RIGHTALT)]	= BIT(KEY_RIGHTALT),
+		[LONG(KEY_LEFTMETA)]	= BIT(KEY_LEFTMETA),
+		[LONG(KEY_RIGHTMETA)]	= BIT(KEY_RIGHTMETA),
+		[LONG(KEY_COMPOSE)]	= BIT(KEY_COMPOSE),
+		[LONG(KEY_MENU)]	= BIT(KEY_MENU),
+		[LONG(KEY_FN)]		= BIT(KEY_FN)};
+
 
 struct fscbtns_config {
 	int invert_orientation_bit;
@@ -137,6 +153,7 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
+	struct timer_list timer;
 
 	unsigned int interrupt;
 	unsigned int address;
@@ -157,8 +174,12 @@ MODULE_PARM_DESC(irq, "interrupt");
 module_param_named(io, fscbtns.address, uint, 0);
 MODULE_PARM_DESC(io, "io base address");
 
-#define DEFAULT_REP_DELAY 500
-#define DEFAULT_REP_RATE  16
+/* start repeating after DELAY msec */
+#define DEFAULT_REP_DELAY	 500
+/* report RATE presses at repeating */
+#define DEFAULT_REP_RATE	  16
+/* modification keys are sticky for TIMEOUT msec (0 to disable) */
+#define DEFAULT_STICKY_TIMEOUT	3000
 
 static unsigned int user_model;
 module_param_named(model, user_model, uint, 0);
@@ -255,6 +276,43 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+static void fscbtns_sticky_timeout(unsigned long data)
+{
+	printk(KERN_INFO MODULENAME ": in fscbtns_event_off, data = %lu, jiffies = %lu\n",
+			data, jiffies);
+
+	input_report_key(fscbtns.idev, data, 0);
+	input_sync(fscbtns.idev);
+}
+#endif
+
+static void fscbtns_sticky_start(unsigned long data)
+{
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+	fscbtns.timer.data = data;
+	fscbtns.timer.function = fscbtns_sticky_timeout;
+	fscbtns.timer.expires = jiffies + ((DEFAULT_STICKY_TIMEOUT * HZ) / 1000);
+	add_timer(&fscbtns.timer);
+
+	printk(KERN_INFO MODULENAME ": timer started - data = %lu, @jiffies = %lu ...\n",
+			data, fscbtns.timer.expires);
+#else
+	input_report_key(fscbtns.idev, data, 0);
+#endif
+}
+
+static void fscbtns_sticky_stop(void)
+{
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+	del_timer(&fscbtns.timer);
+
+	printk(KERN_INFO MODULENAME ": timer stopped - data = %lu, @jiffies = %lu/%lu ...\n",
+			fscbtns.timer.data, jiffies, fscbtns.timer.expires);
+#endif
+	input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
+}
+
 static void fscbtns_event(void)
 {
 	unsigned long keymask;
@@ -270,23 +328,55 @@ static void fscbtns_event(void)
 	changed = keymask ^ prev_keymask;
 
 	if(changed) {
-		int key = 0;
+		int x = 0;
 		int pressed = !!(keymask & changed);
+		unsigned long key;
 
 		/* save current state and filter not changed bits */
 		prev_keymask = keymask;
 
 		/* get number of changed bit */
-		while(!test_bit(key, &changed))
-			key++;
+		while(!test_bit(x, &changed))
+			x++;
 
-		input_report_key(fscbtns.idev, fscbtns.config.keymap[key],
-				pressed);
+		key = fscbtns.config.keymap[x];
+
+		/* modification key sticked down */
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+		if(timer_pending(&fscbtns.timer)) {
+
+			if(!pressed)
+				fscbtns_sticky_stop();
+
+			printk(KERN_INFO MODULENAME ": key %s while mod %lu active (%lu)\n",
+					(pressed ? "pressed" : "released"),
+					fscbtns.timer.data,
+					key);
+
+			input_report_key(fscbtns.idev, key, pressed);
+
+		} else
+#endif
+
+			if(test_bit(key, modification_mask)) {
+				if(pressed) {
+					printk(KERN_INFO MODULENAME ": modkey pressed (%lu)\n", key);
+					input_report_key(fscbtns.idev, key, 1);
+				} else {
+					printk(KERN_INFO MODULENAME ": modkey released (%lu)\n", key);
+					fscbtns_sticky_start(key);
+				}
+			} else {
+				printk(KERN_INFO MODULENAME ": key %s (%lu)\n",
+						(pressed ? "pressed" : "released"),
+						key);
+				input_report_key(fscbtns.idev, key, pressed);
+			}
+
 	}
 
 	input_sync(fscbtns.idev);
 }
-
 
 /*** INTERRUPT ****************************************************************/
 
@@ -541,6 +631,8 @@ static int __init fscbtns_module_init(void)
 	error = -ENODEV;
 #endif
 
+	init_timer(&fscbtns.timer);
+
 	if(!fscbtns.interrupt || !fscbtns.address)
 		goto err;
 
@@ -568,6 +660,7 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
+	del_timer_sync(&fscbtns.timer);
 	return error;
 }
 
@@ -579,6 +672,7 @@ static void __exit fscbtns_module_exit(void)
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
+	del_timer_sync(&fscbtns.timer);
 }
 
 module_init(fscbtns_module_init);
