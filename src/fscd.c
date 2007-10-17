@@ -808,7 +808,7 @@ void brightness_show(const unsigned timeout)
 //}}}
 
 //{{{ RC stuff
-void toggle_scrollmode(void)
+void scrollmode_next(void)
 {
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
@@ -825,6 +825,25 @@ void toggle_scrollmode(void)
 			break;
 	}
 }
+
+void scrollmode_prev(void)
+{
+	switch(settings.scrollmode) {
+		case SM_ZAXIS:
+			settings.scrollmode = SM_KEY_SPACE;
+			osd_message(1, "%s: %s", _("Scrolling"), _("Page Up/Down"));
+			break;
+		case SM_KEY_PAGE:
+			settings.scrollmode = SM_ZAXIS;
+			osd_message(1, "%s: %s", _("Scrolling"), _("Space/Backspace"));
+			break;
+		case SM_KEY_SPACE:
+			settings.scrollmode = SM_KEY_PAGE;
+			osd_message(1, "%s: %s", _("Scrolling"), _("Z-Axis"));
+			break;
+	}
+}
+
 
 void toggle_lock_rotate(void)
 {
@@ -889,7 +908,7 @@ int main_loop()
 					break;
 				} else if(key_cfg + 3 > input_event.time.tv_sec) {
 					if(input_event.value == 1)
-						toggle_scrollmode();
+						scrollmode_next();
 				} else if(key_scr + 3 > input_event.time.tv_sec) {
 					brightness_down();
 					brightness_show(3);
@@ -917,7 +936,7 @@ int main_loop()
 					break;
 				} else if(key_cfg + 3 > input_event.time.tv_sec) {
 					if(input_event.value == 1)
-						toggle_scrollmode();
+						scrollmode_prev();
 				} else if(key_scr + 3 > input_event.time.tv_sec) {
 					brightness_up();
 					brightness_show(3);
