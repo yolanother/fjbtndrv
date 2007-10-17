@@ -808,40 +808,32 @@ void brightness_show(const unsigned timeout)
 //}}}
 
 //{{{ RC stuff
-void scrollmode_next(void)
+void scrollmode_info(void)
 {
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
-			settings.scrollmode = SM_KEY_PAGE;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Page Up/Down"));
+			osd_message(1, "%s: %s", _("Scrolling"), _("Z-Axis"));
 			break;
 		case SM_KEY_PAGE:
-			settings.scrollmode = SM_KEY_SPACE;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Space/Backspace"));
+			osd_message(1, "%s: %s", _("Scrolling"), _("Page Up/Down"));
 			break;
 		case SM_KEY_SPACE:
-			settings.scrollmode = SM_ZAXIS;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Z-Axis"));
+			osd_message(1, "%s: %s", _("Scrolling"), _("Space/Backspace"));
 			break;
 	}
 }
 
+void scrollmode_next(void)
+{
+	settings.scrollmode = (++settings.scrollmode % 3);
+	scrollmode_info();
+}
+
 void scrollmode_prev(void)
 {
-	switch(settings.scrollmode) {
-		case SM_ZAXIS:
-			settings.scrollmode = SM_KEY_SPACE;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Page Up/Down"));
-			break;
-		case SM_KEY_PAGE:
-			settings.scrollmode = SM_ZAXIS;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Space/Backspace"));
-			break;
-		case SM_KEY_SPACE:
-			settings.scrollmode = SM_KEY_PAGE;
-			osd_message(1, "%s: %s", _("Scrolling"), _("Z-Axis"));
-			break;
-	}
+	debug("SM: %d", sizeof(ScrollMode));
+	settings.scrollmode = (settings.scrollmode? --settings.scrollmode : 2);
+	scrollmode_info();
 }
 
 
@@ -907,8 +899,11 @@ int main_loop()
 				} else if(key_alt + 3 > input_event.time.tv_sec) {
 					break;
 				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1)
+					if(input_event.value == 1) {
+						key_cfg = input_event.time.tv_sec - 1;
 						scrollmode_next();
+						continue;
+					}
 				} else if(key_scr + 3 > input_event.time.tv_sec) {
 					brightness_down();
 					brightness_show(3);
@@ -935,8 +930,11 @@ int main_loop()
 				} else if(key_alt + 3 > input_event.time.tv_sec) {
 					break;
 				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1)
+					if(input_event.value == 1) {
+						key_cfg = input_event.time.tv_sec - 1;
 						scrollmode_prev();
+						continue;
+					}
 				} else if(key_scr + 3 > input_event.time.tv_sec) {
 					brightness_up();
 					brightness_show(3);
