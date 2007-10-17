@@ -52,6 +52,23 @@
 #  define debug(msg, a...)	/**/
 #endif
 
+#ifdef ENABLE_DYNAMIC 
+#  include <dlfcn.h>
+#  define DLOPEN(info, name) \
+	((info)->hdnl = dlopen(name, RTLD_NOW))
+#  define DLSYM(info, func) \
+	((info)->func = dlsym((info)->hdnl, #func))
+#  define DLCLOSE(info) \
+	(((info)->hdnl) \
+		? (dlclose((info)->hdnl) ? (int)((info)->hdnl=NULL) : -1) \
+		: 0)
+#  define DLCALL(info, func, args...) \
+	(((info)->hdnl && (info)->func) ? (info)->func(args) : 0)
+#else
+#  define DLCALL(info, func, args...) \
+	func(args)
+#endif
+
 
 typedef enum {
 	SM_ZAXIS,
@@ -274,12 +291,37 @@ xosd *osd_new(int lines)
 #include <wacomcfg/wacomcfg.h>
 #include <Xwacom.h>
 
-static WACOMCONFIG * wacom_config = NULL;
+#ifdef ENABLE_DYNAMIC
+static struct {
+	void *hdnl;
+	WACOMCONFIG * (*WacomConfigInit)(Display* pDisplay, WACOMERRORFUNC pfnErrorHandler);
+	WACOMDEVICE * (*WacomConfigOpenDevice)(WACOMCONFIG * hConfig, const char* pszDeviceName);
+	int (*WacomConfigCloseDevice)(WACOMDEVICE * hDevice);
+	int (*WacomConfigSetRawParam)(WACOMDEVICE * hDevice, int nParam, int nValue, unsigned * keys);
+	void (*WacomConfigFree)(void* pvData);
+} wclib;
+#endif
 
+static WACOMCONFIG * wacom_config;
 
 int wacom_init(Display *display)
 {
-	wacom_config = WacomConfigInit(display, NULL);
+#ifdef ENABLE_DYNAMIC
+	if( !(DLOPEN(&wclib, "libwacomcfg.so") &&
+			DLSYM(&wclib, WacomConfigInit) &&
+			DLSYM(&wclib, WacomConfigFree) &&
+			DLSYM(&wclib, WacomConfigSetRawParam) &&
+			DLSYM(&wclib, WacomConfigOpenDevice) &&
+			DLSYM(&wclib, WacomConfigCloseDevice)) ) {
+		debug("%s", dlerror());
+		wclib.hdnl = NULL;
+		return -1;
+	}
+
+	debug("wacomcfg library ready");
+#endif
+
+	wacom_config = DLCALL(&wclib, WacomConfigInit, display, NULL);
 	if(!wacom_config) {
 		fprintf(stderr, "Can't open Wacom Device\n");
 		return -1;
@@ -291,7 +333,11 @@ int wacom_init(Display *display)
 void wacom_exit(void)
 {
 	if(wacom_config)
-		WacomConfigFree(wacom_config);
+		DLCALL(&wclib, WacomConfigFree, wacom_config);
+
+#ifdef ENABLE_DYNAMIC
+	DLCLOSE(&wclib);
+#endif
 }
 
 void wacom_rotate(int mode)
@@ -301,15 +347,15 @@ void wacom_rotate(int mode)
 	if(!wacom_config)
 		return;
 
-	d = WacomConfigOpenDevice(wacom_config, "stylus");
+	d = DLCALL(&wclib, WacomConfigOpenDevice, wacom_config, "stylus");
 	if(!d)
 		return;
 
-	WacomConfigSetRawParam(d, XWACOM_PARAM_ROTATE,
+	DLCALL(&wclib, WacomConfigSetRawParam, d, XWACOM_PARAM_ROTATE,
 			(mode ? XWACOM_VALUE_ROTATE_CW : XWACOM_VALUE_ROTATE_NONE),
 			0);
 
-	WacomConfigCloseDevice(d);
+	DLCALL(&wclib, WacomConfigCloseDevice, d);
 }
 #endif
 //}}}

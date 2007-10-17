@@ -24,6 +24,14 @@ PKG_CHECK_MODULES(HAL, [hal >= 0.5.8])
 AC_SUBST(HAL_CFLAGS)
 AC_SUBST(HAL_LIBS)
 
+AC_ARG_ENABLE([dynamic],
+  AS_HELP_STRING([--enable-dynamic],
+    [Enable dynamic library loading (Default: no)]),
+  [enable_dynamic=$enableval], [enable_dynamic=no])
+if test x$enable_dynamic = xyes; then
+  AC_DEFINE(ENABLE_DYNAMIC, [], [dynamic library loading])
+fi
+
 AC_ARG_ENABLE([wacom],
   AS_HELP_STRING([--disable-wacom],
     [Disable WACOM support (Default: auto)]),
@@ -40,7 +48,9 @@ if test x$enable_wacom = xyes; then
   AC_SUBST(LIBWACOMCFG_CFLAGS)
   LIBWACOMCFG_CFLAGS=
   AC_SUBST(LIBWACOMCFG_LIBS)
-  LIBWACOMCFG_LIBS=-lwacomcfg
+  if test x$enable_dynamic != xyes; then
+    LIBWACOMCFG_LIBS=-lwacomcfg
+  fi
 fi
 
 AC_ARG_ENABLE([xosd],
