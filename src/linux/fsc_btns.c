@@ -20,7 +20,7 @@
 #ifdef HAVE_CONFIG_H
 #  include "../../config.h"
 #else
-#  undef DEBUG
+#  define DEBUG
 #  define DEFAULT_REP_DELAY 500
 #  define DEFAULT_REP_RATE 16
 #  define DEFAULT_STICKY_TIMEOUT 3000
@@ -74,6 +74,7 @@ MODULE_DEVICE_TABLE(pnp, fscbtns_ids);
 #define KEY_BRIGHTNESS_ZERO 244
 #endif
 
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
 static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_LEFTSHIFT)]	= BIT(KEY_LEFTSHIFT),
 		[LONG(KEY_RIGHTSHIFT)]	= BIT(KEY_RIGHTSHIFT),
@@ -86,7 +87,7 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_COMPOSE)]	= BIT(KEY_COMPOSE),
 		[LONG(KEY_MENU)]	= BIT(KEY_MENU),
 		[LONG(KEY_FN)]		= BIT(KEY_FN)};
-
+#endif
 
 struct fscbtns_config {
 	int invert_orientation_bit;
@@ -162,7 +163,9 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
 	struct timer_list timer;
+#endif
 
 	unsigned int interrupt;
 	unsigned int address;
@@ -285,39 +288,38 @@ static void fscbtns_report_orientation(void)
 #if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
 static void fscbtns_sticky_timeout(unsigned long data)
 {
-	printk(KERN_INFO MODULENAME ": in fscbtns_event_off, data = %lu, jiffies = %lu\n",
+	dev_dbg(&fscbtns.pdev->dev, "sicky timeout, key = %lu, jiffies = %lu\n",
 			data, jiffies);
 
 	input_report_key(fscbtns.idev, data, 0);
 	input_sync(fscbtns.idev);
 }
-#endif
 
-static void fscbtns_sticky_start(unsigned long data)
+static void fscbtns_sticky_start(unsigned long key, int pressed)
 {
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
-	fscbtns.timer.data = data;
-	fscbtns.timer.function = fscbtns_sticky_timeout;
-	fscbtns.timer.expires = jiffies + ((DEFAULT_STICKY_TIMEOUT * HZ) / 1000);
-	add_timer(&fscbtns.timer);
+	if(pressed)
+		input_report_key(fscbtns.idev, key, 1);
+	else {
+		fscbtns.timer.data = key;
+		fscbtns.timer.function = fscbtns_sticky_timeout;
+		fscbtns.timer.expires = jiffies + ((DEFAULT_STICKY_TIMEOUT * HZ) / 1000);
+		add_timer(&fscbtns.timer);
 
-	printk(KERN_INFO MODULENAME ": timer started - data = %lu, @jiffies = %lu ...\n",
-			data, fscbtns.timer.expires);
-#else
-	input_report_key(fscbtns.idev, data, 0);
-#endif
+		dev_dbg(&fscbtns.pdev->dev, "sticky timer started - key = %lu, jiffies = %lu\n",
+				key, fscbtns.timer.expires);
+	}
 }
 
 static void fscbtns_sticky_stop(void)
 {
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
 	del_timer(&fscbtns.timer);
 
-	printk(KERN_INFO MODULENAME ": timer stopped - data = %lu, @jiffies = %lu/%lu ...\n",
+	dev_dbg(&fscbtns.pdev->dev, "sticky timer stopped - key = %lu, jiffies = %lu/%lu\n",
 			fscbtns.timer.data, jiffies, fscbtns.timer.expires);
-#endif
+
 	input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
 }
+#endif
 
 static void fscbtns_event(void)
 {
@@ -347,42 +349,23 @@ static void fscbtns_event(void)
 
 		key = fscbtns.config.keymap[x];
 
-		/* modification key sticked down */
 #if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+		/* modification key sticked down */
 		if(timer_pending(&fscbtns.timer)) {
-
-			if(!pressed)
+			if((!pressed) || (key == fscbtns.timer.data))
 				fscbtns_sticky_stop();
-
-			printk(KERN_INFO MODULENAME ": key %s while mod %lu active (%lu)\n",
-					(pressed ? "pressed" : "released"),
-					fscbtns.timer.data,
-					key);
-
 			input_report_key(fscbtns.idev, key, pressed);
-
 		} else
+			if(test_bit(key, modification_mask))
+				fscbtns_sticky_start(key, pressed);
+			else 
 #endif
-
-			if(test_bit(key, modification_mask)) {
-				if(pressed) {
-					printk(KERN_INFO MODULENAME ": modkey pressed (%lu)\n", key);
-					input_report_key(fscbtns.idev, key, 1);
-				} else {
-					printk(KERN_INFO MODULENAME ": modkey released (%lu)\n", key);
-					fscbtns_sticky_start(key);
-				}
-			} else {
-				printk(KERN_INFO MODULENAME ": key %s (%lu)\n",
-						(pressed ? "pressed" : "released"),
-						key);
 				input_report_key(fscbtns.idev, key, pressed);
-			}
-
 	}
 
 	input_sync(fscbtns.idev);
 }
+
 
 /*** INTERRUPT ****************************************************************/
 
