@@ -19,6 +19,11 @@
 
 #ifdef HAVE_CONFIG_H
 #  include "../../config.h"
+#else
+#  undef DEBUG
+#  define DEFAULT_REP_DELAY 500
+#  define DEFAULT_REP_RATE 16
+#  define DEFAULT_STICKY_TIMEOUT 3000
 #endif
 
 #include <linux/kernel.h>

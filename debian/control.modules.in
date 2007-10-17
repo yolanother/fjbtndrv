@@ -1,0 +1,22 @@
+Source: fscd
+Section: utils
+Priority: extra
+Maintainer: Robert Gerlach <khnz@users.sourceforge.net>
+Build-Depends: debhelper (>= 5), autotools-dev, libxosd-dev, wacom-tools
+Standards-Version: 3.7.2
+
+Package: fsc-btns-modules-_KVERS_
+Architecture: any
+Depends: module-init-tools
+Recommends: fscd
+Provides: fsc-btns-modules
+Description: fsc_btns modules for Linux (kernel _KVERS_).
+ This package contains the loadable kernel modules for the panel buttons
+ on Fujitsu Lifebook and Stylistic tablet pcs.
+ .
+ This package contains the compiled kernel modules for _KVERS_
+ .
+ If you have compiled your own kernel, you will most likely need to build
+ your own fsc-btns-modules. The fsc-btns-source package has been
+ provided for use with the Debian's module-assistant or kernel-package
+ utilities to produce a version of fsc-btns-modules for your kernel.
