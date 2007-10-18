@@ -1,6 +1,5 @@
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrapp.cpp kdebase-3.5.7/kcontrol/randr/krandrapp.cpp
---- kdebase-3.5.7.orig/kcontrol/randr/krandrapp.cpp	2005-10-10 17:03:49.000000000 +0200
-+++ kdebase-3.5.7/kcontrol/randr/krandrapp.cpp	2007-06-19 21:24:02.000000000 +0200
+--- kdebase/kcontrol/randr/krandrapp.cpp	2005-10-10 17:03:49.000000000 +0200
++++ kdebase/kcontrol/randr/krandrapp.cpp	2007-10-18 12:52:58.000000000 +0200
 @@ -22,12 +22,15 @@
  #include "krandrapp.moc"
  
@@ -17,9 +16,8 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrapp.cpp kdebase-3.5.7/kcontro
  	m_tray->show();
  }
  
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrapp.h kdebase-3.5.7/kcontrol/randr/krandrapp.h
---- kdebase-3.5.7.orig/kcontrol/randr/krandrapp.h	2005-10-10 17:03:49.000000000 +0200
-+++ kdebase-3.5.7/kcontrol/randr/krandrapp.h	2007-06-19 21:23:39.000000000 +0200
+--- kdebase/kcontrol/randr/krandrapp.h	2005-10-10 17:03:49.000000000 +0200
++++ kdebase/kcontrol/randr/krandrapp.h	2007-10-18 12:52:58.000000000 +0200
 @@ -22,6 +22,7 @@
  #include <kuniqueapplication.h>
  
@@ -36,10 +34,9 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrapp.h kdebase-3.5.7/kcontrol/
  };
  
  #endif
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontrol/randr/krandrdbus.cpp
---- kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ kdebase-3.5.7/kcontrol/randr/krandrdbus.cpp	2007-06-19 22:31:50.000000000 +0200
-@@ -0,0 +1,118 @@
+--- kdebase/kcontrol/randr/krandrdbus.cpp	1970-01-01 01:00:00.000000000 +0100
++++ kdebase/kcontrol/randr/krandrdbus.cpp	2007-10-18 12:57:52.000000000 +0200
+@@ -0,0 +1,126 @@
 +#include "krandrdbus.h"
 +#include <dbus/dbus.h>
 +#include <kdebug.h>
@@ -102,13 +99,17 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontr
 +
 +	while(count-- && devices[count]) {
 +		char *type = libhal_device_get_property_string(m_halContext, devices[count], "button.type", &error);
++		if(!type)
++			continue;
++
 +		if(dbus_error_is_set(&error)) {
 +			libhal_free_string(type);
 +			continue;
 +		}
 +
-+		if(type && !strcmp("tablet_mode", type)) {
-+			m_swTabletMode = strdup(devices[count]);
++		if(!strcmp("tablet_mode", type)) {
++			m_swTabletMode.fromAscii(devices[count]);
++			libhal_free_string(type);
 +			break;
 +		}
 +
@@ -116,8 +117,11 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontr
 +	}
 +	libhal_free_string_array(devices);
 +
++	if(m_swTabletMode.isEmpty())
++		return false;
++
 +	libhal_ctx_set_device_property_modified (m_halContext, KRandRDBus::hal_device_property_modified);
-+	libhal_device_add_property_watch(m_halContext, m_swTabletMode, &error);
++	libhal_device_add_property_watch(m_halContext, m_swTabletMode.ascii(), &error);
 +	if(dbus_error_is_set(&error))
 +		goto error_dbg;
 +
@@ -136,7 +140,7 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontr
 +	DBusError error;
 +	dbus_error_init(&error);
 +
-+	dbus_bool_t mode = libhal_device_get_property_bool(m_halContext, m_swTabletMode, "button.state.value", &error);
++	dbus_bool_t mode = libhal_device_get_property_bool(m_halContext, m_swTabletMode.ascii(), "button.state.value", &error);
 +	if(dbus_error_is_set(&error))
 +		kdDebug(0) << "DBUS Error: " << error.message << endl;
 +
@@ -147,6 +151,7 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontr
 +		dbus_bool_t is_removed, dbus_bool_t is_added)
 +{
 +	Q_UNUSED(ctx);
++	Q_UNUSED(udi);
 +	Q_UNUSED(is_removed);
 +	Q_UNUSED(is_added);
 +
@@ -158,9 +163,8 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.cpp kdebase-3.5.7/kcontr
 +}
 +
 +#include "krandrdbus.moc"
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.h kdebase-3.5.7/kcontrol/randr/krandrdbus.h
---- kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.h	1970-01-01 01:00:00.000000000 +0100
-+++ kdebase-3.5.7/kcontrol/randr/krandrdbus.h	2007-06-19 21:59:54.000000000 +0200
+--- kdebase/kcontrol/randr/krandrdbus.h	1970-01-01 01:00:00.000000000 +0100
++++ kdebase/kcontrol/randr/krandrdbus.h	2007-10-18 12:57:52.000000000 +0200
 @@ -0,0 +1,42 @@
 +#ifndef __RANDRDBUS_H__
 +#define __RANDRDBUS_H__
@@ -200,13 +204,12 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrdbus.h kdebase-3.5.7/kcontrol
 +
 +	QObject *m_parent;
 +
-+	char *m_swTabletMode;
++	QString m_swTabletMode;
 +};
 +
 +#endif
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrtray.cpp kdebase-3.5.7/kcontrol/randr/krandrtray.cpp
---- kdebase-3.5.7.orig/kcontrol/randr/krandrtray.cpp	2005-10-10 17:03:49.000000000 +0200
-+++ kdebase-3.5.7/kcontrol/randr/krandrtray.cpp	2007-06-19 22:19:48.000000000 +0200
+--- kdebase/kcontrol/randr/krandrtray.cpp	2005-10-10 17:03:49.000000000 +0200
++++ kdebase/kcontrol/randr/krandrtray.cpp	2007-10-18 12:52:58.000000000 +0200
 @@ -229,6 +229,22 @@
  	}
  }
@@ -230,9 +233,8 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrtray.cpp kdebase-3.5.7/kcontr
  void KRandRSystemTray::slotRefreshRateChanged(int parameter)
  {
  	if (currentScreen()->currentRefreshRate() == parameter)
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrtray.h kdebase-3.5.7/kcontrol/randr/krandrtray.h
---- kdebase-3.5.7.orig/kcontrol/randr/krandrtray.h	2005-10-10 17:03:49.000000000 +0200
-+++ kdebase-3.5.7/kcontrol/randr/krandrtray.h	2007-06-19 22:21:03.000000000 +0200
+--- kdebase/kcontrol/randr/krandrtray.h	2005-10-10 17:03:49.000000000 +0200
++++ kdebase/kcontrol/randr/krandrtray.h	2007-10-18 12:52:58.000000000 +0200
 @@ -43,6 +43,7 @@
  	void slotScreenActivated();
  	void slotResolutionChanged(int parameter);
@@ -241,9 +243,8 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/krandrtray.h kdebase-3.5.7/kcontrol
  	void slotRefreshRateChanged(int parameter);
  	void slotPrefs();
  
-diff -Naur kdebase-3.5.7.orig/kcontrol/randr/Makefile.am kdebase-3.5.7/kcontrol/randr/Makefile.am
---- kdebase-3.5.7.orig/kcontrol/randr/Makefile.am	2006-03-17 11:17:17.000000000 +0100
-+++ kdebase-3.5.7/kcontrol/randr/Makefile.am	2007-06-19 22:27:43.000000000 +0200
+--- kdebase/kcontrol/randr/Makefile.am	2006-03-17 11:17:17.000000000 +0100
++++ kdebase/kcontrol/randr/Makefile.am	2007-10-18 12:52:58.000000000 +0200
 @@ -1,5 +1,3 @@
 -AM_CPPFLAGS  = $(all_includes)
 -
@@ -254,7 +255,7 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/Makefile.am kdebase-3.5.7/kcontrol/
  
  librandrinternal_la_SOURCES = ktimerdialog.cpp randr.cpp
  METASOURCES = AUTO 
-+INCLUDES = $(HAL_INCS) $(DBUS_INCS) $(DBUSQT_INCS) $(all_includes)
++INCLUDES = $(all_includes) $(HAL_INCS) $(DBUS_INCS) $(DBUSQT_INCS)
  
  kcm_randr_la_SOURCES = krandrmodule.cpp
  kcm_randr_la_LDFLAGS = -module -avoid-version $(all_libraries) -no-undefined
@@ -271,7 +272,7 @@ diff -Naur kdebase-3.5.7.orig/kcontrol/randr/Makefile.am kdebase-3.5.7/kcontrol/
  bin_PROGRAMS = krandrtray
  
 -krandrtray_SOURCES = main.cpp krandrtray.cpp krandrapp.cpp krandrpassivepopup.cpp
-+krandrtray_SOURCES = main.cpp krandrtray.cpp krandrapp.cpp krandrpassivepopup.cpp krandrdbus.cpp
++krandrtray_SOURCES = main.cpp krandrtray.cpp krandrdbus.cpp krandrapp.cpp krandrpassivepopup.cpp
  krandrtray_LDFLAGS = $(all_libraries) $(KDE_RPATH)
 -krandrtray_LDADD = librandrinternal.la $(LIB_KFILE) $(LIB_KUTILS) $(LIB_XRANDR)
 +krandrtray_LDADD = librandrinternal.la $(LIB_KFILE) $(LIB_KUTILS) $(LIB_XRANDR) $(HAL_LIBS) $(DBUS_LIBS) $(DBUSQT_LIBS)
