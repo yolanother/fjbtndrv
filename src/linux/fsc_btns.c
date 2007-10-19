@@ -244,10 +244,12 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 #ifdef DEFAULT_REP_RATE
 	set_bit(EV_REP, idev->evbit);
 #endif
-	set_bit(EV_MSC, idev->evbit);
 	set_bit(EV_KEY, idev->evbit);
 	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
 		set_bit(fscbtns.config.keymap[x], idev->keybit);
+
+	set_bit(EV_MSC, idev->evbit);
+	set_bit(MSC_SCAN, idev->mscbit);
 
 	set_bit(EV_SW, idev->evbit);
 	set_bit(SW_TABLET_MODE, idev->swbit);
@@ -346,6 +348,8 @@ static void fscbtns_event(void)
 		/* get number of changed bit */
 		while(!test_bit(x, &changed))
 			x++;
+
+		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
 
 		key = fscbtns.config.keymap[x];
 
