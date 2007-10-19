@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<deviceinfo version="0.2">
+  <device>
+    <match key="@input.originating_device:info.linux.driver" string="fsc_btns">
+      <!-- LIFEBOOK P and T Serie  (builtin)
+      <match key="/org/freedesktop/Hal/devices/computer:system.product" prefix_ncase="Lifebook">
+        <append key="input.keymap.data" type="strlist">0004:scrolldown</append>
+        <append key="input.keymap.data" type="strlist">0005:scrollup</append>
+        <append key="input.keymap.data" type="strlist">0006:direction</append>
+        <append key="input.keymap.data" type="strlist">0007:fn</append>
+        <append key="input.keymap.data" type="strlist">0008:brightnessup</append>
+        <append key="input.keymap.data" type="strlist">0009:brightnessdown</append>
+        <append key="input.keymap.data" type="strlist">000a:backlighttoggle</append>
+        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="info.capabilities" type="strlist">input.keymap</append>
+      </match>
+      -->
+
+      <!-- STYLISTIC ST5xxx Serie
+      <match key="/org/freedesktop/Hal/devices/computer:system.product" prefix_ncase="Stylistic ST5">
+        <append key="input.keymap.data" type="strlist">0004:mail</append>
+        <append key="input.keymap.data" type="strlist">0005:direction</append>
+        <append key="input.keymap.data" type="strlist">0006:esc</append>
+        <append key="input.keymap.data" type="strlist">0007:enter</append>
+        <append key="input.keymap.data" type="strlist">0008:brightnessup</append>
+        <append key="input.keymap.data" type="strlist">0009:brightnessdown</append>
+        <append key="input.keymap.data" type="strlist">000a:down</append>
+        <append key="input.keymap.data" type="strlist">000b:up</append>
+        <append key="input.keymap.data" type="strlist">000c:pageup</append>
+        <append key="input.keymap.data" type="strlist">000d:pagedown</append>
+        <append key="input.keymap.data" type="strlist">000e:fn</append>
+        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="info.capabilities" type="strlist">input.keymap</append>
+      </match>
+      -->
+
+      <!-- STYLISTIC Serie  (untested)
+      <match key="/org/freedesktop/Hal/devices/computer:system.product" prefix_ncase="Stylistic T">
+        <append key="input.keymap.data" type="strlist">0004:print</append>
+        <append key="input.keymap.data" type="strlist">0005:backspace</append>
+        <append key="input.keymap.data" type="strlist">0006:space</append>
+        <append key="input.keymap.data" type="strlist">0007:enter</append>
+        <append key="input.keymap.data" type="strlist">0008:brightnessup</append>
+        <append key="input.keymap.data" type="strlist">0009:brightnessdown</append>
+        <append key="input.keymap.data" type="strlist">000a:down</append>
+        <append key="input.keymap.data" type="strlist">000b:up</append>
+        <append key="input.keymap.data" type="strlist">000c:pageup</append>
+        <append key="input.keymap.data" type="strlist">000d:pagedown</append>
+        <append key="input.keymap.data" type="strlist">000e:fn</append>
+        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="info.capabilities" type="strlist">input.keymap</append>
+      </match>
+      -->
+
+    </match>
+  </device>
+</deviceinfo>
+
