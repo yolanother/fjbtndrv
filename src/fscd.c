@@ -142,7 +142,7 @@ static struct {
 		    { .sym=XF86XK_Launch4,	.text="Launch 4" },
 		  }
 		},
-		{ KEY_MENU,
+		{ KEY_LEFTALT,
 		  {
 		    {},	// fixed: modification
 		    { .sym=XF86XK_LaunchE,	.text="Launch E" },
@@ -1047,7 +1047,7 @@ int main_loop()
 				}
 				break;
 
-			case KEY_MENU:
+			case KEY_LEFTALT:
 				if(key_fn + 3 > input_event.time.tv_sec) {
 					if(input_event.value == 1) {
 						osd_message(3, _("configuration..."));

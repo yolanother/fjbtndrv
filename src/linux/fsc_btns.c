@@ -85,7 +85,7 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_LEFTMETA)]	= BIT(KEY_LEFTMETA),
 		[LONG(KEY_RIGHTMETA)]	= BIT(KEY_RIGHTMETA),
 		[LONG(KEY_COMPOSE)]	= BIT(KEY_COMPOSE),
-		[LONG(KEY_MENU)]	= BIT(KEY_MENU),
+		[LONG(KEY_LEFTALT)]	= BIT(KEY_LEFTALT),
 		[LONG(KEY_FN)]		= BIT(KEY_FN)};
 #endif
 
@@ -112,7 +112,7 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		KEY_UNKNOWN,
 		KEY_UNKNOWN,
 		KEY_UNKNOWN,
-		KEY_MENU
+		KEY_LEFTALT
 	}
 };
 
@@ -134,7 +134,7 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		KEY_PAGEUP,
 		KEY_PAGEDOWN,
 		KEY_FN,
-		KEY_MENU
+		KEY_LEFTALT
 	}
 };
 
@@ -156,7 +156,7 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		KEY_PAGEUP,
 		KEY_PAGEDOWN,
 		KEY_FN,
-		KEY_MENU
+		KEY_LEFTALT
 	}
 };
 

@@ -12,7 +12,7 @@
         <append key="input.keymap.data" type="strlist">0008:brightnessup</append>
         <append key="input.keymap.data" type="strlist">0009:brightnessdown</append>
         <append key="input.keymap.data" type="strlist">000a:backlighttoggle</append>
-        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="input.keymap.data" type="strlist">000f:leftalt</append>
         <append key="info.capabilities" type="strlist">input.keymap</append>
       </match>
       -->
@@ -30,7 +30,7 @@
         <append key="input.keymap.data" type="strlist">000c:pageup</append>
         <append key="input.keymap.data" type="strlist">000d:pagedown</append>
         <append key="input.keymap.data" type="strlist">000e:fn</append>
-        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="input.keymap.data" type="strlist">000f:leftalt</append>
         <append key="info.capabilities" type="strlist">input.keymap</append>
       </match>
       -->
@@ -48,7 +48,7 @@
         <append key="input.keymap.data" type="strlist">000c:pageup</append>
         <append key="input.keymap.data" type="strlist">000d:pagedown</append>
         <append key="input.keymap.data" type="strlist">000e:fn</append>
-        <append key="input.keymap.data" type="strlist">000f:menu</append>
+        <append key="input.keymap.data" type="strlist">000f:leftalt</append>
         <append key="info.capabilities" type="strlist">input.keymap</append>
       </match>
       -->
