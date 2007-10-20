@@ -23,7 +23,7 @@
 #  define DEBUG
 #  define DEFAULT_REP_DELAY 500
 #  define DEFAULT_REP_RATE 16
-#  define DEFAULT_STICKY_TIMEOUT 3000
+#  define DEFAULT_STICKY_TIMEOUT 1400
 #endif
 
 #include <linux/kernel.h>

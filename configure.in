@@ -97,9 +97,9 @@ if test x$rep_rate != xno; then
 fi
 
 AC_ARG_WITH(sticky-timeout,
-  [  --with-sticky-timeout=msec  timeout for sticky modification keys (Default: 3000)],
+  [  --with-sticky-timeout=msec  timeout for sticky modification keys (Default: 1400)],
   sticky_timeout=$withval,
-  sticky_timeout=3000)
+  sticky_timeout=1400)
 if test x$sticky_timeout != xno; then
   AC_DEFINE_UNQUOTED(DEFAULT_STICKY_TIMEOUT, [$sticky_timeout], [sticky timeout])
 fi
