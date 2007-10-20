@@ -323,6 +323,22 @@ static void fscbtns_sticky_stop(void)
 }
 #endif
 
+static void fscbtns_report_key(unsigned long key, int pressed)
+{
+#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+	/* modification key sticked down */
+	if(timer_pending(&fscbtns.timer)) {
+		if((!pressed) || (key == fscbtns.timer.data))
+			fscbtns_sticky_stop();
+		input_report_key(fscbtns.idev, key, pressed);
+	} else
+		if(test_bit(key, modification_mask)) {
+			fscbtns_sticky_start(key, pressed);
+		} else 
+#endif
+			input_report_key(fscbtns.idev, key, pressed);
+}
+
 static void fscbtns_event(void)
 {
 	unsigned long keymask;
@@ -340,7 +356,6 @@ static void fscbtns_event(void)
 	if(changed) {
 		int x = 0;
 		int pressed = !!(keymask & changed);
-		unsigned long key;
 
 		/* save current state and filter not changed bits */
 		prev_keymask = keymask;
@@ -351,20 +366,8 @@ static void fscbtns_event(void)
 
 		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
 
-		key = fscbtns.config.keymap[x];
-
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
-		/* modification key sticked down */
-		if(timer_pending(&fscbtns.timer)) {
-			if((!pressed) || (key == fscbtns.timer.data))
-				fscbtns_sticky_stop();
-			input_report_key(fscbtns.idev, key, pressed);
-		} else
-			if(test_bit(key, modification_mask))
-				fscbtns_sticky_start(key, pressed);
-			else 
-#endif
-				input_report_key(fscbtns.idev, key, pressed);
+		if(fscbtns.config.keymap[x])
+			fscbtns_report_key(fscbtns.config.keymap[x], pressed);
 	}
 
 	input_sync(fscbtns.idev);
