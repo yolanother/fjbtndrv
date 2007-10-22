@@ -266,21 +266,28 @@ xosd *osd_new(int lines)
 
 #define osd_hide() osd_exit()
 
-#define osd_message(timeout, format, a...) {		\
+#define osd_info(format, a...) {			\
 	xosd *osd = osd_new(1);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a); \
-	xosd_set_timeout(osd, timeout);			\
+	xosd_set_timeout(osd, 1);			\
 }
 
-#define osd_slider(timeout, percent, format, a...) {	\
+#define osd_message(format, a...) {			\
+	xosd *osd = osd_new(1);				\
+	xosd_display(osd, 0, XOSD_printf, format, ##a); \
+	xosd_set_timeout(osd, -1);			\
+}
+
+#define osd_slider(percent, format, a...) {	\
 	xosd *osd = osd_new(2);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a);	\
 	xosd_display(osd, 1, XOSD_slider, percent);	\
-	xosd_set_timeout(osd, timeout);			\
+	xosd_set_timeout(osd, -1);			\
 }
 
 #else
 #  define osd_hide()		do {} while(0)
+#  define osd_info(a...)	do {} while(0)
 #  define osd_message(a...)	do {} while(0)
 #  define osd_slider(a...)	do {} while(0)
 #endif
@@ -847,7 +854,11 @@ void brightness_show(const unsigned timeout)
 #ifdef ENABLE_XOSD
 	int current = get_brightness();
 
-	osd_slider(timeout, ((current-1) * 100)/(brightness_max-1),
+	debug("brightness: %d/%d (%d%%)",
+			current, brightness_max,
+			((current-1) * 100)/(brightness_max-1));
+
+	osd_slider(((current-1) * 100)/(brightness_max-1),
 			"%s", _("Brightness"));
 #endif
 }
@@ -858,15 +869,16 @@ void scrollmode_info(void)
 {
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
-			osd_message(1, "%s: %s", _("Scrolling"), _("Z-Axis"));
+			osd_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
 			break;
 		case SM_KEY_PAGE:
-			osd_message(1, "%s: %s", _("Scrolling"), _("Page Up/Down"));
+			osd_info("%s: %s", _("Scrolling"), _("Space/Backspace"));
 			break;
 		case SM_KEY_SPACE:
-			osd_message(1, "%s: %s", _("Scrolling"), _("Space/Backspace"));
+			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
 			break;
 	}
+	debug("scrollmode: %d", settings.scrollmode);
 }
 
 void scrollmode_next(void)
@@ -888,11 +900,11 @@ void toggle_lock_rotate(void)
 	switch(settings.lock_rotate) {
 		case UL_UNLOCKED:
 			settings.lock_rotate = UL_LOCKED;
-			osd_message(1, _("Rotation locked"));
+			osd_info(_("Rotation locked"));
 			break;
 		case UL_LOCKED:
 			settings.lock_rotate = UL_UNLOCKED;
-			osd_message(1, _("Rotation unlocked"));
+			osd_info(_("Rotation unlocked"));
 			break;
 	}
 }
@@ -901,10 +913,10 @@ void toggle_dpms(void)
 {
 	if(dpms_enabled()) {
 		disable_dpms();
-		osd_message(1, _("DPMS disabled"));
+		osd_info(_("DPMS disabled"));
 	} else {
 		enable_dpms();
-		osd_message(1, _("DPMS enabled"));
+		osd_info(_("DPMS enabled"));
 	}
 }
 //}}}
@@ -912,165 +924,202 @@ void toggle_dpms(void)
 
 int main_loop()
 {
-	ssize_t sz;
+	unsigned key_fn=0, key_alt=0, key_rep=0;
+	time_t key_cfg=0, key_scr=0;
 	struct input_event input_event;
-	time_t key_fn=0, key_alt=0, key_cfg=0, key_scr=0;
-	void (*on_key_release)(void) = NULL;
 
 	while(1) {
-		sz = read(input, &input_event, sizeof(input_event));
-		if(sz < 0)
+		if(read(input, &input_event, sizeof(input_event)) < 0)
 			break;
-
-		debug("input event: type=%d code=%d value=%d",
-				input_event.type, input_event.code, input_event.value);
 
 		switch(input_event.type) {
 		case EV_SYN:
+			debug("---");
+			break;
+
+		case EV_MSC:
+			debug("input: misc event %d with %d",
+					input_event.code, input_event.value);
 			break;
 
 		case EV_KEY:
-			if( !input_event.value ) {
-				if(on_key_release) {
-					on_key_release();
-					on_key_release = NULL;
-				}
-				break;
-			}
+			debug("input: key %d %s", input_event.code,
+					((input_event.value == 1)? "pressed" :
+						((input_event.value == 2)? "autorepeat" :
+							"released")));
+
+			if(key_cfg+3 < input_event.time.tv_sec)
+				key_cfg = 0;
+
+			if(key_scr+3 < input_event.time.tv_sec)
+				key_scr = 0;
 
 			switch(input_event.code) {
 			case KEY_SCROLLDOWN:
-				if(key_fn + 3 > input_event.time.tv_sec) {
+				if(!input_event.value)
 					break;
-				} else if(key_alt + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
-						key_cfg = input_event.time.tv_sec - 1;
-						scrollmode_next();
-						continue;
-					}
-				} else if(key_scr + 3 > input_event.time.tv_sec) {
+
+				if(key_scr) {
+					key_scr = input_event.time.tv_sec - 1;
+					debug("brightness down");
 					brightness_down();
-					brightness_show(3);
-					key_scr = input_event.time.tv_sec;
-					continue;
-				} else {
-					switch(settings.scrollmode) {
-						case SM_ZAXIS:
-							fake_button(5);
-							break;
-						case SM_KEY_PAGE:
-							fake_key(XK_Next);
-							break;
-						case SM_KEY_SPACE:
-							fake_key(XK_space);
-							break;
-					}
+					brightness_show(1);
+					break;
+				}
+
+				if(key_cfg) {
+					key_cfg = input_event.time.tv_sec - 1;
+					scrollmode_next();
+					break;
+				}
+
+				if(key_alt)
+					break;
+
+				if(key_fn)
+					break;
+
+				switch(settings.scrollmode) {
+					case SM_ZAXIS:
+						fake_button(5);
+						break;
+					case SM_KEY_PAGE:
+						fake_key(XK_Next);
+						break;
+					case SM_KEY_SPACE:
+						fake_key(XK_space);
+						break;
 				}
 				break;
 
 			case KEY_SCROLLUP:
-				if(key_fn + 3 > input_event.time.tv_sec) {
+				if(!input_event.value)
 					break;
-				} else if(key_alt + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
-						key_cfg = input_event.time.tv_sec - 1;
-						scrollmode_prev();
-						continue;
-					}
-				} else if(key_scr + 3 > input_event.time.tv_sec) {
+
+				if(key_scr) {
+					key_scr = input_event.time.tv_sec - 1;
+					debug("brightness up");
 					brightness_up();
-					brightness_show(3);
-					key_scr = input_event.time.tv_sec;
-					continue;
-				} else {
-					switch(settings.scrollmode) {
-						case SM_ZAXIS:
-							fake_button(4);
-							break;
-						case SM_KEY_PAGE:
-							fake_key(XK_Prior);
-							break;
-						case SM_KEY_SPACE:
-							fake_key(XK_BackSpace);
-							break;
-					}
+					brightness_show(1);
+					break;
+				}
+
+				if(key_cfg) {
+					key_cfg = input_event.time.tv_sec - 1;
+					scrollmode_prev();
+					break;
+				}
+
+				if(key_alt)
+					break;
+
+				if(key_fn)
+					break;
+
+				switch(settings.scrollmode) {
+					case SM_ZAXIS:
+						fake_button(4);
+						break;
+					case SM_KEY_PAGE:
+						fake_key(XK_Prior);
+						break;
+					case SM_KEY_SPACE:
+						fake_key(XK_BackSpace);
+						break;
 				}
 				break;
 
 			case KEY_DIRECTION:
-				if(key_fn + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_alt + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_cfg + 3 > input_event.time.tv_sec) {
+				if(key_scr) {
 					if(input_event.value == 1)
-						toggle_lock_rotate();
-				} else if(key_scr + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
-						osd_message(1, _("off"));
-						on_key_release = dpms_force_off;
-					};
-				} else {
-					if(input_event.value == 1)
-						rotate_screen(-1);
+						osd_info(_("off"));
+
+					if(input_event.value == 0) {
+						sleep(1);
+						osd_hide();
+						dpms_force_off();
+					}
+					break;
 				}
+
+				if(!input_event.value)
+					break;
+
+				if(key_cfg) {
+					toggle_lock_rotate();
+					break;
+				}
+
+				if(key_alt)
+					break;
+
+				if(key_fn)
+					break;
+
+				rotate_screen(-1);
 				break;
 
 			case KEY_FN:
-				if(key_fn + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_alt + 3 > input_event.time.tv_sec) {
-					break;
-				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
-						brightness_show(3);
-						key_cfg  = 0;
-						key_scr = input_event.time.tv_sec;
-						continue;
-					}
-				} else if(key_scr + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
+				key_fn = input_event.value;
+
+				if(input_event.value == 0) {
+					if(!key_cfg && !key_scr)
 						osd_hide();
-						key_scr = 0;
-						continue;
-					}
-				} else {
-					if(input_event.value == 1) {
-						osd_message(3, "Fn...");
-						key_fn = input_event.time.tv_sec;
-						continue;
-					}
+					break;
 				}
+
+				if(input_event.value != 1)
+					break;
+
+				if(key_scr) {
+					key_scr = 0;
+					osd_hide();
+					break;
+				}
+
+				if(key_cfg) {
+					key_cfg = 0;
+					osd_hide();
+					break;
+				}
+
+				if(key_alt) {
+					key_cfg = input_event.time.tv_sec;
+					osd_message(_("configuration..."));
+					break;
+				}
+
+				osd_message("Fn...");
 				break;
 
 			case KEY_LEFTALT:
-				if(key_fn + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1) {
-						osd_message(3, _("configuration..."));
-						key_fn  = 0;
-						key_alt = 0;
-						key_cfg = input_event.time.tv_sec;
-						continue;
-					}
-				} else if(key_alt + 3 > input_event.time.tv_sec) {
+				key_alt = input_event.value;
+
+				if(input_event.value == 0) {
+					if(!key_cfg && !key_scr)
+						osd_hide();
 					break;
-				} else if(key_cfg + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1)
-						toggle_dpms();
-				} else if(key_scr + 3 > input_event.time.tv_sec) {
-					if(input_event.value == 1)
-						toggle_dpms();
-				} else {
-					if(input_event.value == 1) {
-						osd_message(3, "Alt...");
-						key_alt = input_event.time.tv_sec;
-						continue;
-					}
 				}
+
+				if(input_event.value != 1)
+					break;
+
+				if(key_scr) {
+					key_scr = 0;
+					osd_hide();
+					break;
+				}
+
+				if(key_cfg)
+					break;
+
+				if(key_fn) {
+					key_cfg = input_event.time.tv_sec;
+					brightness_show(3);
+					break;
+				}
+
+				osd_message("Alt...");
 				break;
 
 			case KEY_BRIGHTNESSUP:
@@ -1084,26 +1133,29 @@ int main_loop()
 				break;
 
 			case KEY_BRIGHTNESS_ZERO:
-				if(input_event.value == 1) 
-					on_key_release = dpms_force_off;
-				else if(input_event.value == 2 && on_key_release) {
-					on_key_release = NULL;
-					toggle_dpms();
+				switch(input_event.value) {
+				case 0:
+					key_rep = 0;
+					break;
+				case 1:
+					dpms_force_off();
+					break;
+				case 2:
+					if(!key_rep) {
+						key_rep = 1;
+						toggle_dpms();
+					}
+					break;
 				}
-				break;
+
+			default:
+				debug("unknown key, skipping");
 			}
 
-			if(input_event.value == 1) {
-				debug("%lu:  fn:%lu alt:%lu cfg:%lu scr:%lu",
-						input_event.time.tv_sec,
-						key_fn, key_alt, key_cfg, key_scr);
+			debug("%lu.%lu:  fn:%u alt:%u cfg:%lu scr:%lu rep:%u",
+					input_event.time.tv_sec, input_event.time.tv_usec,
+					key_fn, key_alt, key_cfg, key_scr, key_rep);
 
-				fake_key_map(input_event.code,
-					(key_fn+3 > input_event.time.tv_sec),
-					(key_alt+3 > input_event.time.tv_sec));
-			}
-
-			key_fn = key_alt = key_cfg = key_scr = 0;
 			break;
 
 		case EV_SW:
@@ -1113,12 +1165,13 @@ int main_loop()
 					rotate_screen(input_event.value);
 				break;
 			default:
-				fprintf(stderr, "unsupported switch event %d", input_event.code);
+				debug("unknown switch, skipping");
 			}
 			break;
 
 		default:
-			fprintf(stderr, "unsupported event type %d", input_event.type);
+			fprintf(stderr, "unsupported event type %d",
+					input_event.type);
 		}
 	}
 
@@ -1180,7 +1233,7 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	osd_message(2, "%s %s %s", PACKAGE, VERSION, _("started"));
+	osd_info("%s %s %s", PACKAGE, VERSION, _("started"));
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	main_loop();
