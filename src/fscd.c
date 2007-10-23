@@ -266,24 +266,24 @@ xosd *osd_new(int lines)
 
 #define osd_hide() osd_exit()
 
-#define osd_info(format, a...) {			\
+#define osd_info(format, a...) do {			\
 	xosd *osd = osd_new(1);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a); \
 	xosd_set_timeout(osd, 1);			\
-}
+} while(0)
 
-#define osd_message(format, a...) {			\
+#define osd_message(format, a...) do {			\
 	xosd *osd = osd_new(1);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a); \
 	xosd_set_timeout(osd, -1);			\
-}
+} while(0)
 
-#define osd_slider(percent, format, a...) {	\
+#define osd_slider(percent, format, a...) do {	\
 	xosd *osd = osd_new(2);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a);	\
 	xosd_display(osd, 1, XOSD_slider, percent);	\
 	xosd_set_timeout(osd, -1);			\
-}
+} while(0)
 
 #else
 #  define osd_hide()		do {} while(0)
@@ -440,6 +440,69 @@ Display* x11_init(void)
 void x11_exit(void)
 {
 	XCloseDisplay(display);
+}
+
+int x11_grab_and_handle_keys(
+		void(*callback_down)(int),
+		void(*callback_up)(int),
+		void(*callback_rot)(int),
+		const unsigned int timeout)
+{
+	int error;
+	XEvent event;
+	Window root = XDefaultRootWindow(display);
+	unsigned int countdown = timeout;
+	const unsigned int countdown_step = 100;
+
+	error = XGrabKey(display, 143, 0, root, True, GrabModeAsync, GrabModeAsync);
+	debug("XGrabKey 143: %d", error);
+	error = XGrabKey(display, 203, 0, root, True, GrabModeAsync, GrabModeAsync);
+	debug("XGrabKey 203: %d", error);
+	error = XGrabKey(display, 220, 0, root, True, GrabModeAsync, GrabModeAsync);
+	debug("XGrabKey 220: %d", error);
+	XSync(display, False);
+
+	while(1) {
+		if(!XPending(display)) {
+			usleep(countdown_step * 1000);
+			countdown -= countdown_step;
+			if(countdown <= countdown_step)
+				break;
+
+			continue;
+		}
+
+		debug("getting event...");
+		error = XNextEvent(display, &event);
+		debug("XNextEvent: %d", error);
+
+		if(event.type == KeyPress ||
+		   event.type == KeyRelease) {
+			XKeyEvent *e = (XKeyEvent*)&event;
+			int press = (e->type == KeyPress);
+
+			if(e->send_event)
+				continue;
+			else if(e->keycode == 143 && callback_down)
+				callback_down(press);
+			else if(e->keycode == 220 && callback_up)
+				callback_up(press);
+			else if(e->keycode == 203 && callback_rot)
+				callback_rot(press);
+		}
+
+		XSync(display, False);
+		countdown = timeout;
+	}
+
+	XSync(display, True);
+
+	XUngrabKey(display, 143, 0, root);
+	XUngrabKey(display, 203, 0, root);
+	XUngrabKey(display, 220, 0, root);
+	XSync(display, False);
+
+	return 0;
 }
 
 int dpms_enabled(void)
@@ -843,11 +906,15 @@ void brightness_show()
 #endif
 }
 
-void brightness_down ()
+void brightness_down(int press)
 {
-	int current = get_brightness();
+	int current;
 
-	// XXX: workaround
+	if(!press)
+		return;
+
+	 current = get_brightness();
+
 	if(current == 0)
 		current = 8;
 
@@ -855,15 +922,28 @@ void brightness_down ()
 	brightness_show();
 }
 
-void brightness_up ()
+void brightness_up(int press)
 {
-	int current = get_brightness();
+	int current;
+
+	if(!press)
+		return;
+
+	current = get_brightness();
 
 	if(current < brightness_max)
 		current++;
 
 	set_brightness(current);
 	brightness_show();
+}
+
+void brightness_off(int press)
+{
+	if(press)
+		osd_message(_("display off"));
+	else
+		dpms_force_off();
 }
 //}}}
 
@@ -884,22 +964,30 @@ void scrollmode_info(void)
 	debug("scrollmode: %d", settings.scrollmode);
 }
 
-void scrollmode_next(void)
+void scrollmode_next(int press)
 {
+	if(!press)
+		return;
+
 	settings.scrollmode = (++settings.scrollmode % 3);
 	scrollmode_info();
 }
 
-void scrollmode_prev(void)
+void scrollmode_prev(int press)
 {
-	debug("SM: %d", sizeof(ScrollMode));
+	if(!press)
+		return;
+
 	settings.scrollmode = (settings.scrollmode? --settings.scrollmode : 2);
 	scrollmode_info();
 }
 
 
-void toggle_lock_rotate(void)
+void toggle_lock_rotate(int press)
 {
+	if(!press)
+		return;
+
 	switch(settings.lock_rotate) {
 		case UL_UNLOCKED:
 			settings.lock_rotate = UL_LOCKED;
@@ -912,8 +1000,11 @@ void toggle_lock_rotate(void)
 	}
 }
 
-void toggle_dpms(void)
+void toggle_dpms(int press)
 {
+	if(!press)
+		return;
+
 	if(dpms_enabled()) {
 		disable_dpms();
 		osd_info(_("DPMS disabled"));
@@ -928,7 +1019,6 @@ void toggle_dpms(void)
 int main_loop()
 {
 	unsigned key_fn=0, key_alt=0, key_rep=0;
-	time_t key_cfg=0, key_scr=0;
 	struct input_event input_event;
 
 	while(1) {
@@ -951,30 +1041,10 @@ int main_loop()
 						((input_event.value == 2)? "autorepeat" :
 							"released")));
 
-			if(key_cfg+3 < input_event.time.tv_sec)
-				key_cfg = 0;
-
-			if(key_scr+3 < input_event.time.tv_sec)
-				key_scr = 0;
-
 			switch(input_event.code) {
 			case KEY_SCROLLDOWN:
 				if(!input_event.value)
 					break;
-
-				if(key_scr) {
-					key_scr = input_event.time.tv_sec - 1;
-					debug("brightness down");
-					brightness_down();
-					brightness_show(1);
-					break;
-				}
-
-				if(key_cfg) {
-					key_cfg = input_event.time.tv_sec - 1;
-					scrollmode_next();
-					break;
-				}
 
 				if(key_alt)
 					break;
@@ -999,20 +1069,6 @@ int main_loop()
 				if(!input_event.value)
 					break;
 
-				if(key_scr) {
-					key_scr = input_event.time.tv_sec - 1;
-					debug("brightness up");
-					brightness_up();
-					brightness_show(1);
-					break;
-				}
-
-				if(key_cfg) {
-					key_cfg = input_event.time.tv_sec - 1;
-					scrollmode_prev();
-					break;
-				}
-
 				if(key_alt)
 					break;
 
@@ -1033,25 +1089,8 @@ int main_loop()
 				break;
 
 			case KEY_DIRECTION:
-				if(key_scr) {
-					if(input_event.value == 1)
-						osd_info(_("off"));
-
-					if(input_event.value == 0) {
-						sleep(1);
-						osd_hide();
-						dpms_force_off();
-					}
+				if(input_event.value != 1)
 					break;
-				}
-
-				if(!input_event.value)
-					break;
-
-				if(key_cfg) {
-					toggle_lock_rotate();
-					break;
-				}
 
 				if(key_alt)
 					break;
@@ -1065,30 +1104,17 @@ int main_loop()
 			case KEY_FN:
 				key_fn = input_event.value;
 
-				if(input_event.value == 0) {
-					if(!key_cfg && !key_scr)
-						osd_hide();
-					break;
-				}
-
 				if(input_event.value != 1)
 					break;
 
-				if(key_scr) {
-					key_scr = 0;
-					osd_hide();
-					break;
-				}
-
-				if(key_cfg) {
-					key_cfg = 0;
-					osd_hide();
-					break;
-				}
-
 				if(key_alt) {
-					key_cfg = input_event.time.tv_sec;
 					osd_message(_("configuration..."));
+					x11_grab_and_handle_keys(
+							scrollmode_next,
+							scrollmode_prev,
+							toggle_lock_rotate,
+							1400);
+					osd_hide();
 					break;
 				}
 
@@ -1098,27 +1124,17 @@ int main_loop()
 			case KEY_LEFTALT:
 				key_alt = input_event.value;
 
-				if(input_event.value == 0) {
-					if(!key_cfg && !key_scr)
-						osd_hide();
-					break;
-				}
-
 				if(input_event.value != 1)
 					break;
 
-				if(key_scr) {
-					key_scr = 0;
-					osd_hide();
-					break;
-				}
-
-				if(key_cfg)
-					break;
-
 				if(key_fn) {
-					key_scr = input_event.time.tv_sec;
-					brightness_show(3);
+					brightness_show();
+					x11_grab_and_handle_keys(
+							brightness_down,
+							brightness_up,
+							brightness_off,
+							1400);
+					osd_hide();
 					break;
 				}
 
@@ -1127,12 +1143,12 @@ int main_loop()
 
 			case KEY_BRIGHTNESSUP:
 				if(input_event.value)
-					brightness_up();
+					brightness_up(input_event.value);
 				break;
 
 			case KEY_BRIGHTNESSDOWN:
 				if(input_event.value)
-					brightness_down();
+					brightness_down(input_event.value);
 				break;
 
 			case KEY_BRIGHTNESS_ZERO:
@@ -1146,7 +1162,7 @@ int main_loop()
 				case 2:
 					if(!key_rep) {
 						key_rep = 1;
-						toggle_dpms();
+						toggle_dpms(True);
 					}
 					break;
 				}
@@ -1155,9 +1171,9 @@ int main_loop()
 				debug("unknown key, skipping");
 			}
 
-			debug("%lu.%lu:  fn:%u alt:%u cfg:%lu scr:%lu rep:%u",
+			debug("%lu.%lu:  fn:%u alt:%u rep:%u",
 					input_event.time.tv_sec, input_event.time.tv_usec,
-					key_fn, key_alt, key_cfg, key_scr, key_rep);
+					key_fn, key_alt, key_rep);
 
 			break;
 
