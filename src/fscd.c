@@ -471,11 +471,10 @@ void dpms_force_off(void)
 	if(!on)
 		enable_dpms();
 
-	/* give some time to release the key(s) */
-	debug("dpms: ... off in 1 sec.");
-	sleep(1);
-	DPMSForceLevel(display, DPMSModeOff);
 	XSync(display, True);
+
+	DPMSForceLevel(display, DPMSModeOff);
+	XSync(display, False);
 }
 
 int rotate_screen(int mode)
@@ -548,9 +547,9 @@ int fake_key(KeySym sym)
 	if(keycode) {
 		debug("fake key %d event", keycode);
 		XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
-		XSync(display, True);
+		XSync(display, False);
 		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
-		XSync(display, True);
+		XSync(display, False);
 		return 0;
 	}
 
@@ -591,9 +590,9 @@ int fake_button(unsigned int button)
 	while(steps--) {
 		debug("fake button %d event", button);
 		XTestFakeButtonEvent(display, button, True,  CurrentTime);
-		XSync(display, True);
+		XSync(display, False);
 		XTestFakeButtonEvent(display, button, False, CurrentTime);
-		XSync(display, True);
+		XSync(display, False);
 	}
 
 	return 0;
@@ -1118,7 +1117,7 @@ int main_loop()
 					break;
 
 				if(key_fn) {
-					key_cfg = input_event.time.tv_sec;
+					key_scr = input_event.time.tv_sec;
 					brightness_show(3);
 					break;
 				}
