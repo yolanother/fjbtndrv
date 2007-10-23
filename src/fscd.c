@@ -830,26 +830,7 @@ void set_brightness(int level)
 	return;
 }
 
-void brightness_down ()
-{
-	int current = get_brightness();
-
-	// XXX: workaround
-	if(current == 0)
-		current = 8;
-
-	set_brightness(current-1);
-}
-
-void brightness_up ()
-{
-	int current = get_brightness();
-
-	if(current < brightness_max)
-		set_brightness(get_brightness()+1);
-}
-
-void brightness_show(const unsigned timeout)
+void brightness_show()
 {
 #ifdef ENABLE_XOSD
 	int current = get_brightness();
@@ -861,6 +842,29 @@ void brightness_show(const unsigned timeout)
 	osd_slider(((current-1) * 100)/(brightness_max-1),
 			"%s", _("Brightness"));
 #endif
+}
+
+void brightness_down ()
+{
+	int current = get_brightness();
+
+	// XXX: workaround
+	if(current == 0)
+		current = 8;
+
+	set_brightness(current-1);
+	brightness_show();
+}
+
+void brightness_up ()
+{
+	int current = get_brightness();
+
+	if(current < brightness_max)
+		current++;
+
+	set_brightness(current);
+	brightness_show();
 }
 //}}}
 
@@ -1123,13 +1127,13 @@ int main_loop()
 				break;
 
 			case KEY_BRIGHTNESSUP:
-				brightness_up();
-				brightness_show(1);
+				if(input_event.value)
+					brightness_up();
 				break;
 
 			case KEY_BRIGHTNESSDOWN:
-				brightness_down();
-				brightness_show(1);
+				if(input_event.value)
+					brightness_down();
 				break;
 
 			case KEY_BRIGHTNESS_ZERO:
