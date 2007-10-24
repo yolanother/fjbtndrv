@@ -1,6 +1,7 @@
 SUBDIRS = linux
 
 DEFS += -DLOCALEDIR=\"$(localedir)\"
+export DEFS
 
 bin_PROGRAMS = fscd
 

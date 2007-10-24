@@ -21,9 +21,10 @@
 #  include "../../config.h"
 #else
 #  define DEBUG
-#  define DEFAULT_REP_DELAY 500
-#  define DEFAULT_REP_RATE 16
-#  define DEFAULT_STICKY_TIMEOUT 1400
+#  define REPEAT_DELAY 700
+#  define REPEAT_RATE 16
+#  define STICKY_TIMEOUT 1400
+#  undef  POWERUSER_FEATURES
 #endif
 
 #include <linux/kernel.h>
@@ -74,7 +75,7 @@ MODULE_DEVICE_TABLE(pnp, fscbtns_ids);
 #define KEY_BRIGHTNESS_ZERO 244
 #endif
 
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_LEFTSHIFT)]	= BIT(KEY_LEFTSHIFT),
 		[LONG(KEY_RIGHTSHIFT)]	= BIT(KEY_RIGHTSHIFT),
@@ -91,7 +92,11 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 
 struct fscbtns_config {
 	int invert_orientation_bit;
+#ifdef POWERUSER_FEATURES
+	unsigned int keymap[32];
+#else
 	unsigned int keymap[16];
+#endif
 };
 
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
@@ -112,7 +117,25 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		KEY_UNKNOWN,
 		KEY_UNKNOWN,
 		KEY_UNKNOWN,
-		KEY_LEFTALT
+		KEY_LEFTALT,
+#ifdef POWERUSER_FEATURES
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_PROG1,
+		KEY_PROG2,
+		KEY_PROG3,
+		KEY_PROG4,
+		KEY_BRIGHTNESSUP,
+		KEY_BRIGHTNESSDOWN,
+		KEY_BRIGHTNESS_ZERO,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_ENTER
+#endif
 	}
 };
 
@@ -134,7 +157,25 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		KEY_PAGEUP,
 		KEY_PAGEDOWN,
 		KEY_FN,
-		KEY_LEFTALT
+		KEY_LEFTALT,
+#ifdef POWERUSER_FEATURES
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN
+#endif
 	}
 };
 
@@ -156,15 +197,37 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		KEY_PAGEUP,
 		KEY_PAGEDOWN,
 		KEY_FN,
-		KEY_LEFTALT
+		KEY_LEFTALT,
+#ifdef POWERUSER_FEATURES
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+		KEY_UNKNOWN,
+#endif
 	}
 };
 
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	struct timer_list timer;
+#endif
+#ifdef POWERUSER_FEATURES
+	struct timer_list lp_timer;
+	unsigned long lp_timer_start;
 #endif
 
 	unsigned int interrupt;
@@ -241,7 +304,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->keycodesize = sizeof(unsigned int);
 	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
 
-#ifdef DEFAULT_REP_RATE
+#ifdef REPEAT_RATE
 	set_bit(EV_REP, idev->evbit);
 #endif
 	set_bit(EV_KEY, idev->evbit);
@@ -260,9 +323,13 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		return error;
 	}
 
-#ifdef DEFAULT_REP_RATE
-	idev->rep[REP_DELAY]  = DEFAULT_REP_DELAY;
-	idev->rep[REP_PERIOD] = 1000 / DEFAULT_REP_RATE;
+#ifdef REPEAT_RATE
+#ifdef POWERUSER_FEATURES
+	idev->rep[REP_DELAY]  = 1;
+#else
+	idev->rep[REP_DELAY]  = REPEAT_DELAY;
+#endif
+	idev->rep[REP_PERIOD] = 1000 / REPEAT_RATE;
 #endif
 
 	return 0;
@@ -287,7 +354,39 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
+#ifdef POWERUSER_FEATURES
+static void fscbtns_lp_timeout(unsigned long data)
+{
+	dev_dbg(&fscbtns.pdev->dev, "lp timeout, key = %lu, jiffies = %lu\n",
+			data, jiffies);
+
+	input_report_key(fscbtns.idev, data, 1);
+	input_sync(fscbtns.idev);
+}
+
+static inline void fscbtns_lp_start(unsigned int key)
+{
+	if(timer_pending(&fscbtns.lp_timer))
+		del_timer(&fscbtns.lp_timer);
+
+	fscbtns.lp_timer.data = key;
+	fscbtns.lp_timer.function = fscbtns_lp_timeout;
+	fscbtns.lp_timer_start = jiffies;
+	fscbtns.lp_timer.expires = jiffies + (REPEAT_DELAY*HZ)/1000;
+	add_timer(&fscbtns.lp_timer);
+}
+
+static inline void fscbtns_report_long_press(int key)
+{
+	unsigned int keycode = fscbtns.config.keymap[key+16];
+
+	input_report_key(fscbtns.idev, keycode, 1);
+	input_sync(fscbtns.idev);
+	input_report_key(fscbtns.idev, keycode, 0);
+}
+#endif
+
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 static void fscbtns_sticky_timeout(unsigned long data)
 {
 	dev_dbg(&fscbtns.pdev->dev, "sicky timeout, key = %lu, jiffies = %lu\n",
@@ -297,19 +396,20 @@ static void fscbtns_sticky_timeout(unsigned long data)
 	input_sync(fscbtns.idev);
 }
 
-static void fscbtns_sticky_start(unsigned long key, int pressed)
+static void fscbtns_sticky_start(unsigned int key, int pressed)
 {
-	if(pressed)
+	if(pressed) {
 		input_report_key(fscbtns.idev, key, 1);
-	else {
-		fscbtns.timer.data = key;
-		fscbtns.timer.function = fscbtns_sticky_timeout;
-		fscbtns.timer.expires = jiffies + ((DEFAULT_STICKY_TIMEOUT * HZ) / 1000);
-		add_timer(&fscbtns.timer);
-
-		dev_dbg(&fscbtns.pdev->dev, "sticky timer started - key = %lu, jiffies = %lu\n",
-				key, fscbtns.timer.expires);
+		return;
 	}
+	
+	fscbtns.timer.data = key;
+	fscbtns.timer.function = fscbtns_sticky_timeout;
+	fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
+	add_timer(&fscbtns.timer);
+
+	dev_dbg(&fscbtns.pdev->dev, "sticky timer started - key = %u, jiffies = %lu\n",
+			key, fscbtns.timer.expires);
 }
 
 static void fscbtns_sticky_stop(void)
@@ -323,20 +423,47 @@ static void fscbtns_sticky_stop(void)
 }
 #endif
 
-static void fscbtns_report_key(unsigned long key, int pressed)
+static void fscbtns_report_key(int key, int pressed)
 {
-#if defined(DEFAULT_STICKY_TIMEOUT) && (DEFAULT_STICKY_TIMEOUT > 0)
-	/* modification key sticked down */
-	if(timer_pending(&fscbtns.timer)) {
-		if((!pressed) || (key == fscbtns.timer.data))
-			fscbtns_sticky_stop();
-		input_report_key(fscbtns.idev, key, pressed);
-	} else
-		if(test_bit(key, modification_mask)) {
-			fscbtns_sticky_start(key, pressed);
-		} else 
+	unsigned int keycode = fscbtns.config.keymap[key];
+
+#ifdef POWERUSER_FEATURES
+	if(pressed && fscbtns.config.keymap[key+16]) {
+		fscbtns_lp_start(keycode);
+		return;
+	}
+
+	if(timer_pending(&fscbtns.lp_timer)) {
+		del_timer(&fscbtns.lp_timer);
+
+		if(jiffies - fscbtns.lp_timer_start > HZ/3) {
+			fscbtns_report_long_press(key);
+			return;
+		}
+	}
+
+	if(!keycode)
+		return;
+
+	input_report_key(fscbtns.idev, keycode, 1);
+	input_sync(fscbtns.idev);
 #endif
-			input_report_key(fscbtns.idev, key, pressed);
+
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
+	if(timer_pending(&fscbtns.timer)) {
+		if((!pressed) || (keycode == fscbtns.timer.data))
+			fscbtns_sticky_stop();
+		input_report_key(fscbtns.idev, keycode, pressed);
+		return;
+	}
+
+	if(test_bit(keycode, modification_mask)) {
+		fscbtns_sticky_start(keycode, pressed);
+		return;
+	}
+#endif
+
+	input_report_key(fscbtns.idev, keycode, pressed);
 }
 
 static void fscbtns_event(void)
@@ -365,9 +492,7 @@ static void fscbtns_event(void)
 			x++;
 
 		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
-
-		if(fscbtns.config.keymap[x])
-			fscbtns_report_key(fscbtns.config.keymap[x], pressed);
+		fscbtns_report_key(x, pressed);
 	}
 
 	input_sync(fscbtns.idev);
@@ -627,7 +752,14 @@ static int __init fscbtns_module_init(void)
 	error = -ENODEV;
 #endif
 
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	init_timer(&fscbtns.timer);
+#endif
+
+#ifdef POWERUSER_FEATURES
+	pr_info(MODULENAME ": poweruser features enabled\n");
+	init_timer(&fscbtns.lp_timer);
+#endif
 
 	if(!fscbtns.interrupt || !fscbtns.address)
 		goto err;
@@ -656,7 +788,12 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
+#ifdef POWERUSER_FEATURES
+	del_timer_sync(&fscbtns.lp_timer);
+#endif
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	del_timer_sync(&fscbtns.timer);
+#endif
 	return error;
 }
 
@@ -668,7 +805,12 @@ static void __exit fscbtns_module_exit(void)
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
+#ifdef POWERUSER_FEATURES
+	del_timer_sync(&fscbtns.lp_timer);
+#endif
+#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	del_timer_sync(&fscbtns.timer);
+#endif
 }
 
 module_init(fscbtns_module_init);

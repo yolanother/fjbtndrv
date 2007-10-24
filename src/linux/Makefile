@@ -4,6 +4,11 @@ KERNELRELEASE	= $(shell uname -r)
 KERNEL_SOURCE	= /lib/modules/$(KERNELRELEASE)/build
 PWD		= $(shell pwd)
 
+ifdef DEFS
+EXTRA_CFLAGS += $(DEFS)
+endif
+
+
 all: fsc_btns.ko
 modules: fsc_btns.ko
 modules_install: install
