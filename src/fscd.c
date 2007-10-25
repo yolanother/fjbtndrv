@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <linux/input.h>
 #include <X11/Xlib.h>
@@ -81,99 +82,17 @@ typedef enum {
 	UL_UNLOCKED
 } UserLock;
 
-typedef struct {
-	KeySym sym;			// Xorg
-	char *text;			// osd
-} keymap_entry;
-
-typedef struct {
-	unsigned long keycode;		// linux keycode
-	keymap_entry map[3];		// normal, FN, ALT
-} keymap_t;
-
 static struct {
 	ScrollMode scrollmode;
 	UserLock lock_rotate;
-	keymap_t keymap[];
 } settings = {
 	.scrollmode = SM_ZAXIS,
 	.lock_rotate = UL_UNLOCKED,
-
-	.keymap = {
-		{ KEY_SCROLLDOWN,
-		  {
-		    {},	// fixed: scroll down
-		    { .sym=XF86XK_LaunchA,	.text="Launch A" },
-		    { .sym=XF86XK_Launch1,	.text="Launch 1" },
-		  }
-		},
-		{ KEY_SCROLLUP,
-		  {
-		    {},	// fixed: scroll up
-		    { .sym=XF86XK_LaunchB,	.text="Launch B" },
-		    { .sym=XF86XK_Launch2,	.text="Launch 2" },
-		  }
-		},
-		{ KEY_PAGEDOWN,
-		  {
-		    {},	// do nothing
-		    { .sym=XK_Undo,		.text="Undo" },
-		    { .sym=XK_Begin,		.text=NULL },
-		  }
-		},
-		{ KEY_PAGEUP,
-		  {
-		    {},	// do nothing
-		    { .sym=XK_Redo,		.text="Redo" },
-		    { .sym=XK_End,		.text=NULL },
-		  }
-		},
-		{ KEY_DIRECTION,
-		  {
-		    {},	// fixed: rotate screen
-		    { .sym=XF86XK_LaunchC,	.text="Launch C" },
-		    { .sym=XF86XK_Launch3,	.text="Launch 3" },
-		  }
-		},
-		{ KEY_FN,
-		  {
-		    {},	// fixed: modification
-		    { .sym=XF86XK_LaunchD,	.text="Launch D" },
-		    { .sym=XF86XK_Launch4,	.text="Launch 4" },
-		  }
-		},
-		{ KEY_LEFTALT,
-		  {
-		    {},	// fixed: modification
-		    { .sym=XF86XK_LaunchE,	.text="Launch E" },
-		    { .sym=XF86XK_Launch5,	.text="Launch 5" },
-		  }
-		},
-		{ KEY_MAIL,
-		  {
-		    { .sym=XF86XK_Mail,		.text="Mail"},
-		    { .sym=XF86XK_WWW,		.text="WWW" },
-		    { .sym=XF86XK_Launch1,	.text="Launch 1" },
-		  }
-		},
-		{ KEY_ESC,
-		  {
-		    { .sym=XK_Escape,		.text=NULL},
-		    { .sym=XF86XK_LaunchA,	.text="Launch A" },
-		    { .sym=XF86XK_Launch3,	.text="Launch 3" },
-		  }
-		},
-		{ KEY_DELETE,
-		  {
-		    { .sym=XK_Delete,		.text=NULL},
-		    { .sym=XF86XK_LaunchB,	.text="Launch B" },
-		    { .sym=XF86XK_Launch4,	.text="Launch 4" },
-		  }
-		},
-		{ 0 }
-	}
 };
-		    
+
+
+static unsigned keep_running = 1;
+static clock_t  current_time;
 
 //{{{ Input stuff
 #include <linux/input.h>
@@ -191,7 +110,7 @@ int input_init(void)
 
 	for(x = 0; x < 255; x++) {
 		snprintf(filename, sizeof(filename), "/dev/input/event%d", x);
-		debug("check input device %s...", filename);
+		debug("INPUT: check input device %s...", filename);
 
 		input = open(filename, O_RDONLY);
 		if(input < 0)
@@ -237,7 +156,6 @@ void osd_exit(void)
 
 xosd *osd_new(int lines)
 {
-	debug("osd_new: osd(%p)", osd);
 	if(osd) {
 		if(xosd_get_number_lines(osd) == lines)
 			return osd;
@@ -320,12 +238,12 @@ int wacom_init(Display *display)
 			DLSYM(&wclib, WacomConfigSetRawParam) &&
 			DLSYM(&wclib, WacomConfigOpenDevice) &&
 			DLSYM(&wclib, WacomConfigCloseDevice)) ) {
-		debug("%s", dlerror());
+		debug("WACOM: %s", dlerror());
 		wclib.hdnl = NULL;
 		return -1;
 	}
 
-	debug("wacomcfg library ready");
+	debug("WACOM: wacomcfg library ready");
 #endif
 
 	wacom_config = DLCALL(&wclib, WacomConfigInit, display, NULL);
@@ -375,134 +293,89 @@ void wacom_rotate(int mode)
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
 static Display *display;
+static Window root;
 
 Display* x11_init(void)
 {
-	display = XOpenDisplay(NULL);
-	if(display) {
-		Bool xtest, randr, dpms;
-		int opcode, event, error;
+	Bool xtest, randr, dpms;
+	int opcode, event, error;
 #ifdef DEBUG
-		int major, minor;
+	int major, minor;
 #endif
 
-		xtest = XQueryExtension(display, "XTEST",
-				&opcode, &event, &error);
-		if(xtest) {
+	display = XOpenDisplay(NULL);
+	if(!display)
+		return NULL;
+
+	root = XDefaultRootWindow(display);
+	if(!root) {
+		XCloseDisplay(display);
+		return NULL;
+	}
+
+	xtest = XQueryExtension(display, "XTEST",
+			&opcode, &event, &error);
+	if(xtest) {
 #ifdef DEBUG
-			XTestQueryExtension(display,
-					&event, &error,
-					&major, &minor);
-			debug("Found XTest %d.%d extension (%d, %d, %d)",
+		XTestQueryExtension(display,
+				&event, &error,
+				&major, &minor);
+		debug(" X11 :  Found XTest %d.%d extension (%d, %d, %d)",
+			major, minor,
+			opcode, event, error);
+#endif
+	} else
+		fprintf(stderr, "No XTest extension\n");
+
+	randr = XQueryExtension(display, "RANDR",
+			&opcode, &event, &error);
+	if(randr) {
+#ifdef DEBUG
+		XRRQueryVersion(display, &major,&minor);
+		debug(" X11 : Found RandR %d.%d extension (%d, %d, %d)",
 				major, minor,
 				opcode, event, error);
 #endif
-		} else
-			fprintf(stderr, "No XTest extension\n");
+	} else
+		fprintf(stderr, "No RandR extension\n");
 
-
-		randr = XQueryExtension(display, "RANDR",
-				&opcode, &event, &error);
-		if(randr) {
+	dpms = XQueryExtension(display, "DPMS",
+			&opcode, &event, &error);
+	if(dpms) {
 #ifdef DEBUG
-			XRRQueryVersion(display, &major,&minor);
-			debug("Found RandR %d.%d extension (%d, %d, %d)",
-					major, minor,
-					opcode, event, error);
+		DPMSGetVersion(display, &major,&minor);
+		debug(" X11 : Found DPMS %d.%d extension (%d, %d, %d)",
+				major, minor,
+				opcode, event, error);
 #endif
-		} else
-			fprintf(stderr, "No RandR extension\n");
+	} else
+		fprintf(stderr, "No DPMS extension\n");
 
-		dpms = XQueryExtension(display, "DPMS",
-				&opcode, &event, &error);
-		if(dpms) {
-#ifdef DEBUG
-			DPMSGetVersion(display, &major,&minor);
-			debug("Found DPMS %d.%d extension (%d, %d, %d)",
-					major, minor,
-					opcode, event, error);
-#endif
-		} else
-			fprintf(stderr, "No DPMS extension\n");
-
-		if(xtest && randr && dpms) {
-			return display;
-		} else {
-			XCloseDisplay(display);
-			return NULL;
-		}
+	if(!xtest || !randr || !dpms) {
+		fprintf(stderr, "Can't open display\n");
+		XCloseDisplay(display);
+		return NULL;
 	}
 
-	fprintf(stderr, "Can't open display\n");
-	return NULL;
+	XGrabKey(display, 101, 0, root, True, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, 143, 0, root, True, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, 203, 0, root, True, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, 212, 0, root, True, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, 220, 0, root, True, GrabModeAsync, GrabModeAsync);
+	XSync(display, False);
+
+	return display;
 }
 
 void x11_exit(void)
 {
-	XCloseDisplay(display);
-}
-
-int x11_grab_and_handle_keys(
-		void(*callback_down)(int),
-		void(*callback_up)(int),
-		void(*callback_rot)(int),
-		const unsigned int timeout)
-{
-	int error;
-	XEvent event;
-	Window root = XDefaultRootWindow(display);
-	unsigned int countdown = timeout;
-	const unsigned int countdown_step = 100;
-
-	error = XGrabKey(display, 143, 0, root, True, GrabModeAsync, GrabModeAsync);
-	debug("XGrabKey 143: %d", error);
-	error = XGrabKey(display, 203, 0, root, True, GrabModeAsync, GrabModeAsync);
-	debug("XGrabKey 203: %d", error);
-	error = XGrabKey(display, 220, 0, root, True, GrabModeAsync, GrabModeAsync);
-	debug("XGrabKey 220: %d", error);
-	XSync(display, False);
-
-	while(1) {
-		if(!XPending(display)) {
-			usleep(countdown_step * 1000);
-			countdown -= countdown_step;
-			if(countdown <= countdown_step)
-				break;
-
-			continue;
-		}
-
-		debug("getting event...");
-		error = XNextEvent(display, &event);
-		debug("XNextEvent: %d", error);
-
-		if(event.type == KeyPress ||
-		   event.type == KeyRelease) {
-			XKeyEvent *e = (XKeyEvent*)&event;
-			int press = (e->type == KeyPress);
-
-			if(e->send_event)
-				continue;
-			else if(e->keycode == 143 && callback_down)
-				callback_down(press);
-			else if(e->keycode == 220 && callback_up)
-				callback_up(press);
-			else if(e->keycode == 203 && callback_rot)
-				callback_rot(press);
-		}
-
-		XSync(display, False);
-		countdown = timeout;
-	}
-
-	XSync(display, True);
-
+	XUngrabKey(display, 101, 0, root);
 	XUngrabKey(display, 143, 0, root);
 	XUngrabKey(display, 203, 0, root);
+	XUngrabKey(display, 212, 0, root);
 	XUngrabKey(display, 220, 0, root);
-	XSync(display, False);
-
-	return 0;
+	XSync(display, True);
+	XCloseDisplay(display);
 }
 
 int dpms_enabled(void)
@@ -605,10 +478,10 @@ int fake_key(KeySym sym)
 		return -1;
 
 	keycode = XKeysymToKeycode(display, sym);
-	debug("fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
+	debug(" X11 : fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
 
 	if(keycode) {
-		debug("fake key %d event", keycode);
+		debug(" X11 : fake key %d event", keycode);
 		XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
 		XSync(display, False);
 		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
@@ -620,38 +493,12 @@ int fake_key(KeySym sym)
 	return -1;
 }
 
-int fake_key_map(unsigned long keycode, int fn, int alt)
-{
-	int error;
-	keymap_t *keymap = &(settings.keymap[0]);
-	keymap_entry *key;
-
-	while(keymap->keycode && keymap->keycode != keycode)
-		keymap++;
-
-	if(!keymap->keycode) {
-		debug("no keymap for %lu\n", keycode);
-		return -1;
-	}
-
-	debug("fake key: %lu (fn:%d alt:%d)", keycode, fn, alt);
-	key = &(keymap->map[fn+(alt*2)]);
-
-	error = fake_key(key->sym);
-#ifdef ENABLE_XOSD
-	if(!error && key->text)
-		osd_message(1, key->text);
-#endif
-
-	return error;
-}
-
 int fake_button(unsigned int button)
 {
 	int steps = ZAXIS_SCROLL_STEPS;
 
 	while(steps--) {
-		debug("fake button %d event", button);
+		debug(" X11 : fake button %d event", button);
 		XTestFakeButtonEvent(display, button, True,  CurrentTime);
 		XSync(display, False);
 		XTestFakeButtonEvent(display, button, False, CurrentTime);
@@ -663,12 +510,12 @@ int fake_button(unsigned int button)
 //}}}
 
 //{{{ HAL stuff
-//#include <dbus/dbus.h>
+#include <dbus/dbus.h>
 #include <hal/libhal.h>
 static DBusConnection *dbus;
 static DBusError dbus_error;
 static LibHalContext *hal;
-static char *FSCTabletDevice;
+static char *fsc_tablet_device;
 
 int hal_init(void)
 {
@@ -718,10 +565,10 @@ int hal_init(void)
 		goto err_free_devices;
 	}
 
-	debug("hal: %d input.switch device(s) found:", count);
+	debug(" HAL : %d input.switch device(s) found:", count);
 	while(count-- && devices[count]) {
 		char *type;
-		debug("hal:   check device %s", devices[count]);
+		debug(" HAL : check device %s", devices[count]);
 
 		type = libhal_device_get_property_string(hal,
 				devices[count], "button.type",
@@ -733,14 +580,13 @@ int hal_init(void)
 		}
 
 		if(type && !strcmp("tablet_mode", type)) {
-			debug("hal:   found: %s @ %s",
-					type, devices[count]);
+			debug(" HAL : tablet mode device found: %s",
+					devices[count]);
 
-			FSCTabletDevice = strdup(devices[count]);
+			fsc_tablet_device = strdup(devices[count]);
 			break;
 		}
 
-		debug("hal:   check done, next?");
  err_input_next_device:
 		libhal_free_string(type);
 	}
@@ -769,7 +615,7 @@ int get_tablet_sw(void)
 {
 	dbus_bool_t tablet_mode;
 
-	tablet_mode = libhal_device_get_property_bool(hal, FSCTabletDevice,
+	tablet_mode = libhal_device_get_property_bool(hal, fsc_tablet_device,
 			"button.state.value", &dbus_error);
 	if(dbus_error_is_set(&dbus_error)) {
 		fprintf(stderr, "query button state failed - %s\n",
@@ -785,12 +631,10 @@ int get_tablet_sw(void)
 static char *laptop_panel;
 static int brightness_max;
 
-int brightness_init()
+int brightness_init(void)
 {
 	char **devices;
 	int count;
-
-	debug("brightness_init");
 
 	devices = libhal_find_device_by_capability(hal,
 			"laptop_panel", &count, &dbus_error);
@@ -816,7 +660,7 @@ int brightness_init()
 	return 0;
 }
 
-void brightness_exit()
+void brightness_exit(void)
 {
 }
 
@@ -824,8 +668,6 @@ int get_brightness(void)
 {
 	int level;
 	DBusMessage *message, *reply;
-
-	debug("get_brightness");
 
 	if(!laptop_panel)
 		return -1;
@@ -854,11 +696,11 @@ int get_brightness(void)
 	}
 	dbus_message_unref(reply);
 
-	debug("get done (%d)", level);
+	debug(" HAL : get_brightness: level = %d", level);
 	return level;
 
  err_free_msg:
-	debug("get brightness: error");
+	debug(" HAL : get_brightness: error");
 	dbus_message_unref(message);
 	return -1;
 }
@@ -867,7 +709,7 @@ void set_brightness(int level)
 {
 	DBusMessage *message;
 
-	debug("set_brightness to %d", level);
+	debug(" HAL : set_brightness: level = %d", level);
 
 	if(!laptop_panel)
 		return;
@@ -881,39 +723,31 @@ void set_brightness(int level)
 	if( !dbus_message_append_args(message,
 			DBUS_TYPE_INT32, &level,
 			DBUS_TYPE_INVALID)) {
-		debug("append to message failed");
+		debug(" HAL : append to message failed");
 		goto err_free_msg;
 	}
 
 	dbus_connection_send(dbus, message, NULL);
 
  err_free_msg:
+	debug(" HAL : set_brightness: error");
 	dbus_message_unref(message);
 	return;
 }
 
-void brightness_show()
+void brightness_show(void)
 {
 #ifdef ENABLE_XOSD
-	int current = get_brightness();
-
-	debug("brightness: %d/%d (%d%%)",
-			current, brightness_max,
-			((current-1) * 100)/(brightness_max-1));
-
-	osd_slider(((current-1) * 100)/(brightness_max-1),
-			"%s", _("Brightness"));
+	osd_slider( ((get_brightness()-1) * 100) / (brightness_max-1),
+			"%s", _("Brightness") );
 #endif
 }
 
-void brightness_down(int press)
+void brightness_down(void)
 {
 	int current;
 
-	if(!press)
-		return;
-
-	 current = get_brightness();
+	current = get_brightness();
 
 	if(current == 0)
 		current = 8;
@@ -922,12 +756,9 @@ void brightness_down(int press)
 	brightness_show();
 }
 
-void brightness_up(int press)
+void brightness_up(void)
 {
 	int current;
-
-	if(!press)
-		return;
 
 	current = get_brightness();
 
@@ -938,12 +769,11 @@ void brightness_up(int press)
 	brightness_show();
 }
 
-void brightness_off(int press)
+void brightness_off(void)
 {
-	if(press)
-		osd_message(_("display off"));
-	else
-		dpms_force_off();
+	osd_message(_("display off"));
+	//TODO: off by key release
+	dpms_force_off();
 }
 //}}}
 
@@ -961,33 +791,23 @@ void scrollmode_info(void)
 			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
 			break;
 	}
-	debug("scrollmode: %d", settings.scrollmode);
 }
 
-void scrollmode_next(int press)
+void scrollmode_next(void)
 {
-	if(!press)
-		return;
-
 	settings.scrollmode = (++settings.scrollmode % 3);
 	scrollmode_info();
 }
 
-void scrollmode_prev(int press)
+void scrollmode_prev(void)
 {
-	if(!press)
-		return;
-
 	settings.scrollmode = (settings.scrollmode? --settings.scrollmode : 2);
 	scrollmode_info();
 }
 
 
-void toggle_lock_rotate(int press)
+void toggle_lock_rotate(void)
 {
-	if(!press)
-		return;
-
 	switch(settings.lock_rotate) {
 		case UL_UNLOCKED:
 			settings.lock_rotate = UL_LOCKED;
@@ -1000,11 +820,8 @@ void toggle_lock_rotate(int press)
 	}
 }
 
-void toggle_dpms(int press)
+void toggle_dpms(void)
 {
-	if(!press)
-		return;
-
 	if(dpms_enabled()) {
 		disable_dpms();
 		osd_info(_("DPMS disabled"));
@@ -1015,183 +832,205 @@ void toggle_dpms(int press)
 }
 //}}}
 
+static int mode_configure, mode_brightness;
 
-int main_loop()
+int handle_x11_event(XKeyEvent *event)
 {
-	unsigned key_fn=0, key_alt=0, key_rep=0;
-	struct input_event input_event;
-
-	while(1) {
-		if(read(input, &input_event, sizeof(input_event)) < 0)
+	switch(event->keycode) {
+	case 143: /* XF86XK_ScrollDown */
+		if(mode_configure) {
+			mode_configure = current_time + STICKY_TIMEOUT;
+			scrollmode_prev();
 			break;
+		}
 
-		switch(input_event.type) {
-		case EV_SYN:
-			debug("---");
+		if(mode_brightness) {
+			mode_brightness = current_time + STICKY_TIMEOUT;
+			brightness_down();
 			break;
+		}
 
-		case EV_MSC:
-			debug("input: misc event %d with %d",
-					input_event.code, input_event.value);
+		switch(settings.scrollmode) {
+			case SM_ZAXIS:
+				fake_button(5);
+				break;
+			case SM_KEY_PAGE:
+				fake_key(XK_Next);
+				break;
+			case SM_KEY_SPACE:
+				fake_key(XK_space);
+				break;
+		}
+		break;
+
+	case 220: /* XF86XK_ScrollUp */
+		if(mode_configure) {
+			mode_configure = current_time + STICKY_TIMEOUT;
+			scrollmode_next();
 			break;
+		}
 
-		case EV_KEY:
-			debug("input: key %d %s", input_event.code,
-					((input_event.value == 1)? "pressed" :
-						((input_event.value == 2)? "autorepeat" :
-							"released")));
+		if(mode_brightness) {
+			mode_brightness = current_time + STICKY_TIMEOUT;
+			brightness_up();
+			break;
+		}
 
-			switch(input_event.code) {
-			case KEY_SCROLLDOWN:
-				if(!input_event.value)
-					break;
+		switch(settings.scrollmode) {
+			case SM_ZAXIS:
+				fake_button(4);
+				break;
+			case SM_KEY_PAGE:
+				fake_key(XK_Prior);
+				break;
+			case SM_KEY_SPACE:
+				fake_key(XK_BackSpace);
+				break;
+		}
+		break;
 
-				if(key_alt)
-					break;
+	case 203: /* XF86XK_RotateWindows */
+		if(mode_configure) {
+			mode_configure = current_time + STICKY_TIMEOUT;
+			toggle_lock_rotate();
+			break;
+		}
 
-				if(key_fn)
-					break;
+		if(mode_brightness) {
+			mode_brightness = current_time + STICKY_TIMEOUT;
+			brightness_off();
+			break;
+		}
 
-				switch(settings.scrollmode) {
-					case SM_ZAXIS:
-						fake_button(5);
-						break;
-					case SM_KEY_PAGE:
-						fake_key(XK_Next);
-						break;
-					case SM_KEY_SPACE:
-						fake_key(XK_space);
-						break;
-				}
+		rotate_screen(-1);
+		break;
+
+	case 101: /* XF86XK_MonBrightnessDown */
+		brightness_down();
+		break;
+
+	case 212: /* XF86XK_MonBrightnessUp */
+		brightness_up();
+		break;
+
+	default:
+		debug(" X11 : WOW, what a key! I've grab it?");
+	}
+
+	return 0;
+}
+
+int handle_input_event(struct input_event *event)
+{
+	static unsigned key_fn=0, key_alt=0, key_rep=0;
+
+	switch(event->type) {
+	case EV_SYN:
+		debug("INPUT: syn'd");
+		break;
+
+	case EV_MSC:
+		debug("INPUT: misc event %d with %d",
+				event->code, event->value);
+		break;
+
+	case EV_KEY:
+		debug("INPUT: key %d %s", event->code,
+				((event->value == 1)? "pressed" :
+					((event->value == 2)? "autorepeat" :
+						"released")));
+
+		switch(event->code) {
+		case KEY_FN:
+			key_fn = event->value;
+
+			if(event->value == 2)
 				break;
 
-			case KEY_SCROLLUP:
-				if(!input_event.value)
-					break;
+			XTestFakeKeyEvent(display,
+					XKeysymToKeycode(display, XK_Control_L),
+					event->value, CurrentTime);
+			XSync(display, False);
 
-				if(key_alt)
-					break;
-
-				if(key_fn)
-					break;
-
-				switch(settings.scrollmode) {
-					case SM_ZAXIS:
-						fake_button(4);
-						break;
-					case SM_KEY_PAGE:
-						fake_key(XK_Prior);
-						break;
-					case SM_KEY_SPACE:
-						fake_key(XK_BackSpace);
-						break;
-				}
-				break;
-
-			case KEY_DIRECTION:
-				if(input_event.value != 1)
-					break;
-
-				if(key_alt)
-					break;
-
-				if(key_fn)
-					break;
-
-				rotate_screen(-1);
-				break;
-
-			case KEY_FN:
-				key_fn = input_event.value;
-
-				if(input_event.value != 1)
-					break;
-
-				if(key_alt) {
-					osd_message(_("configuration..."));
-					x11_grab_and_handle_keys(
-							scrollmode_next,
-							scrollmode_prev,
-							toggle_lock_rotate,
-							1400);
+			if(event->value == 0) {
+				if(!mode_brightness && !mode_configure)
 					osd_hide();
-					break;
-				}
 
-				osd_message("Fn...");
 				break;
-
-			case KEY_LEFTALT:
-				key_alt = input_event.value;
-
-				if(input_event.value != 1)
-					break;
-
-				if(key_fn) {
-					brightness_show();
-					x11_grab_and_handle_keys(
-							brightness_down,
-							brightness_up,
-							brightness_off,
-							1400);
-					osd_hide();
-					break;
-				}
-
-				osd_message("Alt...");
-				break;
-
-			case KEY_BRIGHTNESSUP:
-				if(input_event.value)
-					brightness_up(input_event.value);
-				break;
-
-			case KEY_BRIGHTNESSDOWN:
-				if(input_event.value)
-					brightness_down(input_event.value);
-				break;
-
-			case KEY_BRIGHTNESS_ZERO:
-				switch(input_event.value) {
-				case 0:
-					key_rep = 0;
-					break;
-				case 1:
-					dpms_force_off();
-					break;
-				case 2:
-					if(!key_rep) {
-						key_rep = 1;
-						toggle_dpms(True);
-					}
-					break;
-				}
-
-			default:
-				debug("unknown key, skipping");
 			}
 
-			debug("%lu.%lu:  fn:%u alt:%u rep:%u",
-					input_event.time.tv_sec, input_event.time.tv_usec,
-					key_fn, key_alt, key_rep);
+			if(key_alt) {
+				osd_message(_("configuration..."));
+				mode_configure = current_time + 2*STICKY_TIMEOUT;
+				break;
+			}
 
+			osd_message("[ Fn ]");
 			break;
 
-		case EV_SW:
-			switch(input_event.code) {
-			case SW_TABLET_MODE:
-				if(settings.lock_rotate == UL_UNLOCKED)
-					rotate_screen(input_event.value);
+		case KEY_LEFTALT:
+			key_alt = event->value;
+
+			if(event->value == 2)
 				break;
-			default:
-				debug("unknown switch, skipping");
+
+			if(event->value == 0) {
+				if(!mode_brightness && !mode_configure)
+					osd_hide();
+
+				break;
+			}
+
+			if(key_fn) {
+				brightness_show();
+				mode_brightness = current_time + 2*STICKY_TIMEOUT;
+				break;
+			}
+
+			osd_message("[ Alt ]");
+			break;
+
+		case KEY_BRIGHTNESS_ZERO:
+			switch(event->value) {
+			case 0:
+				if(!key_rep)
+					dpms_force_off();
+				else
+					key_rep = 0;
+				break;
+
+			case 1:
+				break;
+
+			case 2:
+				if(!key_rep) {
+					key_rep = 1;
+					toggle_dpms();
+				}
+				break;
 			}
 			break;
 
 		default:
-			fprintf(stderr, "unsupported event type %d",
-					input_event.type);
+			debug("INPUT: unknown key, skipping");
 		}
+		break;
+
+	case EV_SW:
+		switch(event->code) {
+		case SW_TABLET_MODE:
+			debug("INPUT: tablet mode = %d", event->value);
+			if(settings.lock_rotate == UL_UNLOCKED)
+				rotate_screen(event->value);
+			break;
+		default:
+			debug("INPUT: unknown switch, skipping");
+		}
+		break;
+
+	default:
+		fprintf(stderr, "unsupported event type %d",
+				event->type);
 	}
 
 	return 0;
@@ -1255,7 +1094,67 @@ int main(int argc, char **argv)
 	osd_info("%s %s %s", PACKAGE, VERSION, _("started"));
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
-	main_loop();
+	while(keep_running) {
+		fd_set rfd;
+		int result;
+		struct timeval tv;
+		int timeout;
+
+		gettimeofday(&tv, NULL);
+		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+		debug("LOOPY: current_time = %lu", current_time);
+
+		if(mode_configure) {
+			timeout = mode_configure - current_time;
+			debug("LOOPY: mode_configure = %u -> timeout = %d",
+					mode_configure, timeout);
+			if(timeout <= 0) {
+				timeout = STICKY_TIMEOUT;
+				mode_configure = 0;
+				osd_hide();
+			}
+		} else if(mode_brightness) {
+			timeout = mode_brightness - current_time;
+			debug("LOOPY: mode_brightness = %u -> timeout = %d",
+					mode_brightness, timeout);
+			if(timeout <= 0) {
+				timeout = STICKY_TIMEOUT;
+				mode_brightness = 0;
+				osd_hide();
+			}
+		} else timeout = STICKY_TIMEOUT;
+		debug("LOOPY: timeout = %d");
+
+		FD_ZERO(&rfd);
+		FD_SET(input, &rfd);
+		tv.tv_sec  = timeout / 1000;
+		tv.tv_usec = (timeout - tv.tv_sec*1000) * 1000;
+		result = select(input+1, &rfd, NULL, NULL, &tv);
+
+		if(result > 0) {
+			struct input_event ie;
+
+			result = read(input, &ie, sizeof(struct input_event));
+			if(result == sizeof(struct input_event))
+				result = handle_input_event(&ie);
+		}
+
+		if(result < 0)
+			keep_running = 0;
+
+		XSync(display, False);
+		while(keep_running && XPending(display)) {
+			XEvent xe;
+
+			XNextEvent(display, &xe);
+			if(xe.type == KeyPress)
+				keep_running = (handle_x11_event((XKeyEvent*)&xe) >= 0);
+
+			XSync(display, False);
+		}
+
+		debug("LOOPY: fin'd");
+	}
 
 #ifdef ENABLE_XOSD
 	osd_exit();
