@@ -417,6 +417,11 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 		return 0;
 	}
 
+	if(fscbtns.timer.data && (fscbtns.timer.data != keycode)) {
+		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
+		return 0;
+	}
+
 	if(test_bit(keycode, modification_mask)) {
 		fscbtns.timer.data = keycode;
 		fscbtns.timer.function = fscbtns_sticky_timeout;
@@ -424,9 +429,6 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 		add_timer(&fscbtns.timer);
 		return 1;
 	}
-
-	if(fscbtns.timer.data) 
-		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
 
 	return 0;
 }
