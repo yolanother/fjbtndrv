@@ -24,7 +24,7 @@
 #  define REPEAT_DELAY 700
 #  define REPEAT_RATE 16
 #  define STICKY_TIMEOUT 1400
-#  undef  POWERUSER_FEATURES
+#  undef  ANNOYING_FEATURES
 #endif
 
 #include <linux/kernel.h>
@@ -92,7 +92,7 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 
 struct fscbtns_config {
 	int invert_orientation_bit;
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 	unsigned int keymap[32];
 #else
 	unsigned int keymap[16];
@@ -118,7 +118,7 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		0,
 		0,
 		KEY_LEFTALT,
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 		0,
 		0,
 		0,
@@ -158,7 +158,7 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		KEY_PAGEDOWN,
 		KEY_FN,
 		KEY_LEFTALT,
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 		0,
 		0,
 		0,
@@ -198,7 +198,7 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		KEY_PAGEDOWN,
 		KEY_FN,
 		KEY_LEFTALT,
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 		0,
 		0,
 		0,
@@ -222,10 +222,10 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(POWERUSER_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
 	struct timer_list timer;
 #endif
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 	unsigned long lp_timer_start;
 #endif
 
@@ -349,7 +349,7 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 static void fscbtns_lp_timeout(unsigned long data)
 {
 	fscbtns.lp_timer_start = 0;
@@ -439,7 +439,7 @@ static void fscbtns_report_key(int key, int pressed)
 	int handled;
 	unsigned int *kcptr = &(fscbtns.config.keymap[key]);
 
-#ifdef POWERUSER_FEATURES
+#ifdef ANNOYING_FEATURES
 	handled = fscbtns_lp_report_key(*kcptr, *(kcptr+16), pressed);
 	if(handled)
 		return;
@@ -479,7 +479,7 @@ static void fscbtns_event(void)
 		while(!test_bit(x, &changed))
 			x++;
 
-#ifndef POWERUSER_FEATURES
+#ifndef ANNOYING_FEATURES
 		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
 #endif
 		fscbtns_report_key(x, pressed);
@@ -773,7 +773,7 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(POWERUSER_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
 	del_timer_sync(&fscbtns.timer);
 #endif
 	return error;
@@ -787,7 +787,7 @@ static void __exit fscbtns_module_exit(void)
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(POWERUSER_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
 	del_timer_sync(&fscbtns.timer);
 #endif
 }

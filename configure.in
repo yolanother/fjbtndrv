@@ -51,6 +51,9 @@ if test x$enable_wacom = xyes; then
   if test x$enable_dynamic != xyes; then
     LIBWACOMCFG_LIBS=-lwacomcfg
   fi
+  if test x$enable_dynamic = xyes; then
+    enable_wacom=dynamic
+  fi
 fi
 
 AC_ARG_ENABLE([xosd],
@@ -76,32 +79,31 @@ if test x$enable_debug = xyes; then
   AC_DEFINE(DEBUG, [], [debug output])
 fi
 
-AC_ARG_ENABLE([poweruser],
-  AS_HELP_STRING([--enable-poweruser],
-    [Enable Power-User features (Default: disabled)]),
-  [enable_poweruser=$enableval], [enable_poweruser=no])
-if test x$enable_poweruser = xyes; then
-  AC_DEFINE(POWERUSER_FEATURES, [], [power-user features])
+AC_ARG_ENABLE([annoying_features],
+  AS_HELP_STRING([--enable-annoying-features],
+    [Enable potentially annoying features (Default: disabled)]),
+  [enable_annoying_features=$enableval], [enable_annoying_features=no])
+if test x$enable_annoying_features = xyes; then
+  AC_DEFINE(ANNOYING_FEATURES, [], [enable annoying features])
 fi
-
 
 AC_ARG_WITH(repeat-rate,
   [  --with-repeat-rate=rate     repeat rate for autorepeat (Default: 16)],
-  rep_rate=$withval,
-  rep_rate=16)
-if test x$rep_rate != xno; then
-  AC_DEFINE_UNQUOTED(REPEAT_RATE, [$rep_rate], [autorepeat rate])
+  repeat_rate=$withval,
+  repeat_rate=16)
+if test x$repeat_rate != xno; then
+  AC_DEFINE_UNQUOTED(REPEAT_RATE, [$repeat_rate], [autorepeat rate])
 fi
 
 AC_ARG_WITH(repeat-delay,
   [  --with-repeat-delay=msec    delay befor autorepeat (Default: 700)],
-  rep_delay=$withval,
-  rep_delay=700)
-if test x$rep_rate != xno; then
-  if test x$rep_delay = xno; then
-    rep_delay=0
+  repeat_delay=$withval,
+  repeat_delay=700)
+if test x$repeat_rate != xno; then
+  if test x$repeat_delay = xno; then
+    repeat_delay=0
   fi
-  AC_DEFINE_UNQUOTED(REPEAT_DELAY, [$rep_delay], [autorepeat delay])
+  AC_DEFINE_UNQUOTED(REPEAT_DELAY, [$repeat_delay], [autorepeat delay])
 fi
 
 AC_ARG_WITH(sticky-timeout,
@@ -111,7 +113,6 @@ AC_ARG_WITH(sticky-timeout,
 if test x$sticky_timeout != xno; then
   AC_DEFINE_UNQUOTED(STICKY_TIMEOUT, [$sticky_timeout], [sticky timeout])
 fi
-
 
 AC_CONFIG_FILES([
   Makefile
@@ -137,8 +138,13 @@ echo "
 
 
         prefix:         ${prefix}
+        debug:          ${enable_debug}
         wacom support:  ${enable_wacom}
         osd support:    ${enable_xosd}
+
+        autorepeat:     ${repeat_rate} chars/s after a ${repeat_delay}ms delay
+        sticky keys:    ${sticky_timeout}ms
+        annoying feat.: ${enable_annoying_features}
 
   Type 'make' to build and then 'sudo make install' to install fscd.
 "
