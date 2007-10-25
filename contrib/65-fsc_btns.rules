@@ -1,1 +1,1 @@
-ACTION=="add", ENV{PHYSDEVDRIVER}=="fsc_btns", GROUP="users", MODE="640"
+KERNEL=="event[0-9]*", DRIVERS=="fsc_btns", ENV{ID_CLASS}="hotkey", GROUP="users", MODE="640"
