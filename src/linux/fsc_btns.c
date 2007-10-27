@@ -577,10 +577,14 @@ static int __devexit fscbtns_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int fscbtns_resume(struct platform_device *pdev)
 {
 	return fscbtns_reset();
 }
+#else
+#define fscbtns_resume NULL
+#endif
 
 static struct platform_driver fscbtns_platform_driver = {
 	.driver		= {
