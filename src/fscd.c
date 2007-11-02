@@ -731,9 +731,6 @@ void brightness_show(void)
 #ifdef ENABLE_XOSD
 	osd_slider( ((get_brightness()-1) * 100) / (brightness_max-1),
 			"%s", _("Brightness") );
-
-	if(!mode_brightness)
-		osd_timeout(1);
 #endif
 }
 
@@ -904,10 +901,12 @@ int handle_x11_event(XKeyEvent *event)
 
 	case 101: /* XF86XK_MonBrightnessDown */
 		brightness_down();
+		osd_timeout(1);
 		break;
 
 	case 212: /* XF86XK_MonBrightnessUp */
 		brightness_up();
+		osd_timeout(1);
 		break;
 
 	default:
@@ -958,7 +957,7 @@ int handle_input_event(struct input_event *event)
 
 			if(key_alt) {
 				osd_info(_("configuration..."));
-				mode_configure = current_time + (3 * STICKY_TIMEOUT);
+				mode_configure = current_time + (2 * STICKY_TIMEOUT);
 				break;
 			}
 
@@ -982,7 +981,7 @@ int handle_input_event(struct input_event *event)
 
 			if(key_fn) {
 				brightness_show();
-				mode_brightness = current_time + (3 * STICKY_TIMEOUT);
+				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
 				break;
 			}
 
@@ -1091,7 +1090,7 @@ int main(int argc, char **argv)
 	}
 
 	osd_info("%s %s %s", PACKAGE, VERSION, _("started"));
-	osd_timeout(3);
+	osd_timeout(2);
 #endif
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
