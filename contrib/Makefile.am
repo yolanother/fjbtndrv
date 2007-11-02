@@ -16,7 +16,4 @@ dist_xdgautostart_DATA = fscd.desktop
 EXTRA_DIST = fscd.desktop.in
 
 %: %.in Makefile
-	$(edit) $< >$@
-
-edit = sed \
-	-e 's|@bindir[@]|$(bindir)|g' 
+	sed -e 's|@bindir[@]|$(bindir)|g' $< >$@
