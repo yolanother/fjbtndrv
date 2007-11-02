@@ -92,7 +92,10 @@ static struct {
 
 
 static unsigned keep_running = 1;
+#ifdef ENABLE_XOSD
 static clock_t  current_time;
+static int mode_configure, mode_brightness;
+#endif
 
 //{{{ Input stuff
 #include <linux/input.h>
@@ -183,31 +186,19 @@ xosd *osd_new(int lines)
 }
 
 #define osd_hide() osd_exit()
+#define osd_timeout(s) xosd_set_timeout(osd, s)
 
 #define osd_info(format, a...) do {			\
 	xosd *osd = osd_new(1);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a); \
-	xosd_set_timeout(osd, 1);			\
-} while(0)
-
-#define osd_message(format, a...) do {			\
-	xosd *osd = osd_new(1);				\
-	xosd_display(osd, 0, XOSD_printf, format, ##a); \
-	xosd_set_timeout(osd, -1);			\
 } while(0)
 
 #define osd_slider(percent, format, a...) do {	\
 	xosd *osd = osd_new(2);				\
 	xosd_display(osd, 0, XOSD_printf, format, ##a);	\
 	xosd_display(osd, 1, XOSD_slider, percent);	\
-	xosd_set_timeout(osd, -1);			\
 } while(0)
 
-#else
-#  define osd_hide()		do {} while(0)
-#  define osd_info(a...)	do {} while(0)
-#  define osd_message(a...)	do {} while(0)
-#  define osd_slider(a...)	do {} while(0)
 #endif
 //}}}
 
@@ -740,6 +731,9 @@ void brightness_show(void)
 #ifdef ENABLE_XOSD
 	osd_slider( ((get_brightness()-1) * 100) / (brightness_max-1),
 			"%s", _("Brightness") );
+
+	if(!mode_brightness)
+		osd_timeout(1);
 #endif
 }
 
@@ -768,18 +762,12 @@ void brightness_up(void)
 	set_brightness(current);
 	brightness_show();
 }
-
-void brightness_off(void)
-{
-	osd_message(_("display off"));
-	//TODO: off by key release
-	dpms_force_off();
-}
 //}}}
 
 //{{{ RC stuff
 void scrollmode_info(void)
 {
+#ifdef ENABLE_XOSD
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
 			osd_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
@@ -791,6 +779,7 @@ void scrollmode_info(void)
 			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
 			break;
 	}
+#endif
 }
 
 void scrollmode_next(void)
@@ -808,6 +797,7 @@ void scrollmode_prev(void)
 
 void toggle_lock_rotate(void)
 {
+#ifdef ENABLE_XOSD
 	switch(settings.lock_rotate) {
 		case UL_UNLOCKED:
 			settings.lock_rotate = UL_LOCKED;
@@ -818,10 +808,12 @@ void toggle_lock_rotate(void)
 			osd_info(_("Rotation unlocked"));
 			break;
 	}
+#endif
 }
 
 void toggle_dpms(void)
 {
+#ifdef ENABLE_XOSD
 	if(dpms_enabled()) {
 		disable_dpms();
 		osd_info(_("DPMS disabled"));
@@ -829,15 +821,15 @@ void toggle_dpms(void)
 		enable_dpms();
 		osd_info(_("DPMS enabled"));
 	}
+#endif
 }
 //}}}
-
-static int mode_configure, mode_brightness;
 
 int handle_x11_event(XKeyEvent *event)
 {
 	switch(event->keycode) {
 	case 143: /* XF86XK_ScrollDown */
+#ifdef ENABLE_XOSD
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_prev();
@@ -849,6 +841,7 @@ int handle_x11_event(XKeyEvent *event)
 			brightness_down();
 			break;
 		}
+#endif
 
 		switch(settings.scrollmode) {
 			case SM_ZAXIS:
@@ -864,6 +857,7 @@ int handle_x11_event(XKeyEvent *event)
 		break;
 
 	case 220: /* XF86XK_ScrollUp */
+#ifdef ENABLE_XOSD
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_next();
@@ -875,6 +869,7 @@ int handle_x11_event(XKeyEvent *event)
 			brightness_up();
 			break;
 		}
+#endif
 
 		switch(settings.scrollmode) {
 			case SM_ZAXIS:
@@ -890,6 +885,7 @@ int handle_x11_event(XKeyEvent *event)
 		break;
 
 	case 203: /* XF86XK_RotateWindows */
+#ifdef ENABLE_XOSD
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			toggle_lock_rotate();
@@ -898,9 +894,10 @@ int handle_x11_event(XKeyEvent *event)
 
 		if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
-			brightness_off();
+			dpms_force_off();
 			break;
 		}
+#endif
 
 		rotate_screen(-1);
 		break;
@@ -952,25 +949,27 @@ int handle_input_event(struct input_event *event)
 					event->value, CurrentTime);
 			XSync(display, False);
 
+#ifdef ENABLE_XOSD
 			if(event->value == 0) {
 				if(!mode_brightness && !mode_configure)
 					osd_hide();
-
 				break;
 			}
 
 			if(key_alt) {
-				osd_message(_("configuration..."));
-				mode_configure = current_time + 2*STICKY_TIMEOUT;
+				osd_info(_("configuration..."));
+				mode_configure = current_time + (3 * STICKY_TIMEOUT);
 				break;
 			}
 
-			osd_message("[ Fn ]");
+			osd_info("[ Fn ]");
+#endif
 			break;
 
 		case KEY_LEFTALT:
 			key_alt = event->value;
 
+#ifdef ENABLE_XOSD
 			if(event->value == 2)
 				break;
 
@@ -983,11 +982,12 @@ int handle_input_event(struct input_event *event)
 
 			if(key_fn) {
 				brightness_show();
-				mode_brightness = current_time + 2*STICKY_TIMEOUT;
+				mode_brightness = current_time + (3 * STICKY_TIMEOUT);
 				break;
 			}
 
-			osd_message("[ Alt ]");
+			osd_info("[ Alt ]");
+#endif
 			break;
 
 		case KEY_BRIGHTNESS_ZERO:
@@ -1089,17 +1089,19 @@ int main(int argc, char **argv)
 	if(error) {
 		fprintf(stderr, "osd initalisation failed\n");
 	}
-#endif
 
 	osd_info("%s %s %s", PACKAGE, VERSION, _("started"));
+	osd_timeout(3);
+#endif
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	while(keep_running) {
 		fd_set rfd;
 		int result;
 		struct timeval tv;
-		int timeout;
+		int timeout = STICKY_TIMEOUT;
 
+#ifdef ENABLE_XOSD
 		gettimeofday(&tv, NULL);
 		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 		debug("LOOPY: current_time = %lu", current_time);
@@ -1112,7 +1114,9 @@ int main(int argc, char **argv)
 				timeout = STICKY_TIMEOUT;
 				mode_configure = 0;
 				osd_hide();
-			}
+			} else
+				if(timeout > STICKY_TIMEOUT)
+					timeout = STICKY_TIMEOUT;
 		} else if(mode_brightness) {
 			timeout = mode_brightness - current_time;
 			debug("LOOPY: mode_brightness = %u -> timeout = %d",
@@ -1121,9 +1125,12 @@ int main(int argc, char **argv)
 				timeout = STICKY_TIMEOUT;
 				mode_brightness = 0;
 				osd_hide();
-			}
+			} else
+				if(timeout > STICKY_TIMEOUT)
+					timeout = STICKY_TIMEOUT;
 		} else timeout = STICKY_TIMEOUT;
 		debug("LOOPY: timeout = %d");
+#endif
 
 		FD_ZERO(&rfd);
 		FD_SET(input, &rfd);
