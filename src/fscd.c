@@ -17,7 +17,7 @@
  */
 /******************************************************************************/
 
-#define ZAXIS_SCROLL_STEPS	1
+#define ZAXIS_SCROLL_STEPS	3
 #define XOSD_COLOR		"green"
 #define XOSD_OUTLINE_COLOR	"darkgreen"
 
@@ -1215,7 +1215,6 @@ int main(int argc, char **argv)
 #ifdef ENABLE_XOSD
 		gettimeofday(&tv, NULL);
 		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
-		debug("LOOPY: current_time = %lu", current_time);
 
 		if(mode_configure) {
 			timeout = mode_configure - current_time;
@@ -1240,7 +1239,8 @@ int main(int argc, char **argv)
 				if(timeout > STICKY_TIMEOUT)
 					timeout = STICKY_TIMEOUT;
 		} else timeout = STICKY_TIMEOUT;
-		debug("LOOPY: timeout = %d");
+
+		debug("LOOPY: time = %lu, timeout = %d", current_time, timeout);
 #endif
 
 		FD_ZERO(&rfd);
@@ -1270,8 +1270,6 @@ int main(int argc, char **argv)
 
 			XSync(display, False);
 		}
-
-		debug("LOOPY: fin'd");
 	}
 
 #ifdef ENABLE_XOSD

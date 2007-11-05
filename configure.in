@@ -95,7 +95,8 @@ AC_ARG_WITH(script-dir,
 AC_SUBST(scriptdir)
 
 AC_ARG_WITH(repeat-rate,
-  [  --with-repeat-rate=rate     repeat rate for autorepeat (Default: 16)],
+  AS_HELP_STRING([--with-repeat-rate=rate],
+                 [repeat rate for autorepeat (Default: 16)]),
   repeat_rate=$withval,
   repeat_rate=16)
 if test x$repeat_rate != xno; then
@@ -103,7 +104,8 @@ if test x$repeat_rate != xno; then
 fi
 
 AC_ARG_WITH(repeat-delay,
-  [  --with-repeat-delay=msec    delay befor autorepeat (Default: 700)],
+  AS_HELP_STRING([--with-repeat-delay=msec],
+                 [delay befor autorepeat (Default: 700)]),
   repeat_delay=$withval,
   repeat_delay=700)
 if test x$repeat_rate != xno; then
@@ -114,7 +116,8 @@ if test x$repeat_rate != xno; then
 fi
 
 AC_ARG_WITH(sticky-timeout,
-  [  --with-sticky-timeout=msec  timeout for sticky modification keys (Default: 1400)],
+  AS_HELP_STRING([--with-sticky-timeout=msec],
+                 [timeout for sticky modification keys (Default: 1400)]),
   sticky_timeout=$withval,
   sticky_timeout=1400)
 if test x$sticky_timeout != xno; then
