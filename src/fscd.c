@@ -33,8 +33,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/wait.h>
 #include <linux/input.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -115,10 +116,67 @@ static struct {
 
 
 static unsigned keep_running = 1;
+static char *homedir;
 #ifdef ENABLE_XOSD
 static clock_t  current_time;
 static int mode_configure, mode_brightness;
 #endif
+
+
+static int run_script(const char *name)
+{
+	struct stat s;
+	static char path[256];
+	int len, error;
+
+	len = strlen(homedir);
+	if(strlen(name) + len + 7 <= 255) {
+		strcpy(path, homedir);
+		strcpy(path + len, "/.fscd/");
+		strcpy(path + len + 7, name);
+
+		error = stat(path, &s);
+		debug(" RUN : %s: %d", path, error);
+		if((!error) &&
+		   (((s.st_mode & S_IFMT) == S_IFREG) ||
+		    ((s.st_mode & S_IFMT) == S_IFLNK)))
+			return system(path) << 8;
+	} else
+		fprintf(stderr, "BUG: user script path too long");
+
+	len = strlen(homedir);
+	if(strlen(name) + len + 5 <= 255) {
+		strcpy(path, homedir);
+		strcpy(path + len, "/bin/");
+		strcpy(path + len + 5, name);
+
+		error = stat(path, &s);
+		debug(" RUN : %s: %d", path, error);
+		if((!error) &&
+		   (((s.st_mode & S_IFMT) == S_IFREG) ||
+		    ((s.st_mode & S_IFMT) == S_IFLNK)))
+			return system(path) << 8;
+	} else
+		fprintf(stderr, "BUG: user script path too long");
+
+	len = sizeof(SCRIPTDIR) - 1;
+	if(strlen(name) + len + 1 <= 255) {
+		strcpy(path, SCRIPTDIR);
+		path[len] = '/';
+		strcpy(path + len + 1, name);
+
+		error = stat(path, &s);
+		debug(" RUN : %s: %d", path, error);
+		if((!error) &&
+		   (((s.st_mode & S_IFMT) == S_IFREG) ||
+		    ((s.st_mode & S_IFMT) == S_IFLNK)))
+			return system(path) << 8;
+	} else
+		fprintf(stderr, "BUG: global script path too long");
+
+	debug(" RUN : script %s not found.", name);
+	return -1;
+}
 
 //{{{ Input stuff
 #include <linux/input.h>
@@ -468,7 +526,6 @@ int rotate_screen(int mode)
 	Rotation rotation, current_rotation;
 	SizeID size;
 	int error = -1;
-	static int vkbd_pid;
 
 	rwin = DefaultRootWindow(display);
 	sc = XRRGetScreenInfo(display, rwin);
@@ -489,28 +546,23 @@ int rotate_screen(int mode)
 
 	if(rotation != current_rotation) {
 		error = XRRSetScreenConfig(display, sc, rwin, size, rotation, CurrentTime);
+		if(error)
+			goto err_sc;
 
 #ifdef ENABLE_WACOM
-		if(!error)
-			wacom_rotate(mode);
+		wacom_rotate(mode);
 #endif
-	} else
-		error = 0;
+	}
+
+	if(mode)
+		error = run_script("fscd-rotate-tablet");
+	else
+		error = run_script("fscd-rotate-normal");
+	debug(" RUN : run_script: %d", error);
 
 #ifdef ENABLE_XOSD
 	osd_init(display);
 #endif
-
-	if(mode) {	// tablet mode
-		vkbd_pid = fork();
-		if(vkbd_pid == 0)
-			execlp("xvkbd", "xvkbd", NULL);
-	} else {
-		if(vkbd_pid > 0) {
-			kill(vkbd_pid, SIGTERM);
-			waitpid(vkbd_pid, NULL, 0);
-		}
-	}
 
  err_sc:
 	XRRFreeScreenConfigInfo(sc);
@@ -979,7 +1031,6 @@ int handle_input_event(struct input_event *event)
 
 	switch(event->type) {
 	case EV_SYN:
-		debug("INPUT: syn'd");
 		break;
 
 	case EV_MSC:
@@ -1109,6 +1160,8 @@ int main(int argc, char **argv)
 	textdomain (PACKAGE);
 #endif
 #endif
+
+	homedir = getenv("HOME");
 
 	error = input_init();
 	if(error) {

@@ -87,6 +87,13 @@ if test x$enable_annoying_features = xyes; then
   AC_DEFINE(ANNOYING_FEATURES, [], [enable annoying features])
 fi
 
+AC_ARG_WITH(script-dir,
+  AS_HELP_STRING([--with-script-dir=dir],
+                 [location of the helper scripts (Default: LIBDIR/fscd)]),
+  scriptdir="$withval",
+  scriptdir="${libdir}/fscd")
+AC_SUBST(scriptdir)
+
 AC_ARG_WITH(repeat-rate,
   [  --with-repeat-rate=rate     repeat rate for autorepeat (Default: 16)],
   repeat_rate=$withval,

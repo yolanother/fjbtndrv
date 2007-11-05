@@ -1,0 +1,27 @@
+#!/bin/bash
+# Sample script for fscd.
+# Copy or link this script to fscd-rotate-normal and fscd-rotate-tablet.
+#
+# Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2.
+################################################################################
+
+mode="${0##*-}"
+
+case "$mode" in
+
+  tablet)
+    xvkbd &
+    ;;
+
+  normal)
+    pid=$( ps --no-headers --user "$USER" | awk '$4 ~ /^xvkbd/ { print $1 }' )
+    if [ "$pid" ]; then
+      kill -TERM $pid
+    fi
+    ;;
+
+esac
+

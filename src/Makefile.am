@@ -1,6 +1,6 @@
 SUBDIRS = linux
 
-DEFS += -DLOCALEDIR=\"$(localedir)\"
+DEFS += -DLOCALEDIR=\"$(localedir)\" -DSCRIPTDIR=\"$(scriptdir)\"
 export DEFS
 
 bin_PROGRAMS = fscd
