@@ -82,12 +82,35 @@ typedef enum {
 	UL_UNLOCKED
 } UserLock;
 
+struct keymap_entry {
+	int code;
+	char *name;
+	KeySym sym;
+	Bool grab;
+} keymap_entry;
+
 static struct {
 	ScrollMode scrollmode;
 	UserLock lock_rotate;
+	struct keymap_entry keymap[];
 } settings = {
 	.scrollmode = SM_ZAXIS,
 	.lock_rotate = UL_UNLOCKED,
+	.keymap = {
+		{ .code = 143, .name = "XF86ScrollDown", .grab = 1 },
+		{ .code = 220, .name = "XF86ScrollUp", .grab = 1 },
+		{ .code = 203, .name = "XF86RotateWindows", .grab = 1 },
+
+		{ .code = 101, .name = "SunVideoLowerBrightness", .grab = 1 },
+		{ .code = 212, .name = "SunVideoRaiseBrightness", .grab = 1 },
+
+		{ .code = 159, .name = "XF86Launch1" },
+		{ .code = 151, .name = "XF86Launch2" },
+		{ .code = 171, .name = "XF86Launch3" },
+		{ .code = 172, .name = "XF86Launch4" },
+
+		{ 0 }
+	}
 };
 
 
@@ -290,6 +313,7 @@ Display* x11_init(void)
 {
 	Bool xtest, randr, dpms;
 	int opcode, event, error;
+	struct keymap_entry *km;
 #ifdef DEBUG
 	int major, minor;
 #endif
@@ -348,25 +372,58 @@ Display* x11_init(void)
 		return NULL;
 	}
 
-	XGrabKey(display, 101, 0, root, True, GrabModeAsync, GrabModeAsync);
-	XGrabKey(display, 143, 0, root, True, GrabModeAsync, GrabModeAsync);
-	XGrabKey(display, 203, 0, root, True, GrabModeAsync, GrabModeAsync);
-	XGrabKey(display, 212, 0, root, True, GrabModeAsync, GrabModeAsync);
-	XGrabKey(display, 220, 0, root, True, GrabModeAsync, GrabModeAsync);
-	XSync(display, False);
+	for(km = settings.keymap; km->code; km++) {
+		km->sym = XStringToKeysym(km->name);
 
+		if(km->sym && km->grab)
+			XGrabKey(display, km->code, 0, root, True, GrabModeAsync, GrabModeAsync);
+	}
+
+	XSync(display, False);
 	return display;
 }
 
 void x11_exit(void)
 {
-	XUngrabKey(display, 101, 0, root);
-	XUngrabKey(display, 143, 0, root);
-	XUngrabKey(display, 203, 0, root);
-	XUngrabKey(display, 212, 0, root);
-	XUngrabKey(display, 220, 0, root);
+	struct keymap_entry *km;
+
+	for(km = settings.keymap; km->code; km++)
+		if(km->sym && km->grab)
+			XUngrabKey(display, km->code, 0, root);
+
 	XSync(display, True);
 	XCloseDisplay(display);
+}
+
+int x11_fix_keymap(void)
+{
+	int min, max, spc, me;
+	KeySym *map;
+	struct keymap_entry *km;
+
+	XDisplayKeycodes(display, &min, &max);
+	map = XGetKeyboardMapping(display, min, (max - min + 1), &spc);
+	debug(" X11 : keymap with %d (%d-%d) entries and %d symbols per code",
+			(max-min), min, max, spc);
+
+	for(km = settings.keymap; km->code; km++) {
+		me = (km->code - min) * spc;
+
+		if(map[me] == NoSymbol) {
+			debug(" X11 : mapping keycode %d to symbol %s (0x%08x)",
+					km->code, km->name, (unsigned)km->sym);
+			//map[me] = km->sym;
+			XChangeKeyboardMapping(display, km->code, 1, &(km->sym), 1);
+		} else if(map[me] == km->sym) {
+			debug(" X11 : keycode %d is ok.",
+					km->code);
+		} else
+			debug(" X11 : keycode %d is already bound to %s.",
+					km->code, XKeysymToString(map[me]));
+	}
+
+	XSync(display, False);
+	return 0;
 }
 
 int dpms_enabled(void)
@@ -1093,6 +1150,8 @@ int main(int argc, char **argv)
 	osd_timeout(2);
 #endif
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
+
+	x11_fix_keymap();
 
 	while(keep_running) {
 		fd_set rfd;
