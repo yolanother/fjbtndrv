@@ -419,6 +419,7 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 
 	if(fscbtns.timer.data && (fscbtns.timer.data != keycode)) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
+		fscbtns.timer.data = 0;
 		return 0;
 	}
 
