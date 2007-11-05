@@ -93,7 +93,7 @@ endif
 ifneq "$(wildcard /usr/share/misc/config.guess)" ""
 	cp -f /usr/share/misc/config.guess config.guess
 endif
-	./autogen.sh --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --enable-xosd --enable-wacom CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs"
+	./autogen.sh --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --with-script-dir=/usr/lib/fscd --enable-xosd --enable-wacom CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs"
 
 
 build: build-stamp
@@ -130,6 +130,10 @@ install: build
 	# disable installation of the kernel module and install
 	@test -f src/linux/Makefile.dh || sed -i.dh 's/^install:.*/install-disabled:/' src/linux/Makefile
 	$(MAKE) DESTDIR=$(CURDIR)/debian/fscd install
+	install -D --owner=root --group=root --mode=755 contrib/fscd-script-rotate.sample $(CURDIR)/debian/fscd/usr/lib/fscd/fscd-script-rotate
+	ln -s fscd-script-rotate $(CURDIR)/debian/fscd/usr/lib/fscd/fscd-rotate-normal
+	ln -s fscd-script-rotate $(CURDIR)/debian/fscd/usr/lib/fscd/fscd-rotate-tablet
+	#
 	mv src/linux/Makefile.dh src/linux/Makefile
 	#
 	dh_install

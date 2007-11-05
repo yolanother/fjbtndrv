@@ -1,4 +1,4 @@
-AC_INIT(fscd, 0.90, [http://fjbtndrv.sourceforge.net])
+AC_INIT(fscd, 1.0rc1, [http://fjbtndrv.sourceforge.net])
 AC_PREREQ([2.57])
 AM_INIT_AUTOMAKE([gnu 1.9])
 
