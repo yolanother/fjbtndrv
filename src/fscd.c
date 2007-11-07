@@ -95,7 +95,7 @@ static struct {
 	UserLock lock_rotate;
 	struct keymap_entry keymap[];
 } settings = {
-	.scrollmode = SM_ZAXIS,
+	.scrollmode = SM_KEY_PAGE,
 	.lock_rotate = UL_UNLOCKED,
 	.keymap = {
 		{ .code = 143, .name = "XF86ScrollDown", .grab = 1 },
