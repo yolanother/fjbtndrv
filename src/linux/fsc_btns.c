@@ -26,6 +26,7 @@
 #  define STICKY_TIMEOUT 1400
 #  undef  ANNOYING_FEATURES
 #endif
+#define HANDLE_MOD_IN_KERNEL
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -90,133 +91,86 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_FN)]		= BIT(KEY_FN)};
 #endif
 
+struct keymap_entry {
+	unsigned int normal;
+	unsigned int mod_fn;
+	unsigned int mod_alt;
+	unsigned int lp;
+};
+
 struct fscbtns_config {
 	int invert_orientation_bit;
-#ifdef ANNOYING_FEATURES
-	unsigned int keymap[32];
-#else
-	unsigned int keymap[16];
-#endif
+	struct keymap_entry keymap[16];
+	int modkeys[2];
 };
 
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	.invert_orientation_bit = 1,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
-		KEY_SCROLLDOWN,
-		KEY_SCROLLUP,
-		KEY_DIRECTION,
-		KEY_FN,
-		KEY_BRIGHTNESSUP,
-		KEY_BRIGHTNESSDOWN,
-		KEY_BRIGHTNESS_ZERO,
-		0,
-		0,
-		0,
-		0,
-		KEY_LEFTALT,
-#ifdef ANNOYING_FEATURES
-		0,
-		0,
-		0,
-		0,
-		KEY_PROG1,
-		KEY_PROG2,
-		KEY_PROG3,
-		KEY_PROG4,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		KEY_ENTER
-#endif
-	}
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ KEY_SCROLLDOWN, KEY_CALC, 0, KEY_PROG1 },
+		{ KEY_SCROLLUP, KEY_NEW, 0, KEY_PROG2 },
+		{ KEY_DIRECTION, KEY_EDIT, 0, KEY_PROG3 },
+		{ KEY_FN, 0, 0, KEY_PROG4 },
+		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
+		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
+		{ KEY_BRIGHTNESS_ZERO, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ KEY_LEFTALT, 0, 0, KEY_ENTER }
+	},
+	.modkeys = { 7, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
 
 static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
-		KEY_PRINT,
-		KEY_BACKSPACE,
-		KEY_SPACE,
-		KEY_ENTER,
-		KEY_BRIGHTNESSUP,
-		KEY_BRIGHTNESSDOWN,
-		KEY_DOWN,
-		KEY_UP,
-		KEY_PAGEUP,
-		KEY_PAGEDOWN,
-		KEY_FN,
-		KEY_LEFTALT,
-#ifdef ANNOYING_FEATURES
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0
-#endif
-	}
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ KEY_PRINT, 0, 0, 0 },
+		{ KEY_BACKSPACE, 0, 0, 0 },
+		{ KEY_SPACE, 0, 0, 0 },
+		{ KEY_ENTER, 0, 0, 0 },
+		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
+		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
+		{ KEY_DOWN, 0, 0, 0 },
+		{ KEY_UP, 0, 0, 0 },
+		{ KEY_PAGEUP, 0, 0, 0 },
+		{ KEY_PAGEDOWN, 0, 0, 0 },
+		{ KEY_FN, 0, 0, 0 },
+		{ KEY_LEFTALT, 0, 0, 0 }
+	},
+	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
 
 static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
-		KEY_MAIL,
-		KEY_DIRECTION,
-		KEY_ESC,
-		KEY_ENTER,
-		KEY_BRIGHTNESSUP,
-		KEY_BRIGHTNESSDOWN,
-		KEY_DOWN,
-		KEY_UP,
-		KEY_PAGEUP,
-		KEY_PAGEDOWN,
-		KEY_FN,
-		KEY_LEFTALT,
-#ifdef ANNOYING_FEATURES
-		0,
-		0,
-		0,
-		0,
-		KEY_PROG1,
-		KEY_PROG2,
-		KEY_PROG3,
-		KEY_PROG4,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-#endif
-	}
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ KEY_MAIL, 0, 0, KEY_PROG1 },
+		{ KEY_DIRECTION, 0, 0, KEY_PROG2 },
+		{ KEY_ESC, 0, 0, KEY_PROG3 },
+		{ KEY_ENTER, 0, 0, KEY_PROG4 },
+		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
+		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
+		{ KEY_DOWN, 0, 0, 0 },
+		{ KEY_UP, 0, 0, 0 },
+		{ KEY_PAGEUP, 0, 0, 0 },
+		{ KEY_PAGEDOWN, 0, 0, 0 },
+		{ KEY_FN, 0, 0, 0 },
+		{ KEY_LEFTALT, 0, 0, 0 }
+	},
+	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
 
 static struct {						/* fscbtns_t */
@@ -233,6 +187,7 @@ static struct {						/* fscbtns_t */
 	unsigned int address;
 
 	struct fscbtns_config config;
+	int keymap_mod;
 	int orientation;
 } fscbtns = {
 #ifndef CONFIG_ACPI
@@ -301,14 +256,17 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 
 	idev->keycode = fscbtns.config.keymap;
 	idev->keycodesize = sizeof(unsigned int);
-	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
+	idev->keycodemax = sizeof(fscbtns.config.keymap) / idev->keycodesize;
 
 #ifdef REPEAT_RATE
 	set_bit(EV_REP, idev->evbit);
 #endif
 	set_bit(EV_KEY, idev->evbit);
-	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
-		set_bit(fscbtns.config.keymap[x], idev->keybit);
+
+	// XXX: TODO: fix and cleanup this stupid cast
+	for(x = 0; x < idev->keycodemax; x++)
+		if(((unsigned int*)idev->keycode)[x])
+			set_bit(((unsigned int*)idev->keycode)[x], idev->keybit);
 
 	set_bit(EV_MSC, idev->evbit);
 	set_bit(MSC_SCAN, idev->mscbit);
@@ -350,22 +308,23 @@ static void fscbtns_report_orientation(void)
 }
 
 #ifdef ANNOYING_FEATURES
-static void fscbtns_lp_timeout(unsigned long data)
+static void fscbtns_lp_timeout(unsigned long keycode)
 {
 	fscbtns.lp_timer_start = 0;
 
 	fscbtns.idev->rep[REP_DELAY] = 1;
-	input_report_key(fscbtns.idev, data, 1);
+	input_report_key(fscbtns.idev, keycode, 1);
 	fscbtns.timer.data = 0;
 
 	fscbtns.idev->rep[REP_DELAY] = REPEAT_DELAY;
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_lp_report_key(unsigned int keycode,
-		unsigned int lp_keycode, int pressed)
+static inline int fscbtns_lp_report_key(int kmindex, int pressed)
 {
-	if(!lp_keycode)
+	struct keymap_entry *key = &(fscbtns.config.keymap[kmindex]);
+
+	if(!key->lp)
 		return 0;
 
 	if(fscbtns.lp_timer_start) {
@@ -376,13 +335,13 @@ static inline int fscbtns_lp_report_key(unsigned int keycode,
 		fscbtns.timer.data = 0;
 
 		if(lp > HZ/3) {
-			input_report_key(fscbtns.idev, lp_keycode, 1);
+			input_report_key(fscbtns.idev, key->lp, 1);
 			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, lp_keycode, 0);
+			input_report_key(fscbtns.idev, key->lp, 0);
 			return 1;
 		}
 
-		input_report_key(fscbtns.idev, keycode, 1);
+		input_report_key(fscbtns.idev, key->normal, 1);
 		input_sync(fscbtns.idev);
 		return 0;
 	}
@@ -390,7 +349,7 @@ static inline int fscbtns_lp_report_key(unsigned int keycode,
 	if(pressed && !timer_pending(&fscbtns.timer)) {
 		fscbtns.lp_timer_start = jiffies;
 
-		fscbtns.timer.data = keycode;
+		fscbtns.timer.data = key->normal;
 		fscbtns.timer.function = fscbtns_lp_timeout;
 		fscbtns.timer.expires = jiffies + (REPEAT_DELAY*HZ)/1000;
 		add_timer(&fscbtns.timer);
@@ -402,32 +361,52 @@ static inline int fscbtns_lp_report_key(unsigned int keycode,
 #endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-static void fscbtns_sticky_timeout(unsigned long data)
+static void fscbtns_sticky_timeout(unsigned long keycode)
 {
-	input_report_key(fscbtns.idev, data, 0);
+	input_report_key(fscbtns.idev, keycode, 0);
 	fscbtns.timer.data = 0;
-
+#ifdef HANDLE_MOD_IN_KERNEL
+	fscbtns.keymap_mod = 0;
+	printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
+#endif
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
+static inline int fscbtns_sticky_report_key(int kmindex, int pressed)
 {
+	unsigned int *key = &(fscbtns.config.keymap[kmindex].normal);
+
 	if(pressed) {
 		del_timer(&fscbtns.timer);
+#ifdef HANDLE_MOD_IN_KERNEL
+		printk(MODULENAME ": keymap_mod=%d, keycode=%d\n",
+				fscbtns.keymap_mod, key[fscbtns.keymap_mod]);
+		if(key[fscbtns.keymap_mod] == 0) {
+			printk(MODULENAME ":   ==> STICKY OUT.\n");
+			return 0;
+		}
+#else
 		return 0;
+#endif
 	}
 
-	if(fscbtns.timer.data && (fscbtns.timer.data != keycode)) {
+	if((fscbtns.timer.data) && (fscbtns.timer.data != *key)) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
 		fscbtns.timer.data = 0;
 		return 0;
 	}
 
-	if(test_bit(keycode, modification_mask)) {
-		fscbtns.timer.data = keycode;
+#ifdef HANDLE_MOD_IN_KERNEL
+	if(pressed)
+		return 0;
+#endif
+
+	if(test_bit(*key, modification_mask)) {
+		fscbtns.timer.data = *key;
 		fscbtns.timer.function = fscbtns_sticky_timeout;
 		fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
 		add_timer(&fscbtns.timer);
+
 		return 1;
 	}
 
@@ -435,24 +414,49 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 }
 #endif
 
-static void fscbtns_report_key(int key, int pressed)
+static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
 	int handled;
-	unsigned int *kcptr = &(fscbtns.config.keymap[key]);
+	unsigned int *key;
 
 #ifdef ANNOYING_FEATURES
-	handled = fscbtns_lp_report_key(*kcptr, *(kcptr+16), pressed);
+	handled = fscbtns_lp_report_key(kmindex, pressed);
 	if(handled)
 		return;
 #endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	handled = fscbtns_sticky_report_key(*kcptr, pressed);
+	handled = fscbtns_sticky_report_key(kmindex, pressed);
 	if(handled)
 		return;
 #endif
 
-	input_report_key(fscbtns.idev, *kcptr, pressed);
+	key = &(fscbtns.config.keymap[kmindex].normal);
+
+#ifdef HANDLE_MOD_IN_KERNEL
+	if(pressed && !fscbtns.keymap_mod) {
+		printk(MODULENAME ": MOD HANDLING\n");
+		if(kmindex == fscbtns.config.modkeys[1])
+			fscbtns.keymap_mod = 2;
+		else if(kmindex == fscbtns.config.modkeys[0])
+			fscbtns.keymap_mod = 1;
+		printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
+	}
+
+	printk(MODULENAME ": kmindex = %d, mod = %d => *key = %d (%p)\n",
+			kmindex, fscbtns.keymap_mod, *(key+fscbtns.keymap_mod), key);
+
+	if( *(key + fscbtns.keymap_mod) )
+		key += fscbtns.keymap_mod;
+
+	if(!pressed) {
+		fscbtns.keymap_mod = 0;
+		printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
+	}
+#endif /* HANDLE_MOD_IN_KERNEL */
+
+	if(*key)
+		input_report_key(fscbtns.idev, *key, pressed);
 }
 
 static void fscbtns_event(void)
@@ -481,7 +485,7 @@ static void fscbtns_event(void)
 			x++;
 
 #ifndef ANNOYING_FEATURES
-		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
+		//input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
 #endif
 		fscbtns_report_key(x, pressed);
 	}
