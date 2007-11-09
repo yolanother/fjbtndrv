@@ -79,12 +79,22 @@ if test x$enable_debug = xyes; then
   AC_DEFINE(DEBUG, [], [debug output])
 fi
 
-AC_ARG_ENABLE([annoying_features],
-  AS_HELP_STRING([--enable-annoying-features],
-    [Enable potentially annoying features (Default: disabled)]),
-  [enable_annoying_features=$enableval], [enable_annoying_features=no])
-if test x$enable_annoying_features = xyes; then
-  AC_DEFINE(ANNOYING_FEATURES, [], [enable annoying features])
+AC_ARG_ENABLE([kernel-mod],
+  AS_HELP_STRING([--disable-kernel-mod],
+    [Disable key modification by kernel module (Default: enabled)]),
+  [enable_kernel_mod=$enableval], [enable_kernel_mod=yes])
+if test x$enable_kernel_mod = xyes; then
+  AC_DEFINE(CONFIG_HANDLE_MOD, [], [enable kernel key modification])
+fi
+
+if test x$enable_kernel_mod = xyes; then
+  AC_ARG_ENABLE([longer-press-mod],
+    AS_HELP_STRING([--enable-longer-press-mod],
+      [Enable potentially annoying longer-press features (Default: disabled)]),
+    [enable_longer_press_mod=$enableval], [enable_longer_press_mod=no])
+  if test x$enable_longer_press_mod = xyes; then
+    AC_DEFINE(CONFIG_LONGER_PRESS_MOD, [], [enable longer-press keycode modification])
+  fi
 fi
 
 AC_ARG_WITH(script-dir,
@@ -154,7 +164,7 @@ echo "
 
         autorepeat:     ${repeat_rate} chars/s after a ${repeat_delay}ms delay
         sticky keys:    ${sticky_timeout}ms
-        annoying feat.: ${enable_annoying_features}
+        longer press:   ${enable_longer_press_mod}
 
   Type 'make' to build and then 'sudo make install' to install fscd.
 "

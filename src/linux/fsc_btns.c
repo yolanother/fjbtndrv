@@ -24,10 +24,10 @@
 #  define REPEAT_DELAY 700
 #  define REPEAT_RATE 16
 #  define STICKY_TIMEOUT 1400
-#  undef  ANNOYING_FEATURES
+#  define CONFIG_HANDLE_MOD
+#  undef  CONFIG_LONGER_PRESS_MOD
 #endif
 
-#define CONFIG_HANDLE_MOD
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -93,13 +93,16 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 #endif
 
 #define NO_MOD 0
+#ifdef CONFIG_HANDLE_MOD
 #define MOD_FN 1
 #define MOD_ALT 2
 #define MOD_LP 3
 #define MOD_CURR fscbtns.keymap_mod
 #define CURR_OR_NO(ke) ((ke)[MOD_CURR]? (ke)[MOD_CURR] : (ke)[NO_MOD])
 typedef unsigned int keymap_entry[4];
-
+#else
+typedef unsigned int keymap_entry[1];
+#endif
 
 struct fscbtns_config {
 	int invert_orientation_bit;
@@ -110,6 +113,7 @@ struct fscbtns_config {
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	.invert_orientation_bit = 1,
 	.keymap = {
+#ifdef CONFIG_HANDLE_MOD
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
@@ -126,6 +130,24 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
 		{ KEY_LEFTALT, 0, 0, KEY_ENTER }
+#else
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ KEY_SCROLLDOWN },
+		{ KEY_SCROLLUP },
+		{ KEY_DIRECTION },
+		{ KEY_FN },
+		{ KEY_BRIGHTNESSUP },
+		{ KEY_BRIGHTNESSDOWN },
+		{ KEY_BRIGHTNESS_ZERO },
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ KEY_LEFTALT }
+#endif
 	},
 	.modkeys = { 7, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
@@ -133,6 +155,7 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
+#ifdef CONFIG_HANDLE_MOD
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
@@ -149,6 +172,23 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		{ KEY_PAGEDOWN, 0, 0, 0 },
 		{ KEY_FN, 0, 0, 0 },
 		{ KEY_LEFTALT, 0, 0, 0 }
+#else
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ KEY_PRINT },
+		{ KEY_BACKSPACE },
+		{ KEY_SPACE },
+		{ KEY_ENTER },
+		{ KEY_BRIGHTNESSUP },
+		{ KEY_BRIGHTNESSDOWN },
+		{ KEY_DOWN },
+		{ KEY_UP },
+		{ KEY_PAGEUP },
+		{ KEY_PAGEDOWN },
+		{ KEY_FN }
+#endif
 	},
 	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
@@ -156,6 +196,7 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
+#ifdef CONFIG_HANDLE_MOD
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
@@ -172,6 +213,24 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		{ KEY_PAGEDOWN, 0, 0, 0 },
 		{ KEY_FN, 0, 0, 0 },
 		{ KEY_LEFTALT, 0, 0, 0 }
+#else
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ 0 },
+		{ KEY_MAIL },
+		{ KEY_DIRECTION },
+		{ KEY_ESC },
+		{ KEY_ENTER },
+		{ KEY_BRIGHTNESSUP },
+		{ KEY_BRIGHTNESSDOWN },
+		{ KEY_DOWN },
+		{ KEY_UP },
+		{ KEY_PAGEUP },
+		{ KEY_PAGEDOWN },
+		{ KEY_FN },
+		{ KEY_LEFTALT }
+#endif
 	},
 	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
 };
@@ -179,10 +238,10 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
 	struct timer_list timer;
 #endif
-#ifdef ANNOYING_FEATURES
+#ifdef CONFIG_LONGER_PRESS_MOD
 	unsigned long lp_timer_start;
 #endif
 
@@ -320,7 +379,7 @@ static inline void __fscbtns_report_key(keymap_entry *ke, int pressed)
 		return input_report_key(fscbtns.idev, (*ke)[NO_MOD], pressed);
 }
 
-#ifdef ANNOYING_FEATURES
+#ifdef CONFIG_LONGER_PRESS_MOD
 static void fscbtns_lp_timeout(unsigned long keycode)
 {
 	fscbtns.lp_timer_start = 0;
@@ -423,7 +482,7 @@ static void fscbtns_report_key(unsigned int kmindex, int pressed)
 	keymap_entry *ke = &fscbtns.config.keymap[kmindex];
 
 
-#ifdef ANNOYING_FEATURES
+#ifdef CONFIG_LONGER_PRESS_MOD
 	handled = fscbtns_lp_report_key(ke, pressed);
 	if(handled)
 		return;
@@ -482,7 +541,7 @@ static void fscbtns_event(void)
 		while(!test_bit(x, &changed))
 			x++;
 
-#ifndef ANNOYING_FEATURES
+#ifndef CONFIG_LONGER_PRESS_MOD
 		//input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
 #endif
 		fscbtns_report_key(x, pressed);
@@ -780,7 +839,7 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
 	del_timer_sync(&fscbtns.timer);
 #endif
 	return error;
@@ -794,7 +853,7 @@ static void __exit fscbtns_module_exit(void)
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(ANNOYING_FEATURES)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
 	del_timer_sync(&fscbtns.timer);
 #endif
 }
