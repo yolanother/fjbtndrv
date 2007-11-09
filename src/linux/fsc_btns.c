@@ -26,7 +26,8 @@
 #  define STICKY_TIMEOUT 1400
 #  undef  ANNOYING_FEATURES
 #endif
-#define HANDLE_MOD_IN_KERNEL
+
+#define CONFIG_HANDLE_MOD
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -91,16 +92,18 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_FN)]		= BIT(KEY_FN)};
 #endif
 
-struct keymap_entry {
-	unsigned int normal;
-	unsigned int mod_fn;
-	unsigned int mod_alt;
-	unsigned int lp;
-};
+#define NO_MOD 0
+#define MOD_FN 1
+#define MOD_ALT 2
+#define MOD_LP 3
+#define MOD_CURR fscbtns.keymap_mod
+#define CURR_OR_NO(ke) ((ke)[MOD_CURR]? (ke)[MOD_CURR] : (ke)[NO_MOD])
+typedef unsigned int keymap_entry[4];
+
 
 struct fscbtns_config {
 	int invert_orientation_bit;
-	struct keymap_entry keymap[16];
+	keymap_entry keymap[16];
 	int modkeys[2];
 };
 
@@ -112,8 +115,8 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		{ 0, 0, 0, 0 },
 		{ 0, 0, 0, 0 },
 		{ KEY_SCROLLDOWN, KEY_CALC, 0, KEY_PROG1 },
-		{ KEY_SCROLLUP, KEY_NEW, 0, KEY_PROG2 },
-		{ KEY_DIRECTION, KEY_EDIT, 0, KEY_PROG3 },
+		{ KEY_SCROLLUP, KEY_OPEN, 0, KEY_PROG2 },
+		{ KEY_DIRECTION, 0, 0, KEY_PROG3 },
 		{ KEY_FN, 0, 0, KEY_PROG4 },
 		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
 		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
@@ -307,6 +310,16 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
+static inline void __fscbtns_report_key(keymap_entry *ke, int pressed)
+{
+#ifdef CONFIG_HANDLE_MOD
+	if((*ke)[MOD_CURR])
+		return input_report_key(fscbtns.idev, (*ke)[MOD_CURR], pressed);
+#endif
+	if((*ke)[NO_MOD])
+		return input_report_key(fscbtns.idev, (*ke)[NO_MOD], pressed);
+}
+
 #ifdef ANNOYING_FEATURES
 static void fscbtns_lp_timeout(unsigned long keycode)
 {
@@ -320,11 +333,9 @@ static void fscbtns_lp_timeout(unsigned long keycode)
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_lp_report_key(int kmindex, int pressed)
+static inline int fscbtns_lp_report_key(keymap_entry *ke, int pressed)
 {
-	struct keymap_entry *key = &(fscbtns.config.keymap[kmindex]);
-
-	if(!key->lp)
+	if(!*(ke)[MOD_LP])
 		return 0;
 
 	if(fscbtns.lp_timer_start) {
@@ -335,21 +346,20 @@ static inline int fscbtns_lp_report_key(int kmindex, int pressed)
 		fscbtns.timer.data = 0;
 
 		if(lp > HZ/3) {
-			input_report_key(fscbtns.idev, key->lp, 1);
+			input_report_key(fscbtns.idev, (*ke)[MOD_LP], 1);
 			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, key->lp, 0);
+			input_report_key(fscbtns.idev, (*ke)[MOD_LP], 0);
 			return 1;
 		}
 
-		input_report_key(fscbtns.idev, key->normal, 1);
+		__fscbtns_report_key(ke, 1);
 		input_sync(fscbtns.idev);
 		return 0;
 	}
 
-	if(pressed && !timer_pending(&fscbtns.timer)) {
+	if(pressed && !fscbtns.timer.data) {
 		fscbtns.lp_timer_start = jiffies;
-
-		fscbtns.timer.data = key->normal;
+		fscbtns.timer.data = CURR_OR_NO(*ke);
 		fscbtns.timer.function = fscbtns_lp_timeout;
 		fscbtns.timer.expires = jiffies + (REPEAT_DELAY*HZ)/1000;
 		add_timer(&fscbtns.timer);
@@ -365,48 +375,41 @@ static void fscbtns_sticky_timeout(unsigned long keycode)
 {
 	input_report_key(fscbtns.idev, keycode, 0);
 	fscbtns.timer.data = 0;
-#ifdef HANDLE_MOD_IN_KERNEL
+#ifdef CONFIG_HANDLE_MOD
 	fscbtns.keymap_mod = 0;
-	printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
 #endif
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_sticky_report_key(int kmindex, int pressed)
+static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 {
-	unsigned int *key = &(fscbtns.config.keymap[kmindex].normal);
-
 	if(pressed) {
 		del_timer(&fscbtns.timer);
-#ifdef HANDLE_MOD_IN_KERNEL
-		printk(MODULENAME ": keymap_mod=%d, keycode=%d\n",
-				fscbtns.keymap_mod, key[fscbtns.keymap_mod]);
-		if(key[fscbtns.keymap_mod] == 0) {
-			printk(MODULENAME ":   ==> STICKY OUT.\n");
+#ifdef CONFIG_HANDLE_MOD
+		if((*ke)[MOD_CURR] == 0)
 			return 0;
-		}
 #else
 		return 0;
 #endif
 	}
 
-	if((fscbtns.timer.data) && (fscbtns.timer.data != *key)) {
+	if((fscbtns.timer.data) && (fscbtns.timer.data != (*ke)[NO_MOD])) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
-		fscbtns.timer.data = 0;
+		if(!pressed)
+			fscbtns.timer.data = 0;
 		return 0;
 	}
 
-#ifdef HANDLE_MOD_IN_KERNEL
+#ifdef CONFIG_HANDLE_MOD
 	if(pressed)
 		return 0;
 #endif
 
-	if(test_bit(*key, modification_mask)) {
-		fscbtns.timer.data = *key;
+	if(test_bit((*ke)[NO_MOD], modification_mask)) {
+		fscbtns.timer.data = (*ke)[NO_MOD];
 		fscbtns.timer.function = fscbtns_sticky_timeout;
 		fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
 		add_timer(&fscbtns.timer);
-
 		return 1;
 	}
 
@@ -417,46 +420,41 @@ static inline int fscbtns_sticky_report_key(int kmindex, int pressed)
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
 	int handled;
-	unsigned int *key;
+	keymap_entry *ke = &fscbtns.config.keymap[kmindex];
+
 
 #ifdef ANNOYING_FEATURES
-	handled = fscbtns_lp_report_key(kmindex, pressed);
+	handled = fscbtns_lp_report_key(ke, pressed);
 	if(handled)
 		return;
 #endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	handled = fscbtns_sticky_report_key(kmindex, pressed);
-	if(handled)
-		return;
-#endif
-
-	key = &(fscbtns.config.keymap[kmindex].normal);
-
-#ifdef HANDLE_MOD_IN_KERNEL
-	if(pressed && !fscbtns.keymap_mod) {
-		printk(MODULENAME ": MOD HANDLING\n");
+	handled = fscbtns_sticky_report_key(ke, pressed);
+	if(handled) {
 		if(kmindex == fscbtns.config.modkeys[1])
 			fscbtns.keymap_mod = 2;
 		else if(kmindex == fscbtns.config.modkeys[0])
 			fscbtns.keymap_mod = 1;
-		printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
+		return;
+	}
+#endif
+
+#ifdef CONFIG_HANDLE_MOD
+	if(!pressed && !fscbtns.keymap_mod) {
+		if(kmindex == fscbtns.config.modkeys[1])
+			fscbtns.keymap_mod = 2;
+		else if(kmindex == fscbtns.config.modkeys[0])
+			fscbtns.keymap_mod = 1;
 	}
 
-	printk(MODULENAME ": kmindex = %d, mod = %d => *key = %d (%p)\n",
-			kmindex, fscbtns.keymap_mod, *(key+fscbtns.keymap_mod), key);
+	__fscbtns_report_key(ke, pressed);
 
-	if( *(key + fscbtns.keymap_mod) )
-		key += fscbtns.keymap_mod;
-
-	if(!pressed) {
+	if(!pressed)
 		fscbtns.keymap_mod = 0;
-		printk(MODULENAME ": fscbtns.keymap_mod is now %d.\n", fscbtns.keymap_mod);
-	}
-#endif /* HANDLE_MOD_IN_KERNEL */
-
-	if(*key)
-		input_report_key(fscbtns.idev, *key, pressed);
+#else
+	__fscbtns_report_key(ke, pressed);
+#endif
 }
 
 static void fscbtns_event(void)
