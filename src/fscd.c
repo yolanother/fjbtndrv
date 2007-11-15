@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <signal.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -1257,8 +1258,24 @@ int main(int argc, char **argv)
 				result = handle_input_event(&ie);
 		}
 
-		if(result < 0)
-			keep_running = 0;
+		if(result < 0) {
+			switch(-result) {
+				case EINTR:		// a signal was caught
+				case EAGAIN:		// no data was immediately available
+					break;
+
+				case EBADF:		// invalid file descriptor
+				case EPERM:		// operation not permitted
+				case ENODEV:		// no such device
+					input_exit();
+					sleep(1);
+					keep_running = (input_init() == 0);
+					break;
+
+				default:
+					keep_running = 0;
+			}
+		}
 
 		XSync(display, False);
 		while(keep_running && XPending(display)) {
