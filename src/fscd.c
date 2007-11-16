@@ -367,6 +367,7 @@ void wacom_rotate(int mode)
 #include <X11/extensions/dpms.h>
 static Display *display;
 static Window root;
+int x11_error(Display*, XErrorEvent*);
 
 Display* x11_init(void)
 {
@@ -386,6 +387,8 @@ Display* x11_init(void)
 		XCloseDisplay(display);
 		return NULL;
 	}
+
+	XSetErrorHandler(x11_error);
 
 	xtest = XQueryExtension(display, "XTEST",
 			&opcode, &event, &error);
@@ -452,6 +455,14 @@ void x11_exit(void)
 
 	XSync(display, True);
 	XCloseDisplay(display);
+}
+
+int x11_error(Display *dpy, XErrorEvent *ee)
+{
+	char buffer[256];
+	XGetErrorText(dpy, ee->error_code, buffer, 255);
+	fprintf(stderr, "%s\n", buffer);
+	return keep_running = 0;
 }
 
 int x11_fix_keymap(void)
