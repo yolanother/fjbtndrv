@@ -368,6 +368,7 @@ void wacom_rotate(int mode)
 static Display *display;
 static Window root;
 int x11_error(Display*, XErrorEvent*);
+int x11_ioerror(Display*);
 
 Display* x11_init(void)
 {
@@ -389,6 +390,7 @@ Display* x11_init(void)
 	}
 
 	XSetErrorHandler(x11_error);
+	XSetIOErrorHandler(x11_ioerror);
 
 	xtest = XQueryExtension(display, "XTEST",
 			&opcode, &event, &error);
@@ -462,6 +464,12 @@ int x11_error(Display *dpy, XErrorEvent *ee)
 	char buffer[256];
 	XGetErrorText(dpy, ee->error_code, buffer, 255);
 	fprintf(stderr, "%s\n", buffer);
+	return keep_running = 0;
+}
+
+int x11_ioerror(Display *dpy)
+{
+	fprintf(stderr, "X11 IO Error.\n");
 	return keep_running = 0;
 }
 
@@ -1194,7 +1202,7 @@ int main(int argc, char **argv)
 
 	Display *display = x11_init();
 	if(!display) {
-		fprintf(stderr, "x initalisation failed\n");
+		fprintf(stderr, "x11 initalisation failed\n");
 		goto x_failed;
 	}
 
