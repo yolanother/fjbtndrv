@@ -43,7 +43,7 @@
  	loadSettings();
  	setOriginal();
 +
-+	if((wacomLibHandle = dlopen("libwacomcfg.so", RTLD_NOW))) {
++	if((wacomLibHandle = dlopen("libwacomcfg.so.0", RTLD_NOW))) {
 +		WacomConfigInit = (__WacomConfigInit) dlsym(wacomLibHandle, "WacomConfigInit");
 +		WacomConfigOpenDevice = (__WacomConfigOpenDevice) dlsym(wacomLibHandle, "WacomConfigOpenDevice");
 +		WacomConfigCloseDevice = (__WacomConfigCloseDevice) dlsym(wacomLibHandle, "WacomConfigCloseDevice");

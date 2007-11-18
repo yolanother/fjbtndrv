@@ -305,7 +305,7 @@ static WACOMCONFIG * wacom_config;
 int wacom_init(Display *display)
 {
 #ifdef ENABLE_DYNAMIC
-	if( !(DLOPEN(&wclib, "libwacomcfg.so") &&
+	if( !(DLOPEN(&wclib, "libwacomcfg.so.0") &&
 			DLSYM(&wclib, WacomConfigInit) &&
 			DLSYM(&wclib, WacomConfigFree) &&
 			DLSYM(&wclib, WacomConfigSetRawParam) &&
