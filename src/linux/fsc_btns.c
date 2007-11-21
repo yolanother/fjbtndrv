@@ -587,11 +587,11 @@ static int fscbtns_busywait(void)
 	return !timeout_counter;
 }
 
-static int fscbtns_reset(void)
+static void fscbtns_reset(void)
 {
 	fscbtns_ack();
 	if(fscbtns_busywait())
-		printk(KERN_WARNING MODULENAME ": timeout, reset needed!\n");
+		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
 
 	return 0;
 }
@@ -642,7 +642,12 @@ static int __devexit fscbtns_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int fscbtns_resume(struct platform_device *pdev)
 {
-	return fscbtns_reset();
+	fscbtns_reset();
+#if 0 // because Xorg Bug #9623 (SEGV at resume if display was rotated)
+	fscbtns_report_orientation();
+	input_sync(fscbtns.idev);
+#endif
+	return 0;
 }
 #else
 #define fscbtns_resume NULL
