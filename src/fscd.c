@@ -896,13 +896,13 @@ void scrollmode_info(void)
 #ifdef ENABLE_XOSD
 	switch(settings.scrollmode) {
 		case SM_ZAXIS:
-			osd_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
+			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
 			break;
 		case SM_KEY_PAGE:
-			osd_info("%s: %s", _("Scrolling"), _("Space/Backspace"));
+			osd_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
 			break;
 		case SM_KEY_SPACE:
-			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
+			osd_info("%s: %s", _("Scrolling"), _("Space/Backspace"));
 			break;
 	}
 #endif
