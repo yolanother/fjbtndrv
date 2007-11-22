@@ -490,7 +490,6 @@ int x11_fix_keymap(void)
 		if(map[me] == NoSymbol) {
 			debug(" X11 : mapping keycode %d to symbol %s (0x%08x)",
 					km->code, km->name, (unsigned)km->sym);
-			//map[me] = km->sym;
 			XChangeKeyboardMapping(display, km->code, 1, &(km->sym), 1);
 		} else if(map[me] == km->sym) {
 			debug(" X11 : keycode %d is ok.",
@@ -601,7 +600,6 @@ int fake_key(KeySym sym)
 	debug(" X11 : fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
 
 	if(keycode) {
-		debug(" X11 : fake key %d event", keycode);
 		XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
 		XSync(display, False);
 		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
@@ -1301,8 +1299,10 @@ int main(int argc, char **argv)
 			XEvent xe;
 
 			XNextEvent(display, &xe);
-			if(xe.type == KeyPress)
+			if(xe.type == KeyPress) {
+				XUngrabKeyboard(display, CurrentTime);
 				keep_running = (handle_x11_event((XKeyEvent*)&xe) >= 0);
+			}
 
 			XSync(display, False);
 		}
