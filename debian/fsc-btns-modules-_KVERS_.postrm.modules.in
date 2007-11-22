@@ -25,7 +25,7 @@ case "$1" in
 
     remove)
         dpkg-divert --remove --package "fsc-btns-modules-_KVERS_" \
-            --divert "${moduledir}/${module}_lum.ko" \
+            --divert "${moduledir}/${module}.lum" \
             --rename "${moduledir}/${module}.ko"
     ;;
 

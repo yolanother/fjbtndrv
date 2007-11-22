@@ -16,8 +16,12 @@ moduledir="/lib/modules/_KVERS_/ubuntu/misc"
 
 case "$1" in
     install|upgrade)
+        if [ -f "${moduledir}/${module}_lum.ko" ]; then
+            rm -f "${moduledir}/${module}.ko"
+            dpkg-divert --remove "${moduledir}/${module}.ko"
+        fi
         dpkg-divert --add --package "fsc-btns-modules-_KVERS_" \
-            --divert "${moduledir}/${module}_lum.ko" \
+            --divert "${moduledir}/${module}.lum" \
             --rename "${moduledir}/${module}.ko"
     ;;
 

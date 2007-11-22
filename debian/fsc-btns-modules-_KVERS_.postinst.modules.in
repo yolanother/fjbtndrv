@@ -19,10 +19,11 @@ module="fsc_btns"
 
 case "$1" in
     configure)
-        if grep -q $module /proc/modules; then
-          rmmod $module
+        if grep -Fq $module /proc/modules; then
+            rmmod $module
         fi
         modprobe $module 2>/dev/null || true
+        update-initramfs -u
     ;;
 esac
 
