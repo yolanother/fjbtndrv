@@ -13,6 +13,9 @@ XDG_CONFIG_HOME ?= /etc/xdg
 xdgautostartdir = $(XDG_CONFIG_HOME)/autostart
 dist_xdgautostart_DATA = fscd.desktop
 
+fscdscriptsdir = @scriptdir@
+dist_fscdscripts_SCRIPTS = fscd-rotate.sample
+
 EXTRA_DIST = fscd.desktop.in
 
 %: %.in Makefile
