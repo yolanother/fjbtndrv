@@ -592,8 +592,6 @@ static void fscbtns_reset(void)
 	fscbtns_ack();
 	if(fscbtns_busywait())
 		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
-
-	return 0;
 }
 
 static int __devinit fscbtns_probe(struct platform_device *pdev)
