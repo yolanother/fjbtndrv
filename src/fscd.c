@@ -76,7 +76,8 @@
 typedef enum {
 	SM_ZAXIS,
 	SM_KEY_PAGE,
-	SM_KEY_SPACE
+	SM_KEY_SPACE,
+	SM_KEY_MAX
 } ScrollMode;
 
 typedef enum {
@@ -440,7 +441,7 @@ Display* x11_init(void)
 		km->sym = XStringToKeysym(km->name);
 
 		if(km->sym && km->grab)
-			XGrabKey(display, km->code, 0, root, True, GrabModeAsync, GrabModeAsync);
+			XGrabKey(display, km->code, 0, root, False, GrabModeAsync, GrabModeAsync);
 	}
 
 	XSync(display, False);
@@ -473,6 +474,27 @@ int x11_ioerror(Display *dpy)
 	return keep_running = 0;
 }
 
+int x11_keyremap(int code, KeySym sym)
+{
+	int min, max, spc, me;
+	KeySym *map;
+
+	XDisplayKeycodes(display, &min, &max);
+	if((code < min) || (code > max))
+		return -1;
+
+	map = XGetKeyboardMapping(display, code, 1, &spc);
+	me  = (code - min) * spc;
+
+	if(map[me] != sym) {
+		debug(" X11 : mapping keycode %d to symbol %s (0x%08x)",
+				code, XKeysymToString(sym), (unsigned)sym);
+		XChangeKeyboardMapping(display, code, 1, &sym, 1);
+		return 1;
+	} else
+		return 0;
+}
+
 int x11_fix_keymap(void)
 {
 	int min, max, spc, me;
@@ -499,8 +521,27 @@ int x11_fix_keymap(void)
 					km->code, XKeysymToString(map[me]));
 	}
 
+	x11_keyremap(143, XK_Next);
+	x11_keyremap(220, XK_Prior);
+
 	XSync(display, False);
 	return 0;
+}
+
+void x11_grab_scrollkeys(void)
+{
+	debug(" X11 : grab scroll keys");
+	XGrabKey(display, 143, 0, root, False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, 220, 0, root, False, GrabModeAsync, GrabModeAsync);
+	XSync(display, False);
+}
+
+void x11_ungrab_scrollkeys(void)
+{
+	debug(" X11 : ungrab scroll keys");
+	XUngrabKey(display, 143, 0, root);
+	XUngrabKey(display, 220, 0, root);
+	XSync(display, False);
 }
 
 int dpms_enabled(void)
@@ -587,28 +628,6 @@ int rotate_screen(int mode)
 	XRRFreeScreenConfigInfo(sc);
  err:
 	return error;
-}
-
-int fake_key(KeySym sym)
-{
-	KeyCode keycode;
-
-	if(sym == 0)
-		return -1;
-
-	keycode = XKeysymToKeycode(display, sym);
-	debug(" X11 : fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
-
-	if(keycode) {
-		XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
-		XSync(display, False);
-		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
-		XSync(display, False);
-		return 0;
-	}
-
-	fprintf(stderr, "There is no keycode for %s, use xmodmap to define one\n", XKeysymToString(sym));
-	return -1;
 }
 
 int fake_button(unsigned int button)
@@ -889,34 +908,45 @@ void brightness_up(void)
 //}}}
 
 //{{{ RC stuff
-void scrollmode_info(void)
-{
 #ifdef ENABLE_XOSD
-	switch(settings.scrollmode) {
+void scrollmode_set(ScrollMode mode)
+{
+	settings.scrollmode = mode;
+
+	switch(mode) {
 		case SM_ZAXIS:
 			osd_info("%s: %s", _("Scrolling"), _("Z-Axis"));
+			x11_keyremap(143, XF86XK_ScrollDown);
+			x11_keyremap(220, XF86XK_ScrollUp);
 			break;
+
 		case SM_KEY_PAGE:
 			osd_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
+			x11_keyremap(143, XK_Next);
+			x11_keyremap(220, XK_Prior);
 			break;
+
 		case SM_KEY_SPACE:
 			osd_info("%s: %s", _("Scrolling"), _("Space/Backspace"));
+			x11_keyremap(143, XK_space);
+			x11_keyremap(220, XK_BackSpace);
+			break;
+
+		case SM_KEY_MAX:
 			break;
 	}
-#endif
 }
 
 void scrollmode_next(void)
 {
-	settings.scrollmode = (++settings.scrollmode % 3);
-	scrollmode_info();
+	scrollmode_set((settings.scrollmode+1) % SM_KEY_MAX);
 }
 
 void scrollmode_prev(void)
 {
-	settings.scrollmode = (settings.scrollmode? --settings.scrollmode : 2);
-	scrollmode_info();
+	scrollmode_set(settings.scrollmode? settings.scrollmode-1 : SM_KEY_MAX-1);
 }
+#endif
 
 
 void toggle_lock_rotate(void)
@@ -965,19 +995,10 @@ int handle_x11_event(XKeyEvent *event)
 			brightness_down();
 			break;
 		}
-#endif
 
-		switch(settings.scrollmode) {
-			case SM_ZAXIS:
-				fake_button(5);
-				break;
-			case SM_KEY_PAGE:
-				fake_key(XK_Next);
-				break;
-			case SM_KEY_SPACE:
-				fake_key(XK_space);
-				break;
-		}
+		if(settings.scrollmode == SM_ZAXIS)
+			fake_button(5);
+#endif
 		break;
 
 	case 220: /* XF86XK_ScrollUp */
@@ -993,19 +1014,11 @@ int handle_x11_event(XKeyEvent *event)
 			brightness_up();
 			break;
 		}
+
+		if(settings.scrollmode == SM_ZAXIS)
+			fake_button(4);
 #endif
 
-		switch(settings.scrollmode) {
-			case SM_ZAXIS:
-				fake_button(4);
-				break;
-			case SM_KEY_PAGE:
-				fake_key(XK_Prior);
-				break;
-			case SM_KEY_SPACE:
-				fake_key(XK_BackSpace);
-				break;
-		}
 		break;
 
 	case 203: /* XF86XK_RotateWindows */
@@ -1037,7 +1050,7 @@ int handle_x11_event(XKeyEvent *event)
 		break;
 
 	default:
-		debug(" X11 : WOW, what a key! I've grab it?");
+		debug(" X11 : WOW, what a key!?");
 	}
 
 	return 0;
@@ -1084,6 +1097,7 @@ int handle_input_event(struct input_event *event)
 			if(key_alt) {
 				osd_info(_("configuration..."));
 				mode_configure = current_time + (2 * STICKY_TIMEOUT);
+				x11_grab_scrollkeys();
 				break;
 			}
 
@@ -1108,6 +1122,7 @@ int handle_input_event(struct input_event *event)
 			if(key_fn) {
 				brightness_show();
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
+				x11_grab_scrollkeys();
 				break;
 			}
 
@@ -1242,6 +1257,8 @@ int main(int argc, char **argv)
 				timeout = STICKY_TIMEOUT;
 				mode_configure = 0;
 				osd_hide();
+				if(settings.scrollmode != SM_ZAXIS)
+					x11_ungrab_scrollkeys();
 			} else
 				if(timeout > STICKY_TIMEOUT)
 					timeout = STICKY_TIMEOUT;
@@ -1253,6 +1270,8 @@ int main(int argc, char **argv)
 				timeout = STICKY_TIMEOUT;
 				mode_brightness = 0;
 				osd_hide();
+				if(settings.scrollmode != SM_ZAXIS)
+					x11_ungrab_scrollkeys();
 			} else
 				if(timeout > STICKY_TIMEOUT)
 					timeout = STICKY_TIMEOUT;
@@ -1300,7 +1319,6 @@ int main(int argc, char **argv)
 
 			XNextEvent(display, &xe);
 			if(xe.type == KeyPress) {
-				XUngrabKeyboard(display, CurrentTime);
 				keep_running = (handle_x11_event((XKeyEvent*)&xe) >= 0);
 			}
 
