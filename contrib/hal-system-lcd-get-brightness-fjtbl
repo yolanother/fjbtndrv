@@ -1,16 +1,31 @@
 #!/bin/sh
 # Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
 
-# cat /proc/acpi/video/VGA/LCD/brightness
-#  levels:  8 4 1 2 3 4 5 6 7 8 (initial 0, but max.)
-#  current: 5
-value="`cat /proc/acpi/video/VGA/LCD/brightness | grep current: | awk '{print $2;}'`"
-if [ "$value" ]; then
-	[ $value = 0 ] && value=8
-	exit ${value}
+if [ -r /proc/acpi/video/VGA/LCD/brightness ]; then
+  # cat /proc/acpi/video/VGA/LCD/brightness
+  #  levels:  8 4 1 2 3 4 5 6 7 8 (initial 0, but max.)
+  #  current: 4
+  value="`cat /proc/acpi/video/VGA/LCD/brightness | grep current: | awk '{print $2;}'`"
+  if [ "$value" ]; then
+    if [ $value = 0 ]; then
+      value=8
+    fi
+    exit $value
+  fi
+elif [ -r /proc/acpi/video/GFX0/LCD/brightness ]; then
+  # cat /proc/acpi/video/VGA/LCD/brightness
+  #  levels:  100 43 1 15 29 43 57 71 85 100 (initial 0, but max.)
+  #  current: 43
+  value="`cat /proc/acpi/video/GFX0/LCD/brightness | grep current: | awk '{print $2;}'`"
+  if [ "$value" ]; then
+    if [ $value = 0 ]; then
+      value=100
+    fi
+    exit $(( (($value - 1) / 14) + 1 ))
+  fi
 else
-	echo "org.freedesktop.Hal.Device.LaptopPanel.NotSupported" >&2
-	echo "No ACPI method found" >&2
-	exit 1
+  echo "org.freedesktop.Hal.Device.LaptopPanel.NotSupported" >&2
+  echo "No ACPI method found" >&2
 fi
 
+exit 1
