@@ -288,7 +288,7 @@ xosd *osd_new(int lines)
 //{{{ WACOM stuff
 #ifdef ENABLE_WACOM
 #include <wacomcfg/wacomcfg.h>
-#include <Xwacom.h>
+#include "Xwacom.h"
 
 #ifdef ENABLE_DYNAMIC
 static struct {
