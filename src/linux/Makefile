@@ -19,6 +19,9 @@ fsc_btns.ko: fsc_btns.c
 install: fsc_btns.ko
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules_install
 
+uninstall:
+	rm -f /lib/modules/$(KERNELRELEASE)/extra/fsc_btns.ko
+
 clean:
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) clean
 
