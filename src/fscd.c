@@ -1041,12 +1041,16 @@ int handle_x11_event(XKeyEvent *event)
 
 	case 101: /* XF86XK_MonBrightnessDown */
 		brightness_down();
+#ifdef ENABLE_XOSD
 		osd_timeout(1);
+#endif
 		break;
 
 	case 212: /* XF86XK_MonBrightnessUp */
 		brightness_up();
+#ifdef ENABLE_XOSD
 		osd_timeout(1);
+#endif
 		break;
 
 	default:
