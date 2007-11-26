@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: fscd 0.50\n"
 "Report-Msgid-Bugs-To: fjbtndrv-devel@lists.sourceforge.net\n"
 "POT-Creation-Date: 2007-09-05 12:35+0200\n"
-"PO-Revision-Date: 2007-08-16 21:43+0200\n"
+"PO-Revision-Date: 2007-11-26 20:50+0200\n"
 "Last-Translator: Robert Gerlach <khnz@users.sourceforge.net>\n"
 "Language-Team: German\n"
 "MIME-Version: 1.0\n"
@@ -42,9 +42,6 @@ msgstr "DPMS deaktiviert"
 
 msgid "DPMS enabled"
 msgstr "DPMS aktiviert"
-
-msgid "off"
-msgstr "aus"
 
 msgid "configuration..."
 msgstr "Konfiguration..."
