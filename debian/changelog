@@ -1,3 +1,9 @@
+fscd (1.0rc1-2) gutsy; urgency=low
+
+  * Fixed build dependencies.
+
+ -- Robert Gerlach <khnz@users.sourceforge.net>  Mon, 26 Nov 2007 01:30:24 +0100
+
 fscd (1.0rc1-1) gutsy; urgency=low
 
   * New release
