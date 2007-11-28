@@ -54,7 +54,7 @@
 MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
 MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0");
+MODULE_VERSION("svn");
 
 #if defined CONFIG_ACPI && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 static const struct acpi_device_id fscbtns_ids[] = {
