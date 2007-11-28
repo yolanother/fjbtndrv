@@ -125,14 +125,13 @@ static int mode_configure, mode_brightness;
 #endif
 
 
-static int run_script(const char *name)
+static int find_script(const char *name, char *path, unsigned maxlen)
 {
 	struct stat s;
-	static char path[256];
 	int len, error;
 
 	len = strlen(homedir);
-	if(strlen(name) + len + 7 <= 255) {
+	if(strlen(name) + len + 7 <= maxlen) {
 		strcpy(path, homedir);
 		strcpy(path + len, "/.fscd/");
 		strcpy(path + len + 7, name);
@@ -142,12 +141,12 @@ static int run_script(const char *name)
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return system(path) << 8;
+			return 0;
 	} else
 		fprintf(stderr, "BUG: user script path too long");
 
 	len = strlen(homedir);
-	if(strlen(name) + len + 5 <= 255) {
+	if(strlen(name) + len + 5 <= maxlen) {
 		strcpy(path, homedir);
 		strcpy(path + len, "/bin/");
 		strcpy(path + len + 5, name);
@@ -157,12 +156,12 @@ static int run_script(const char *name)
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return system(path) << 8;
+			return 0;
 	} else
 		fprintf(stderr, "BUG: user script path too long");
 
 	len = sizeof(SCRIPTDIR) - 1;
-	if(strlen(name) + len + 1 <= 255) {
+	if(strlen(name) + len + 1 <= maxlen) {
 		strcpy(path, SCRIPTDIR);
 		path[len] = '/';
 		strcpy(path + len + 1, name);
@@ -172,12 +171,31 @@ static int run_script(const char *name)
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return system(path) << 8;
+			return 0;
 	} else
 		fprintf(stderr, "BUG: global script path too long");
 
-	debug(" RUN : script %s not found.", name);
 	return -1;
+}
+
+static int run_script(const char *name)
+{
+	char path[258];
+	int len, error;
+
+       	error = find_script(name, path, sizeof(path)-3);
+	if(error)
+		return 0;
+
+	len = strlen(path);
+	if(!len)
+		return -1;
+
+	/* XXX: enable to run scripts async */
+	// strcpy(path + len, " &");
+
+	debug(" RUN : script %s not found.", name);
+	return system(path) << 8;
 }
 
 //{{{ Input stuff
@@ -605,6 +623,13 @@ int rotate_screen(int mode)
 	rotation |= (mode ? RR_Rotate_270 : RR_Rotate_0);
 
 	if(rotation != current_rotation) {
+		if(mode)
+			error = run_script("fscd-pre-rotate-tablet");
+		else
+			error = run_script("fscd-pre-rotate-normal");
+		if(error)
+			goto err_sc;
+
 		error = XRRSetScreenConfig(display, sc, rwin, size, rotation, CurrentTime);
 		if(error)
 			goto err_sc;
@@ -612,13 +637,12 @@ int rotate_screen(int mode)
 #ifdef ENABLE_WACOM
 		wacom_rotate(mode);
 #endif
+	
+		if(mode)
+			error = run_script("fscd-rotate-tablet");
+		else
+			error = run_script("fscd-rotate-normal");
 	}
-
-	if(mode)
-		error = run_script("fscd-rotate-tablet");
-	else
-		error = run_script("fscd-rotate-normal");
-	debug(" RUN : run_script: %d", error);
 
 #ifdef ENABLE_XOSD
 	osd_init(display);
