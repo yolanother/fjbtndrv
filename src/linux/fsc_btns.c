@@ -444,16 +444,16 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 {
 	if(pressed) {
 		del_timer(&fscbtns.timer);
+
 #ifdef CONFIG_HANDLE_MOD
 		if((*ke)[MOD_CURR] == 0)
 			return 0;
-#else
-		return 0;
 #endif
 	}
 
 	if((fscbtns.timer.data) && (fscbtns.timer.data != (*ke)[NO_MOD])) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
+		input_sync(fscbtns.idev);
 		if(!pressed)
 			fscbtns.timer.data = 0;
 		return 0;
