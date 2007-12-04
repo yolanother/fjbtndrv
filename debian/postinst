@@ -2,6 +2,7 @@
 set -e
 
 udevcontrol reload_rules
+invoke-rc.d hal restart
 
 modprobe fsc_btns
 
