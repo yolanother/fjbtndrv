@@ -1,24 +1,35 @@
 #!/bin/sh
 # Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
 
+if [ -r /proc/acpi/video/VGA/LCD/brightness ]; then
+  file="/proc/acpi/video/VGA/LCD/brightness"
+elif [ -r /proc/acpi/video/GFX0/LCD/brightness ]; then
+  file="/proc/acpi/video/GFX0/LCD/brightness"
+else
+  echo "org.freedesktop.Hal.Device.LaptopPanel.NotSupported" >&2
+  echo "No ACPI method found" >&2
+  exit 1
+fi
+
 read value
 
-if [ "$value" ]; then
-  if [ -w /proc/acpi/video/VGA/LCD/brightness ]; then
-    if [ $value -ge 1 -a $value -le 8 ]; then
-      # echo "{1..8}" > /proc/acpi/video/VGA/LCD/brightness
-      echo "$value" > /proc/acpi/video/VGA/LCD/brightness
-    fi
-  elif [ -w /proc/acpi/video/GFX0/LCD/brightness ]; then
-    if [ $value -ge 1 -a $value -le 8 ]; then
-      # echo "{1 15 29 43 57 71 85 100}" > /proc/acpi/video/VGA/LCD/brightness
-      value=$(( (($value - 1) * 14) + 1 ))
-      if [ $value -eq 99 ]; then
-        value=100
-      fi
-      echo "$value" > /proc/acpi/video/GFX0/LCD/brightness
-    fi
-  fi
-fi
+# cat /proc/acpi/video/VGA/LCD/brightness
+#  levels:  8 4 1 2 3 4 5 6 7 8
+#  current: 4
+
+value=`awk -F' ' '
+
+  /^levels:/ {
+    for (i=4; i<12; i++)
+      levels[i-3]=$i
+  }
+
+  /^current:/ {
+    print levels['$value']
+  }
+
+' $file`
+
+echo "$value" > /proc/acpi/video/VGA/LCD/brightness
 
 exit 0
