@@ -24,7 +24,9 @@
 /******************************************************************************/
 
 #ifdef HAVE_CONFIG_H
-#  include "../config.h"
+#  include "../../config.h"
+#else
+#  define STICKY_TIMEOUT 1400
 #endif
 
 #include <stdio.h>
@@ -34,6 +36,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
