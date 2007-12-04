@@ -24,7 +24,7 @@
 /******************************************************************************/
 
 #ifdef HAVE_CONFIG_H
-#  include "../../config.h"
+#  include "../config.h"
 #else
 #  define STICKY_TIMEOUT 1400
 #endif
