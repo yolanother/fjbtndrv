@@ -30,6 +30,6 @@ value=`awk -F' ' '
 
 ' $file`
 
-echo "$value" > /proc/acpi/video/VGA/LCD/brightness
+echo "$value" >$file
 
 exit 0
