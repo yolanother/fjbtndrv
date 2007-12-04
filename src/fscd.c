@@ -1003,6 +1003,28 @@ void toggle_dpms(void)
 }
 //}}}
 
+int handle_display_rotation(int mode)
+{
+	int error;
+		
+	if(mode)
+		error = run_script("fscd-pre-mode-tablet");
+	else
+		error = run_script("fscd-pre-mode-normal");
+	if(error)
+		return -1;
+
+	if(settings.lock_rotate == UL_UNLOCKED)
+		rotate_screen(mode);
+
+	if(mode)
+		error = run_script("fscd-mode-tablet");
+	else
+		error = run_script("fscd-mode-normal");
+
+	return error;
+}
+
 int handle_x11_event(XKeyEvent *event)
 {
 	switch(event->keycode) {
@@ -1188,8 +1210,7 @@ int handle_input_event(struct input_event *event)
 		switch(event->code) {
 		case SW_TABLET_MODE:
 			debug("INPUT: tablet mode = %d", event->value);
-			if(settings.lock_rotate == UL_UNLOCKED)
-				rotate_screen(event->value);
+			handle_display_rotation(event->value);
 			break;
 		default:
 			debug("INPUT: unknown switch, skipping");
