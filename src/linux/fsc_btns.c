@@ -168,8 +168,8 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
 		{ KEY_DOWN, KEY_RIGHT, 0, 0 },
 		{ KEY_UP, KEY_LEFT, 0, 0 },
-		{ KEY_PAGEUP, KEY_HOME, 0, 0 },
-		{ KEY_PAGEDOWN, KEY_END, 0, 0 },
+		{ KEY_SCROLLUP, KEY_HOME, 0, 0 },
+		{ KEY_SCROLLDOWN, KEY_END, 0, 0 },
 		{ KEY_FN, 0, 0, 0 },
 		{ KEY_LEFTALT, 0, 0, 0 }
 #else
@@ -185,8 +185,8 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 		{ KEY_BRIGHTNESSDOWN },
 		{ KEY_DOWN },
 		{ KEY_UP },
-		{ KEY_PAGEUP },
-		{ KEY_PAGEDOWN },
+		{ KEY_SCROLLUP },
+		{ KEY_SCROLLDOWN },
 		{ KEY_FN }
 #endif
 	},
@@ -209,8 +209,8 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
 		{ KEY_DOWN, KEY_RIGHT, 0, 0 },
 		{ KEY_UP, KEY_LEFT, 0, 0 },
-		{ KEY_PAGEUP, KEY_HOME, 0, 0 },
-		{ KEY_PAGEDOWN, KEY_END, 0, 0 },
+		{ KEY_SCROLLUP, KEY_HOME, 0, 0 },
+		{ KEY_SCROLLDOWN, KEY_END, 0, 0 },
 		{ KEY_FN, 0, 0, 0 },
 		{ KEY_LEFTALT, 0, 0, 0 }
 #else
@@ -226,8 +226,8 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 		{ KEY_BRIGHTNESSDOWN },
 		{ KEY_DOWN },
 		{ KEY_UP },
-		{ KEY_PAGEUP },
-		{ KEY_PAGEDOWN },
+		{ KEY_SCROLLUP },
+		{ KEY_SCROLLDOWN },
 		{ KEY_FN },
 		{ KEY_LEFTALT }
 #endif
