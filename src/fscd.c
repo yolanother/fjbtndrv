@@ -103,8 +103,8 @@ static struct {
 	.scrollmode = SM_KEY_PAGE,
 	.lock_rotate = UL_UNLOCKED,
 	.keymap = {
-		{ .code = 143, .name = "XF86ScrollDown", .grab = 1 },
-		{ .code = 220, .name = "XF86ScrollUp", .grab = 1 },
+		{ .code = 143, .name = "XF86ScrollDown" },
+		{ .code = 220, .name = "XF86ScrollUp" },
 		{ .code = 203, .name = "XF86RotateWindows", .grab = 1 },
 
 		{ .code = 101, .name = "SunVideoLowerBrightness", .grab = 1 },
