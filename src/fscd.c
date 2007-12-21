@@ -237,6 +237,16 @@ void input_exit(void)
 {
 	close(input);
 }
+
+int input_get_switch_state(void)
+{
+	int state = 0;
+
+	if(ioctl(input, EVIOCGSW(sizeof(state)), &state) < 0)
+		return 0;
+
+	return !!(state & (1 << SW_TABLET_MODE));
+}
 //}}}
 
 //{{{ OSD stuff
@@ -1290,6 +1300,7 @@ int main(int argc, char **argv)
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	x11_fix_keymap();
+	handle_display_rotation(input_get_switch_state());
 
 	while(keep_running) {
 		fd_set rfd;
