@@ -655,11 +655,11 @@ int rotate_screen(int mode)
 			error = run_script("fscd-rotate-tablet");
 		else
 			error = run_script("fscd-rotate-normal");
-	}
 
 #ifdef ENABLE_XOSD
-	osd_init(display);
+		osd_init(display);
 #endif
+	}
 
  err_sc:
 	XRRFreeScreenConfigInfo(sc);
