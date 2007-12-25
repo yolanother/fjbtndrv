@@ -78,6 +78,20 @@ MODULE_DEVICE_TABLE(pnp, fscbtns_ids);
 #endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
+#if defined CONFIG_ACPI && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
+		[BIT_WORD(KEY_LEFTSHIFT)]	= BIT_MASK(KEY_LEFTSHIFT),
+		[BIT_WORD(KEY_RIGHTSHIFT)]	= BIT_MASK(KEY_RIGHTSHIFT),
+		[BIT_WORD(KEY_LEFTCTRL)]	= BIT_MASK(KEY_LEFTCTRL),
+		[BIT_WORD(KEY_RIGHTCTRL)]	= BIT_MASK(KEY_RIGHTCTRL),
+		[BIT_WORD(KEY_LEFTALT)]		= BIT_MASK(KEY_LEFTALT),
+		[BIT_WORD(KEY_RIGHTALT)]	= BIT_MASK(KEY_RIGHTALT),
+		[BIT_WORD(KEY_LEFTMETA)]	= BIT_MASK(KEY_LEFTMETA),
+		[BIT_WORD(KEY_RIGHTMETA)]	= BIT_MASK(KEY_RIGHTMETA),
+		[BIT_WORD(KEY_COMPOSE)]		= BIT_MASK(KEY_COMPOSE),
+		[BIT_WORD(KEY_LEFTALT)]		= BIT_MASK(KEY_LEFTALT),
+		[BIT_WORD(KEY_FN)]		= BIT_MASK(KEY_FN)};
+#else
 static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_LEFTSHIFT)]	= BIT(KEY_LEFTSHIFT),
 		[LONG(KEY_RIGHTSHIFT)]	= BIT(KEY_RIGHTSHIFT),
@@ -90,6 +104,7 @@ static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
 		[LONG(KEY_COMPOSE)]	= BIT(KEY_COMPOSE),
 		[LONG(KEY_LEFTALT)]	= BIT(KEY_LEFTALT),
 		[LONG(KEY_FN)]		= BIT(KEY_FN)};
+#endif
 #endif
 
 #define NO_MOD 0
@@ -726,7 +741,7 @@ static struct acpi_driver acpi_fscbtns_driver = {
 
 /*** DMI **********************************************************************/
 
-static int __init fscbtns_dmi_matched(struct dmi_system_id *dmi)
+static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
 	fscbtns_use_config(dmi->driver_data);
