@@ -19,14 +19,14 @@ value=`awk -F' ' '
 
   /^levels:/ {
     for (i=4; i<12; i++)
-      levels[i-3]=$i
+      levels[i-4]=$i
   }
 
   /^current:/ {
     if($2 > 0)
-      print levels[$2]
+      print levels[$2-1]
     else
-      print levels[8]
+      print levels[7]
   }
 
 ' $file`

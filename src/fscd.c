@@ -824,7 +824,7 @@ int brightness_init(void)
 	libhal_free_string_array(devices);
 
 	brightness_max = libhal_device_get_property_int(hal, laptop_panel,
-			"laptop_panel.num_levels", &dbus_error);
+			"laptop_panel.num_levels", &dbus_error) - 1;
 	if(dbus_error_is_set(&dbus_error)) {
 		fprintf(stderr, "query max brightness levels failed - %s\n",
 				dbus_error.message);
@@ -912,34 +912,28 @@ void set_brightness(int level)
 void brightness_show(void)
 {
 #ifdef ENABLE_XOSD
-	osd_slider( ((get_brightness()-1) * 100) / (brightness_max-1),
-			"%s", _("Brightness") );
+	osd_slider((get_brightness() * 100) / brightness_max,
+			"%s", _("Brightness"));
 #endif
 }
 
 void brightness_down(void)
 {
-	int current;
+	int current = get_brightness();
 
-	current = get_brightness();
+	if(current > 0)
+		set_brightness(current-1);
 
-	if(current == 0)
-		current = 8;
-
-	set_brightness(current-1);
 	brightness_show();
 }
 
 void brightness_up(void)
 {
-	int current;
-
-	current = get_brightness();
+	int current = get_brightness();
 
 	if(current < brightness_max)
-		current++;
+		set_brightness(current+1);
 
-	set_brightness(current);
 	brightness_show();
 }
 //}}}
