@@ -770,6 +770,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	},
 	{
 		.callback = fscbtns_dmi_matched,
+		.ident = "Fujitsu Lifebook T Series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook T")
+		},
+		.driver_data = &config_Lifebook_Tseries
+	},
+	{
+		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
