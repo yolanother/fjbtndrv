@@ -8,7 +8,7 @@ Standards-Version: 3.7.2
 Package: fscd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, wacom-tools
-Recommends: fscbtns-modules (>= 0.41), module-init-tools
+Recommends: fsc-btns-modules, module-init-tools
 Description: helper for fsc tablet buttons driver (fsc_btns)
  
 Package: fsc-btns-source

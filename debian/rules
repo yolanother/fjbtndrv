@@ -15,6 +15,11 @@ else
 	CFLAGS += -O2
 endif
 
+ifeq ($(shell lsb_release --short --id),Ubuntu)
+	INSTALL_MOD_DIR := ubuntu/misc
+else
+	INSTALL_MOD_DIR := extra
+endif
 
 ################################################################################
 
@@ -61,10 +66,10 @@ kdist_clean: clean
 binary-modules:
 	dh_testroot
 	dh_clean -k
-	dh_installdirs lib/modules/$(KVERS)/ubuntu/misc
+	dh_installdirs lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
 
-	$(MAKE) KERNEL_SOURCE=$(KSRC) KERNELRELEASE=$(KVERS)
-	cp fsc_btns.$ko debian/$(PKGNAME)/lib/modules/$(KVERS)/ubuntu/misc
+	$(MAKE) KERNEL_SOURCE=$(KSRC) KERNELRELEASE=$(KVERS) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR)
+	cp fsc_btns.$ko debian/$(PKGNAME)/lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
 
 	dh_installdocs
 	dh_installchangelogs

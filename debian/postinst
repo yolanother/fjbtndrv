@@ -2,7 +2,7 @@
 set -e
 
 udevcontrol reload_rules
-invoke-rc.d hal restart
+#invoke-rc.d hal restart
 
-modprobe fsc_btns
+modprobe fsc_btns || true
 
