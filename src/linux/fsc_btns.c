@@ -321,7 +321,9 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	if(!idev)
 		return -ENOMEM;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 	idev->dev.parent = dev;
+#endif
 	idev->cdev.dev = dev;
 
 	idev->phys = "fsc/input0";
@@ -577,10 +579,14 @@ static void fscbtns_isr_do(struct work_struct *work)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static DECLARE_WORK(isr_wq, fscbtns_isr_do);
 #else
-static DECLARE_WORK(isr_wq, fscbtns_isr_do, NULL);
+static DECLARE_WORK(isr_wq, (void(*)(void*)) fscbtns_isr_do, NULL);
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static irqreturn_t fscbtns_isr(int irq, void *dev_id)
+#else
+static irqreturn_t fscbtns_isr(int irq, void *dev_id, struct pt_regs *regs)
+#endif
 {
 	if(!(fscbtns_status() & 0x01))
 		return IRQ_NONE;
@@ -741,7 +747,11 @@ static struct acpi_driver acpi_fscbtns_driver = {
 
 /*** DMI **********************************************************************/
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
+#else
+static int __init fscbtns_dmi_matched(struct dmi_system_id *dmi)
+#endif
 {
 	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
 	fscbtns_use_config(dmi->driver_data);
