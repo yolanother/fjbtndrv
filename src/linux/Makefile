@@ -18,6 +18,7 @@ fsc_btns.ko: fsc_btns.c
 
 install: fsc_btns.ko
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules_install
+	if test -x /sbin/depmod; then /sbin/depmod -a $(KERNELRELEASE); fi
 
 uninstall:
 	rm -f /lib/modules/$(KERNELRELEASE)/extra/fsc_btns.ko
