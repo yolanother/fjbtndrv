@@ -264,7 +264,9 @@ static struct {						/* fscbtns_t */
 	unsigned int address;
 
 	struct fscbtns_config config;
+#ifdef CONFIG_HANDLE_MOD
 	int keymap_mod;
+#endif
 	int orientation;
 } fscbtns = {
 #ifndef CONFIG_ACPI
@@ -476,10 +478,8 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 		return 0;
 	}
 
-#ifdef CONFIG_HANDLE_MOD
 	if(pressed)
 		return 0;
-#endif
 
 	if(test_bit((*ke)[NO_MOD], modification_mask)) {
 		fscbtns.timer.data = (*ke)[NO_MOD];
@@ -508,10 +508,12 @@ static void fscbtns_report_key(unsigned int kmindex, int pressed)
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	handled = fscbtns_sticky_report_key(ke, pressed);
 	if(handled) {
+#ifdef CONFIG_HANDLE_MOD
 		if(kmindex == fscbtns.config.modkeys[1])
 			fscbtns.keymap_mod = 2;
 		else if(kmindex == fscbtns.config.modkeys[0])
 			fscbtns.keymap_mod = 1;
+#endif
 		return;
 	}
 #endif
