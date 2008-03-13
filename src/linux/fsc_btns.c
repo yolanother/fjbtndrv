@@ -325,8 +325,9 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 	idev->dev.parent = dev;
-#endif
+#else
 	idev->cdev.dev = dev;
+#endif 
 
 	idev->phys = "fsc/input0";
 	idev->name = "fsc tablet buttons";
