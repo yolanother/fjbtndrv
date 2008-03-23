@@ -2,7 +2,7 @@ Source: fscd
 Section: utils
 Priority: extra
 Maintainer: Robert Gerlach <khnz@users.sourceforge.net>
-Build-Depends: debhelper (>= 5), bzip2, autotools-dev, pkg-config, libhal-dev, libx11-dev, libxi-dev, libxext-dev, libxtst-dev, libxrandr-dev, libxosd-dev, wacom-tools
+Build-Depends: debhelper (>= 5), lsb-release, bzip2, autotools-dev, pkg-config, libhal-dev, libx11-dev, libxi-dev, libxext-dev, libxtst-dev, libxrandr-dev, libxosd-dev, wacom-tools
 Standards-Version: 3.7.2
 
 Package: fscd

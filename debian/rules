@@ -56,8 +56,8 @@ kdist_config: prep-deb-files
 # the kdist_clean target is called by make-kpkg modules_clean and from
 # kdist* rules. It is responsible for cleaning up any changes that have
 # been made by the other kdist_commands (except for the .deb files created)
-kdist_clean: clean
-	$(MAKE) $(MFLAGS) -f debian/rules clean
+kdist_clean:
+	$(MAKE) -C $(KSRC) M=$(PWD) clean
 	rm -f *.ko Module.symvers
 
 # the binary-modules rule is invoked by module-assistant while processing the
@@ -68,7 +68,9 @@ binary-modules:
 	dh_clean -k
 	dh_installdirs lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
 
-	$(MAKE) KERNEL_SOURCE=$(KSRC) KERNELRELEASE=$(KVERS) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR)
+	$(MAKE) -C $(KSRC) M=$(PWD) modules EXTRA_CFLAGS="$(EXTRA_CFLAGS)"
+
+	mkdir -p debian/$(PKGNAME)/lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
 	cp fsc_btns.$ko debian/$(PKGNAME)/lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
 
 	dh_installdocs

@@ -20,9 +20,11 @@ case "$1" in
             rm -f "${moduledir}/${module}.ko"
             dpkg-divert --remove "${moduledir}/${module}.ko"
         fi
-        dpkg-divert --add --package "fsc-btns-modules-_KVERS_" \
-            --divert "${moduledir}/${module}.lum" \
-            --rename "${moduledir}/${module}.ko"
+        if [ -f "${moduledir}/${module}.ko" ]; then
+            dpkg-divert --add --package "fsc-btns-modules-_KVERS_" \
+                --divert "${moduledir}/${module}.lum" \
+                --rename "${moduledir}/${module}.ko"
+        fi
     ;;
 
     abort-upgrade)

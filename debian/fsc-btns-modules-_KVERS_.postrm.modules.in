@@ -24,9 +24,11 @@ case "$1" in
     ;;
 
     remove)
-        dpkg-divert --remove --package "fsc-btns-modules-_KVERS_" \
-            --divert "${moduledir}/${module}.lum" \
-            --rename "${moduledir}/${module}.ko"
+        if [ -f "${moduledir}/${module}.lum" ]; then
+            dpkg-divert --remove --package "fsc-btns-modules-_KVERS_" \
+                --divert "${moduledir}/${module}.lum" \
+                --rename "${moduledir}/${module}.ko"
+        fi
     ;;
 
     *)
