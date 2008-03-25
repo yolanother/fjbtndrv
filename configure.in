@@ -134,7 +134,7 @@ if test x$sticky_timeout != xno; then
   AC_DEFINE_UNQUOTED(STICKY_TIMEOUT, [$sticky_timeout], [sticky timeout])
 fi
 
-AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop])
+AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop &>/dev/null])
 
 AC_CONFIG_FILES([
   Makefile
