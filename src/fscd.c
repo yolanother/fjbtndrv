@@ -415,6 +415,10 @@ Display* x11_init(void)
 	if(!display)
 		return NULL;
 
+#ifdef DEBUG
+	XSynchronize(display, True);
+#endif
+
 	root = XDefaultRootWindow(display);
 	if(!root) {
 		XCloseDisplay(display);
@@ -471,8 +475,10 @@ Display* x11_init(void)
 	for(km = settings.keymap; km->code; km++) {
 		km->sym = XStringToKeysym(km->name);
 
-		if(km->sym && km->grab)
+		if(km->sym && km->grab) {
+			debug(" X11 : grab key %s [%d]", km->name, km->code);
 			XGrabKey(display, km->code, 0, root, False, GrabModeAsync, GrabModeAsync);
+		}
 	}
 
 	XSync(display, False);
@@ -496,7 +502,7 @@ int x11_error(Display *dpy, XErrorEvent *ee)
 	char buffer[256];
 	XGetErrorText(dpy, ee->error_code, buffer, 255);
 	fprintf(stderr, "%s\n", buffer);
-	return keep_running = 0;
+	return 0;
 }
 
 int x11_ioerror(Display *dpy)
