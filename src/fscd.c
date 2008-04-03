@@ -133,6 +133,11 @@ static int find_script(const char *name, char *path, unsigned maxlen)
 	struct stat s;
 	int len, error;
 
+	if(!homedir) {
+		debug(" HOME: empty");
+		return -1;
+	}
+
 	len = strlen(homedir);
 	if(strlen(name) + len + 7 <= maxlen) {
 		strcpy(path, homedir);
