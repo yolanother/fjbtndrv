@@ -42,8 +42,6 @@
 #include <sys/time.h>
 #include <linux/input.h>
 #include <X11/Xlib.h>
-#include <X11/keysym.h>
-#include <X11/XF86keysym.h>
 
 #ifdef ENABLE_NLS
 #  include <libintl.h>
