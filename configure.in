@@ -134,6 +134,23 @@ if test x$sticky_timeout != xno; then
   AC_DEFINE_UNQUOTED(STICKY_TIMEOUT, [$sticky_timeout], [sticky timeout])
 fi
 
+AC_ARG_ENABLE([brightness-keys],
+  AS_HELP_STRING([--disable-brightness-keys],
+    [Don't handle the brightness keys (Default: enabled)]),
+  [enable_brightness_keys=$enableval], [enable_brightness_keys=yes])
+AC_ARG_ENABLE([brightness-control],
+  AS_HELP_STRING([--disable-brightness-control],
+    [Disable brightness handling completely (Default: enabled)]),
+  [enable_brightness_control=$enableval], [enable_brightness_control=yes])
+if test x$enable_brightness_control = xyes; then
+  AC_DEFINE(BRIGHTNESS_CONTROL, [], [brightness control])
+else
+  enable_brightness_keys=no
+fi
+if test x$enable_brightness_keys = xyes; then
+  AC_DEFINE(BRIGHTNESS_KEYS, [], [handle brightness up/down keys])
+fi
+
 AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop &>/dev/null])
 
 AC_CONFIG_FILES([

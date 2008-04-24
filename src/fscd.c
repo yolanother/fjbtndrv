@@ -75,6 +75,11 @@
 	func(args)
 #endif
 
+#ifndef BRIGHTNESS_CONTROL
+#  ifdef BRIGHTNESS_KEYS
+#    undef BRIGHTNESS_KEYS
+#  endif
+#endif
 
 typedef enum {
 	SM_ZAXIS,
@@ -106,10 +111,16 @@ static struct {
 		{ .code = 143, .name = "XF86ScrollDown" },
 		{ .code = 220, .name = "XF86ScrollUp" },
 		{ .code = 203, .name = "XF86RotateWindows", .grab = 1 },
-
-		{ .code = 101, .name = "SunVideoLowerBrightness", .grab = 1 },
-		{ .code = 212, .name = "SunVideoRaiseBrightness", .grab = 1 },
-
+		{ .code = 101, .name = "SunVideoLowerBrightness",
+#ifdef BRIGHTNESS_KEYS
+		  .grab = 1
+#endif
+	       	},
+		{ .code = 212, .name = "SunVideoRaiseBrightness",
+#ifdef BRIGHTNESS_KEYS
+		  .grab = 1
+#endif
+		},
 		{ .code = 159, .name = "XF86Launch1" },
 		{ .code = 151, .name = "XF86Launch2" },
 		{ .code = 171, .name = "XF86Launch3" },
@@ -813,6 +824,7 @@ int get_tablet_sw(void)
 //}}} 
 
 //{{{ Brightness stuff
+#ifdef BRIGHTNESS_CONTROL
 static char *laptop_panel;
 static int brightness_max;
 
@@ -947,6 +959,7 @@ void brightness_up(void)
 
 	brightness_show();
 }
+#endif
 //}}}
 
 //{{{ RC stuff
@@ -1054,11 +1067,13 @@ int handle_x11_event(XKeyEvent *event)
 			break;
 		}
 
+#ifdef BRIGHTNESS_CONTROL
 		if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_down();
 			break;
 		}
+#endif
 
 		if(settings.scrollmode == SM_ZAXIS)
 			fake_button(5);
@@ -1073,11 +1088,13 @@ int handle_x11_event(XKeyEvent *event)
 			break;
 		}
 
+#ifdef BRIGHTNESS_CONTROL
 		if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_up();
 			break;
 		}
+#endif
 
 		if(settings.scrollmode == SM_ZAXIS)
 			fake_button(4);
@@ -1093,16 +1110,19 @@ int handle_x11_event(XKeyEvent *event)
 			break;
 		}
 
+#ifdef BRIGHTNESS_CONTROL
 		if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			dpms_force_off();
 			break;
 		}
 #endif
+#endif
 
 		rotate_screen(-1);
 		break;
 
+#ifdef BRIGHTNESS_CONTROL
 	case 101: /* XF86XK_MonBrightnessDown */
 		brightness_down();
 #ifdef ENABLE_XOSD
@@ -1116,6 +1136,7 @@ int handle_x11_event(XKeyEvent *event)
 		osd_timeout(1);
 #endif
 		break;
+#endif
 
 	default:
 		debug(" X11 : WOW, what a key!?");
@@ -1188,9 +1209,13 @@ int handle_input_event(struct input_event *event)
 			}
 
 			if(key_fn) {
+#ifdef BRIGHTNESS_CONTROL
 				brightness_show();
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
 				x11_grab_scrollkeys();
+#else
+				osd_hide();
+#endif
 				break;
 			}
 
@@ -1275,10 +1300,12 @@ int main(int argc, char **argv)
 		goto hal_failed;
 	}
 
+#ifdef BRIGHTNESS_CONTROL
 	error = brightness_init();
 	if(error) {
 		fprintf(stderr, "brightness initalisation failed\n");
 	}
+#endif
 
 	Display *display = x11_init();
 	if(!display) {
@@ -1330,6 +1357,7 @@ int main(int argc, char **argv)
 			} else
 				if(timeout > STICKY_TIMEOUT)
 					timeout = STICKY_TIMEOUT;
+#ifdef BRIGHTNESS_CONTROL
 		} else if(mode_brightness) {
 			timeout = mode_brightness - current_time;
 			debug("LOOPY: mode_brightness = %u -> timeout = %d",
@@ -1343,6 +1371,7 @@ int main(int argc, char **argv)
 			} else
 				if(timeout > STICKY_TIMEOUT)
 					timeout = STICKY_TIMEOUT;
+#endif
 		} else timeout = STICKY_TIMEOUT;
 
 		debug("LOOPY: time = %lu, timeout = %d", current_time, timeout);
@@ -1402,7 +1431,9 @@ int main(int argc, char **argv)
 #endif
 	x11_exit();
  x_failed:
+#ifdef BRIGHTNESS_CONTROL
 	brightness_exit();
+#endif
  hal_failed:
 	input_exit();
  input_failed:
