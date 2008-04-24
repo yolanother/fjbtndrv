@@ -107,7 +107,6 @@ endif
 	mkdir -p obj-fscd
 	@cd obj-fscd && ../configure $(CONFIGURE_FLAGS) CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
 	rm -f config.h
-	ln -s obj-fscd/config.h config.h
 	#
 	mkdir -p obj-fscd-gnome
 	@cd obj-fscd-gnome && ../configure $(CONFIGURE_FLAGS) --disable-brightness-keys CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
@@ -140,7 +139,7 @@ install: build
 	dh_installdirs
 	# copy kernel modules
 	dh_installdirs -p$(psource) usr/src/modules/$(sname)/debian
-	cp src/linux/fsc_btns.c src/linux/Makefile config.h debian/$(psource)/usr/src/modules/$(sname)
+	cp src/linux/fsc_btns.c src/linux/Makefile obj-fscd/config.h debian/$(psource)/usr/src/modules/$(sname)
 	sed -i 's/".*config.h"/"config.h"/' debian/$(psource)/usr/src/modules/$(sname)/fsc_btns.c
 	cp debian/control debian/compat debian/rules debian/changelog debian/copyright \
 		debian/$(psource)/usr/src/modules/$(sname)/debian
