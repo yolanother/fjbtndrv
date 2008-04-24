@@ -9,7 +9,19 @@ Package: fscd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Recommends: fsc-btns-modules, module-init-tools, wacom-tools
+Replaces: fscd-gnome
+Conflicts: fscd-gnome
 Description: helper for fsc tablet buttons driver (fsc_btns)
+ 
+Package: fscd-gnome
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: fsc-btns-modules, module-init-tools, wacom-tools
+Replaces: fscd
+Conflicts: fscd
+Description: helper for fsc tablet buttons driver (fsc_btns)
+ This package contains fscd-gnome, a version of fscd which ignores
+ the brightness up/down keys.
  
 Package: fsc-btns-source
 Architecture: all

@@ -86,6 +86,7 @@ binary-modules:
 
 ################################################################################
 
+CONFIGURE_FLAGS := --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --with-script-dir=/usr/lib/fscd --enable-dynamic --enable-xosd --enable-wacom
 
 configure: configure-stamp
 configure-stamp:
@@ -103,22 +104,31 @@ endif
 	# don't build the kernel modules with make
 	sed -i '/^SUBDIRS =/ s/linux//' src/Makefile.in
 	#
-	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --with-script-dir=/usr/lib/fscd --enable-dynamic --enable-xosd --enable-wacom CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
+	mkdir -p obj-fscd
+	@cd obj-fscd && ../configure $(CONFIGURE_FLAGS) CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
+	rm -f config.h
+	ln -s obj-fscd/config.h config.h
+	#
+	mkdir -p obj-fscd-gnome
+	@cd obj-fscd-gnome && ../configure $(CONFIGURE_FLAGS) --disable-brightness-keys CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
 
 
 build: build-stamp
 build-stamp:  config.status
 	dh_testdir
-	$(MAKE)
+	@for pkg in fscd fscd-gnome; do \
+		cd $(CURDIR)/obj-$$pkg; \
+		$(MAKE); \
+	 done
 	#docbook-to-man debian/fscd.sgml > fscd.1
 	touch $@
 
 clean:
 	dh_testdir
 	dh_testroot
+	rm -fr obj-*
 	rm -f build-stamp 
-	-$(MAKE) distclean
-	rm -f config.sub config.guess
+	rm -f config.sub config.guess config.h
 	rm -f src/linux/Module.symvers
 	dh_clean 
 
@@ -139,7 +149,10 @@ install: build
 	cd debian/$(psource)/usr/src && tar c modules | bzip2 -9 > $(sname).tar.bz2 && rm -rf modules
 	# disable installation of the kernel module and install
 	@test -f src/linux/Makefile.dh || sed -i.dh 's/^install:.*/install-disabled:/' src/linux/Makefile
-	$(MAKE) DESTDIR=$(CURDIR)/debian/fscd install
+	@for pkg in fscd fscd-gnome; do \
+		cd $(CURDIR)/obj-$$pkg; \
+		$(MAKE) DESTDIR=$(CURDIR)/debian/$$pkg install; \
+	 done
 	#
 	mv src/linux/Makefile.dh src/linux/Makefile
 	#
