@@ -468,6 +468,8 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 #ifdef CONFIG_HANDLE_MOD
 		if((*ke)[MOD_CURR] == 0)
 			return 0;
+#else
+		return 0;
 #endif
 	}
 
@@ -479,8 +481,10 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 		return 0;
 	}
 
+#ifdef CONFIG_HANDLE_MOD
 	if(pressed)
 		return 0;
+#endif
 
 	if(test_bit((*ke)[NO_MOD], modification_mask)) {
 		fscbtns.timer.data = (*ke)[NO_MOD];
