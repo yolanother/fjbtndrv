@@ -56,29 +56,14 @@ MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("svn");
 
-#if defined CONFIG_ACPI && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 static const struct acpi_device_id fscbtns_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
 	{ .id = "" }
 };
 MODULE_DEVICE_TABLE(acpi, fscbtns_ids);
-#else
-static struct pnp_device_id fscbtns_ids[] __initdata = {
-	{ .id = "FUJ02bd" },
-	{ .id = "FUJ02bf" },
-	{ .id = "" }
-};
-MODULE_DEVICE_TABLE(pnp, fscbtns_ids);
-#endif
-
-
-#ifndef KEY_BRIGHTNESS_ZERO
-#define KEY_BRIGHTNESS_ZERO 244
-#endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-#if defined CONFIG_ACPI && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
 		[BIT_WORD(KEY_LEFTSHIFT)]	= BIT_MASK(KEY_LEFTSHIFT),
 		[BIT_WORD(KEY_RIGHTSHIFT)]	= BIT_MASK(KEY_RIGHTSHIFT),
@@ -91,20 +76,6 @@ static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
 		[BIT_WORD(KEY_COMPOSE)]		= BIT_MASK(KEY_COMPOSE),
 		[BIT_WORD(KEY_LEFTALT)]		= BIT_MASK(KEY_LEFTALT),
 		[BIT_WORD(KEY_FN)]		= BIT_MASK(KEY_FN)};
-#else
-static const unsigned long modification_mask[NBITS(KEY_MAX)] = {
-		[LONG(KEY_LEFTSHIFT)]	= BIT(KEY_LEFTSHIFT),
-		[LONG(KEY_RIGHTSHIFT)]	= BIT(KEY_RIGHTSHIFT),
-		[LONG(KEY_LEFTCTRL)]	= BIT(KEY_LEFTCTRL),
-		[LONG(KEY_RIGHTCTRL)]	= BIT(KEY_RIGHTCTRL),
-		[LONG(KEY_LEFTALT)]	= BIT(KEY_LEFTALT),
-		[LONG(KEY_RIGHTALT)]	= BIT(KEY_RIGHTALT),
-		[LONG(KEY_LEFTMETA)]	= BIT(KEY_LEFTMETA),
-		[LONG(KEY_RIGHTMETA)]	= BIT(KEY_RIGHTMETA),
-		[LONG(KEY_COMPOSE)]	= BIT(KEY_COMPOSE),
-		[LONG(KEY_LEFTALT)]	= BIT(KEY_LEFTALT),
-		[LONG(KEY_FN)]		= BIT(KEY_FN)};
-#endif
 #endif
 
 #define NO_MOD 0
@@ -323,12 +294,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	if(!idev)
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 	idev->dev.parent = dev;
-#else
-	idev->cdev.dev = dev;
-#endif 
-
 	idev->phys = "fsc/input0";
 	idev->name = "fsc tablet buttons";
 	idev->id.bustype = BUS_HOST;
@@ -583,17 +549,9 @@ static void fscbtns_isr_do(struct work_struct *work)
 	fscbtns_ack();
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static DECLARE_WORK(isr_wq, fscbtns_isr_do);
-#else
-static DECLARE_WORK(isr_wq, (void(*)(void*)) fscbtns_isr_do, NULL);
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static irqreturn_t fscbtns_isr(int irq, void *dev_id)
-#else
-static irqreturn_t fscbtns_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	if(!(fscbtns_status() & 0x01))
 		return IRQ_NONE;
@@ -739,11 +697,7 @@ static int acpi_fscbtns_add(struct acpi_device *adev)
 static struct acpi_driver acpi_fscbtns_driver = {
 	.name  = MODULENAME,
 	.class = "hotkey",
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 	.ids   = fscbtns_ids,
-#else
-	.ids   = "FUJ02BD,FUJ02BF",
-#endif
 	.ops   = {
 		.add    = acpi_fscbtns_add
 	}
@@ -754,11 +708,7 @@ static struct acpi_driver acpi_fscbtns_driver = {
 
 /*** DMI **********************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
-#else
-static int __init fscbtns_dmi_matched(struct dmi_system_id *dmi)
-#endif
 {
 	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
 	fscbtns_use_config(dmi->driver_data);

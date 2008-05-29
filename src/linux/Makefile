@@ -2,6 +2,8 @@ KERNELRELEASE	:= $(shell uname -r)
 KERNEL_SOURCE	:= /lib/modules/$(KERNELRELEASE)/build
 PWD		:= $(shell pwd)
 
+EXTRA_CFLAGS	+= -Wall -Werror
+
 ifdef DEFS
 EXTRA_CFLAGS	+= $(DEFS)
 endif
