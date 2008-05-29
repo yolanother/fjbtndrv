@@ -24,7 +24,6 @@
 #  define REPEAT_DELAY 700
 #  define REPEAT_RATE 16
 #  define STICKY_TIMEOUT 1400
-#  define CONFIG_HANDLE_MOD
 #  undef  CONFIG_LONGER_PRESS_MOD
 #endif
 
@@ -78,147 +77,74 @@ static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
 		[BIT_WORD(KEY_FN)]		= BIT_MASK(KEY_FN)};
 #endif
 
-#define NO_MOD 0
-#ifdef CONFIG_HANDLE_MOD
-#define MOD_FN 1
-#define MOD_ALT 2
-#define MOD_LP 3
-#define MOD_CURR fscbtns.keymap_mod
-#define CURR_OR_NO(ke) ((ke)[MOD_CURR]? (ke)[MOD_CURR] : (ke)[NO_MOD])
-typedef unsigned int keymap_entry[4];
-#else
-typedef unsigned int keymap_entry[1];
-#endif
-
 struct fscbtns_config {
 	int invert_orientation_bit;
-	keymap_entry keymap[16];
-	int modkeys[2];
+	unsigned int keymap[16];
 };
 
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	.invert_orientation_bit = 1,
 	.keymap = {
-#ifdef CONFIG_HANDLE_MOD
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ KEY_SCROLLDOWN, KEY_CALC, 0, KEY_PROG1 },
-		{ KEY_SCROLLUP, KEY_OPEN, 0, KEY_PROG2 },
-		{ KEY_DIRECTION, 0, 0, KEY_PROG3 },
-		{ KEY_FN, 0, 0, KEY_PROG4 },
-		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
-		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
-		{ KEY_BRIGHTNESS_ZERO, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ KEY_LEFTALT, 0, 0, KEY_ENTER }
-#else
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ KEY_SCROLLDOWN },
-		{ KEY_SCROLLUP },
-		{ KEY_DIRECTION },
-		{ KEY_FN },
-		{ KEY_BRIGHTNESSUP },
-		{ KEY_BRIGHTNESSDOWN },
-		{ KEY_BRIGHTNESS_ZERO },
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ KEY_LEFTALT }
-#endif
-	},
-	.modkeys = { 7, 15 }	/* KEY_FN, KEY_LEFTALT */
+		0,
+		0,
+		0,
+		0,
+		KEY_SCROLLDOWN,
+		KEY_SCROLLUP,
+		KEY_DIRECTION,
+		KEY_LEFTCTRL,
+		KEY_BRIGHTNESSUP,
+		KEY_BRIGHTNESSDOWN,
+		KEY_BRIGHTNESS_ZERO,
+		0,
+		0,
+		0,
+		0,
+		KEY_LEFTALT
+	}
 };
 
 static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-#ifdef CONFIG_HANDLE_MOD
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ KEY_PRINT, KEY_WWW, 0, KEY_PROG1 },
-		{ KEY_BACKSPACE, KEY_SCREEN, 0, KEY_PROG2 },
-		{ KEY_SPACE, KEY_CALC, 0, KEY_PROG3 },
-		{ KEY_ENTER, KEY_OPEN, 0, KEY_PROG4 },
-		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
-		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
-		{ KEY_DOWN, KEY_RIGHT, 0, 0 },
-		{ KEY_UP, KEY_LEFT, 0, 0 },
-		{ KEY_SCROLLUP, KEY_HOME, 0, 0 },
-		{ KEY_SCROLLDOWN, KEY_END, 0, 0 },
-		{ KEY_FN, 0, 0, 0 },
-		{ KEY_LEFTALT, 0, 0, 0 }
-#else
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ KEY_PRINT },
-		{ KEY_BACKSPACE },
-		{ KEY_SPACE },
-		{ KEY_ENTER },
-		{ KEY_BRIGHTNESSUP },
-		{ KEY_BRIGHTNESSDOWN },
-		{ KEY_DOWN },
-		{ KEY_UP },
-		{ KEY_SCROLLUP },
-		{ KEY_SCROLLDOWN },
-		{ KEY_FN }
-#endif
-	},
-	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
+		0,
+		0,
+		0,
+		0,
+		KEY_PRINT,
+		KEY_BACKSPACE,
+		KEY_SPACE,
+		KEY_ENTER,
+		KEY_BRIGHTNESSUP,
+		KEY_BRIGHTNESSDOWN,
+		KEY_DOWN,
+		KEY_UP,
+		KEY_SCROLLUP,
+		KEY_SCROLLDOWN,
+		KEY_FN
+	}
 };
 
 static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-#ifdef CONFIG_HANDLE_MOD
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ KEY_MAIL, KEY_WWW, 0, KEY_PROG1 },
-		{ KEY_DIRECTION, KEY_SCREEN, 0, KEY_PROG2 },
-		{ KEY_ESC, KEY_CALC, 0, KEY_PROG3 },
-		{ KEY_ENTER, KEY_OPEN, 0, KEY_PROG4 },
-		{ KEY_BRIGHTNESSUP, 0, 0, 0 },
-		{ KEY_BRIGHTNESSDOWN, 0, 0, 0 },
-		{ KEY_DOWN, KEY_RIGHT, 0, 0 },
-		{ KEY_UP, KEY_LEFT, 0, 0 },
-		{ KEY_SCROLLUP, KEY_HOME, 0, 0 },
-		{ KEY_SCROLLDOWN, KEY_END, 0, 0 },
-		{ KEY_FN, 0, 0, 0 },
-		{ KEY_LEFTALT, 0, 0, 0 }
-#else
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ 0 },
-		{ KEY_MAIL },
-		{ KEY_DIRECTION },
-		{ KEY_ESC },
-		{ KEY_ENTER },
-		{ KEY_BRIGHTNESSUP },
-		{ KEY_BRIGHTNESSDOWN },
-		{ KEY_DOWN },
-		{ KEY_UP },
-		{ KEY_SCROLLUP },
-		{ KEY_SCROLLDOWN },
-		{ KEY_FN },
-		{ KEY_LEFTALT }
-#endif
-	},
-	.modkeys = { 14, 15 }	/* KEY_FN, KEY_LEFTALT */
+		0,
+		0,
+		0,
+		0,
+		KEY_MAIL,
+		KEY_DIRECTION,
+		KEY_ESC,
+		KEY_ENTER,
+		KEY_BRIGHTNESSUP,
+		KEY_BRIGHTNESSDOWN,
+		KEY_DOWN,
+		KEY_UP,
+		KEY_SCROLLUP,
+		KEY_SCROLLDOWN,
+		KEY_FN,
+		KEY_LEFTALT
+	}
 };
 
 static struct {						/* fscbtns_t */
@@ -233,11 +159,8 @@ static struct {						/* fscbtns_t */
 
 	unsigned int interrupt;
 	unsigned int address;
-
 	struct fscbtns_config config;
-#ifdef CONFIG_HANDLE_MOD
-	int keymap_mod;
-#endif
+
 	int orientation;
 } fscbtns = {
 #ifndef CONFIG_ACPI
@@ -316,6 +239,12 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		if(((unsigned int*)idev->keycode)[x])
 			set_bit(((unsigned int*)idev->keycode)[x], idev->keybit);
 
+#ifdef CONFIG_LONGER_PRESS_MOD
+	set_bit(KEY_LEFTSHIFT, idev->keybit);
+	set_bit(KEY_LEFTCTRL, idev->keybit);
+	set_bit(KEY_LEFTALT, idev->keybit);
+#endif
+
 	set_bit(EV_MSC, idev->evbit);
 	set_bit(MSC_SCAN, idev->mscbit);
 
@@ -355,14 +284,10 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-static inline void __fscbtns_report_key(keymap_entry *ke, int pressed)
+static inline void __fscbtns_report_key(unsigned int keycode, int pressed)
 {
-#ifdef CONFIG_HANDLE_MOD
-	if((*ke)[MOD_CURR])
-		return input_report_key(fscbtns.idev, (*ke)[MOD_CURR], pressed);
-#endif
-	if((*ke)[NO_MOD])
-		return input_report_key(fscbtns.idev, (*ke)[NO_MOD], pressed);
+	if(keycode)
+		return input_report_key(fscbtns.idev, keycode, pressed);
 }
 
 #ifdef CONFIG_LONGER_PRESS_MOD
@@ -378,9 +303,9 @@ static void fscbtns_lp_timeout(unsigned long keycode)
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_lp_report_key(keymap_entry *ke, int pressed)
+static inline int fscbtns_lp_report_key(unsigned int keycode, int pressed)
 {
-	if(!*(ke)[MOD_LP])
+	if(!keycode)
 		return 0;
 
 	if(fscbtns.lp_timer_start) {
@@ -391,20 +316,30 @@ static inline int fscbtns_lp_report_key(keymap_entry *ke, int pressed)
 		fscbtns.timer.data = 0;
 
 		if(lp > HZ/3) {
-			input_report_key(fscbtns.idev, (*ke)[MOD_LP], 1);
+			printk(KERN_INFO MODULENAME ": long presses %d!\n", keycode);
+			input_report_key(fscbtns.idev, KEY_LEFTSHIFT, 1);
+			input_report_key(fscbtns.idev, KEY_LEFTCTRL, 1);
+			input_report_key(fscbtns.idev, KEY_LEFTALT, 1);
 			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, (*ke)[MOD_LP], 0);
+			input_report_key(fscbtns.idev, keycode, 1);
+			input_sync(fscbtns.idev);
+			input_report_key(fscbtns.idev, keycode, 0);
+			input_sync(fscbtns.idev);
+			input_report_key(fscbtns.idev, KEY_LEFTSHIFT, 0);
+			input_report_key(fscbtns.idev, KEY_LEFTCTRL, 0);
+			input_report_key(fscbtns.idev, KEY_LEFTALT, 0);
+			input_sync(fscbtns.idev);
 			return 1;
 		}
 
-		__fscbtns_report_key(ke, 1);
+		__fscbtns_report_key(keycode, 1);
 		input_sync(fscbtns.idev);
 		return 0;
 	}
 
 	if(pressed && !fscbtns.timer.data) {
 		fscbtns.lp_timer_start = jiffies;
-		fscbtns.timer.data = CURR_OR_NO(*ke);
+		fscbtns.timer.data = keycode;
 		fscbtns.timer.function = fscbtns_lp_timeout;
 		fscbtns.timer.expires = jiffies + (REPEAT_DELAY*HZ)/1000;
 		add_timer(&fscbtns.timer);
@@ -420,26 +355,17 @@ static void fscbtns_sticky_timeout(unsigned long keycode)
 {
 	input_report_key(fscbtns.idev, keycode, 0);
 	fscbtns.timer.data = 0;
-#ifdef CONFIG_HANDLE_MOD
-	fscbtns.keymap_mod = 0;
-#endif
 	input_sync(fscbtns.idev);
 }
 
-static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
+static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 {
 	if(pressed) {
 		del_timer(&fscbtns.timer);
-
-#ifdef CONFIG_HANDLE_MOD
-		if((*ke)[MOD_CURR] == 0)
-			return 0;
-#else
 		return 0;
-#endif
 	}
 
-	if((fscbtns.timer.data) && (fscbtns.timer.data != (*ke)[NO_MOD])) {
+	if((fscbtns.timer.data) && (fscbtns.timer.data != keycode)) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
 		input_sync(fscbtns.idev);
 		if(!pressed)
@@ -447,13 +373,8 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 		return 0;
 	}
 
-#ifdef CONFIG_HANDLE_MOD
-	if(pressed)
-		return 0;
-#endif
-
-	if(test_bit((*ke)[NO_MOD], modification_mask)) {
-		fscbtns.timer.data = (*ke)[NO_MOD];
+	if(test_bit(keycode, modification_mask)) {
+		fscbtns.timer.data = keycode;
 		fscbtns.timer.function = fscbtns_sticky_timeout;
 		fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
 		add_timer(&fscbtns.timer);
@@ -466,44 +387,26 @@ static inline int fscbtns_sticky_report_key(keymap_entry *ke, int pressed)
 
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
+/* TODO: to bad! */
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
 	int handled;
-	keymap_entry *ke = &fscbtns.config.keymap[kmindex];
+#endif
+	unsigned int keycode = fscbtns.config.keymap[kmindex];
 
 
 #ifdef CONFIG_LONGER_PRESS_MOD
-	handled = fscbtns_lp_report_key(ke, pressed);
+	handled = fscbtns_lp_report_key(keycode, pressed);
 	if(handled)
 		return;
 #endif
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	handled = fscbtns_sticky_report_key(ke, pressed);
-	if(handled) {
-#ifdef CONFIG_HANDLE_MOD
-		if(kmindex == fscbtns.config.modkeys[1])
-			fscbtns.keymap_mod = 2;
-		else if(kmindex == fscbtns.config.modkeys[0])
-			fscbtns.keymap_mod = 1;
-#endif
+	handled = fscbtns_sticky_report_key(keycode, pressed);
+	if(handled)
 		return;
-	}
 #endif
 
-#ifdef CONFIG_HANDLE_MOD
-	if(!pressed && !fscbtns.keymap_mod) {
-		if(kmindex == fscbtns.config.modkeys[1])
-			fscbtns.keymap_mod = 2;
-		else if(kmindex == fscbtns.config.modkeys[0])
-			fscbtns.keymap_mod = 1;
-	}
-
-	__fscbtns_report_key(ke, pressed);
-
-	if(!pressed)
-		fscbtns.keymap_mod = 0;
-#else
-	__fscbtns_report_key(ke, pressed);
-#endif
+	__fscbtns_report_key(keycode, pressed);
 }
 
 static void fscbtns_event(void)
@@ -703,7 +606,7 @@ static struct acpi_driver acpi_fscbtns_driver = {
 	}
 };
 
-#endif /* CONFIG_ACPI */
+#endif
 
 
 /*** DMI **********************************************************************/
