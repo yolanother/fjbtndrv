@@ -35,9 +35,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
-#ifdef CONFIG_ACPI
-#  include <linux/acpi.h>
-#endif
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -158,19 +156,7 @@ static struct {						/* fscbtns_t */
 	struct fscbtns_config config;
 
 	int orientation;
-} fscbtns = {
-#ifndef CONFIG_ACPI
-	/* XXX: is this always true ??? */
-	.interrupt = 5,
-	.address = 0xfd70
-#endif
-};
-
-module_param_named(irq, fscbtns.interrupt, uint, 0);
-MODULE_PARM_DESC(irq, "interrupt");
-
-module_param_named(io, fscbtns.address, uint, 0);
-MODULE_PARM_DESC(io, "io base address");
+} fscbtns;
 
 static unsigned int user_model;
 module_param_named(model, user_model, uint, 0);
@@ -469,30 +455,23 @@ static struct platform_driver fscbtns_platform_driver = {
 
 
 /*** ACPI *********************************************************************/
-#ifdef CONFIG_ACPI
 
 static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 {
 	switch(res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
-			if(fscbtns.interrupt)
-				return_ACPI_STATUS(AE_OK);
-
 			fscbtns.interrupt = res->data.irq.interrupts[0];
 			return_ACPI_STATUS(AE_OK);
 
 		case ACPI_RESOURCE_TYPE_IO:
-			if(fscbtns.address)
-				return_ACPI_STATUS(AE_OK);
-
 			fscbtns.address = res->data.io.minimum;
 			return_ACPI_STATUS(AE_OK);
 
 		case ACPI_RESOURCE_TYPE_END_TAG:
 			if(fscbtns.interrupt && fscbtns.address)
 				return_ACPI_STATUS(AE_OK);
-
-			return_ACPI_STATUS(AE_NOT_FOUND);
+			else
+				return_ACPI_STATUS(AE_NOT_FOUND);
 
 		default:
 			return_ACPI_STATUS(AE_ERROR);
@@ -522,8 +501,6 @@ static struct acpi_driver acpi_fscbtns_driver = {
 		.add    = acpi_fscbtns_add
 	}
 };
-
-#endif
 
 
 /*** DMI **********************************************************************/
@@ -598,7 +575,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 
 static int __init fscbtns_module_init(void)
 {
-	int error = -EINVAL;
+	int error;
 
 	switch(user_model) {
 		case 1:
@@ -614,20 +591,16 @@ static int __init fscbtns_module_init(void)
 			dmi_check_system(dmi_ids);
 	}
 
-#ifdef CONFIG_ACPI
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
 	if(ACPI_FAILURE(error))
-		return error;
+		return -EINVAL;
 
-	error = -ENODEV;
-#endif
+	if(!fscbtns.interrupt || !fscbtns.address)
+		return -ENODEV;
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	init_timer(&fscbtns.timer);
 #endif
-
-	if(!fscbtns.interrupt || !fscbtns.address)
-		goto err;
 
 	error = platform_driver_register(&fscbtns_platform_driver);
 	if(error)
@@ -650,9 +623,8 @@ err_pdev:
 err_pdrv:
 	platform_driver_unregister(&fscbtns_platform_driver);
 err:
-#ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
-#endif
+
 #if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
@@ -663,10 +635,8 @@ static void __exit fscbtns_module_exit(void)
 {
 	platform_device_unregister(fscbtns.pdev);
 	platform_driver_unregister(&fscbtns_platform_driver);
-
-#ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
-#endif
+
 #if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
