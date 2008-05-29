@@ -82,10 +82,10 @@ struct fscbtns_config {
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	.invert_orientation_bit = 1,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
 		KEY_SCROLLDOWN,
 		KEY_SCROLLUP,
 		KEY_DIRECTION,
@@ -93,10 +93,10 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 		KEY_BRIGHTNESSUP,
 		KEY_BRIGHTNESSDOWN,
 		KEY_BRIGHTNESS_ZERO,
-		0,
-		0,
-		0,
-		0,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
 		KEY_LEFTALT
 	}
 };
@@ -104,10 +104,10 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
 		KEY_PRINT,
 		KEY_BACKSPACE,
 		KEY_SPACE,
@@ -125,10 +125,10 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
-		0,
-		0,
-		0,
-		0,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
 		KEY_MAIL,
 		KEY_DIRECTION,
 		KEY_ESC,
@@ -260,12 +260,6 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-static inline void __fscbtns_report_key(unsigned int keycode, int pressed)
-{
-	if(keycode)
-		return input_report_key(fscbtns.idev, keycode, pressed);
-}
-
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 static void fscbtns_sticky_timeout(unsigned long keycode)
 {
@@ -284,8 +278,6 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 	if((fscbtns.timer.data) && (fscbtns.timer.data != keycode)) {
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
 		input_sync(fscbtns.idev);
-		if(!pressed)
-			fscbtns.timer.data = 0;
 		return 0;
 	}
 
@@ -303,16 +295,19 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
-/* TODO: to bad! */
 	unsigned int keycode = fscbtns.config.keymap[kmindex];
+	if(keycode == KEY_RESERVED)
+		return;
+
+	if(pressed)
+		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, kmindex);
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	int handled = fscbtns_sticky_report_key(keycode, pressed);
-	if(handled)
+	if( fscbtns_sticky_report_key(keycode, pressed) )
 		return;
 #endif
 
-	__fscbtns_report_key(keycode, pressed);
+	input_report_key(fscbtns.idev, keycode, pressed);
 }
 
 static void fscbtns_event(void)
