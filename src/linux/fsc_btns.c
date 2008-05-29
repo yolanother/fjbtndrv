@@ -24,7 +24,6 @@
 #  define REPEAT_DELAY 700
 #  define REPEAT_RATE 16
 #  define STICKY_TIMEOUT 1400
-#  undef  CONFIG_LONGER_PRESS_MOD
 #endif
 
 
@@ -150,11 +149,8 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	struct timer_list timer;
-#endif
-#ifdef CONFIG_LONGER_PRESS_MOD
-	unsigned long lp_timer_start;
 #endif
 
 	unsigned int interrupt;
@@ -239,12 +235,6 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		if(((unsigned int*)idev->keycode)[x])
 			set_bit(((unsigned int*)idev->keycode)[x], idev->keybit);
 
-#ifdef CONFIG_LONGER_PRESS_MOD
-	set_bit(KEY_LEFTSHIFT, idev->keybit);
-	set_bit(KEY_LEFTCTRL, idev->keybit);
-	set_bit(KEY_LEFTALT, idev->keybit);
-#endif
-
 	set_bit(EV_MSC, idev->evbit);
 	set_bit(MSC_SCAN, idev->mscbit);
 
@@ -290,66 +280,6 @@ static inline void __fscbtns_report_key(unsigned int keycode, int pressed)
 		return input_report_key(fscbtns.idev, keycode, pressed);
 }
 
-#ifdef CONFIG_LONGER_PRESS_MOD
-static void fscbtns_lp_timeout(unsigned long keycode)
-{
-	fscbtns.lp_timer_start = 0;
-
-	fscbtns.idev->rep[REP_DELAY] = 1;
-	input_report_key(fscbtns.idev, keycode, 1);
-	fscbtns.timer.data = 0;
-
-	fscbtns.idev->rep[REP_DELAY] = REPEAT_DELAY;
-	input_sync(fscbtns.idev);
-}
-
-static inline int fscbtns_lp_report_key(unsigned int keycode, int pressed)
-{
-	if(!keycode)
-		return 0;
-
-	if(fscbtns.lp_timer_start) {
-		int lp = jiffies - fscbtns.lp_timer_start;
-		fscbtns.lp_timer_start = 0;
-
-		del_timer(&fscbtns.timer);
-		fscbtns.timer.data = 0;
-
-		if(lp > HZ/3) {
-			printk(KERN_INFO MODULENAME ": long presses %d!\n", keycode);
-			input_report_key(fscbtns.idev, KEY_LEFTSHIFT, 1);
-			input_report_key(fscbtns.idev, KEY_LEFTCTRL, 1);
-			input_report_key(fscbtns.idev, KEY_LEFTALT, 1);
-			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, keycode, 1);
-			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, keycode, 0);
-			input_sync(fscbtns.idev);
-			input_report_key(fscbtns.idev, KEY_LEFTSHIFT, 0);
-			input_report_key(fscbtns.idev, KEY_LEFTCTRL, 0);
-			input_report_key(fscbtns.idev, KEY_LEFTALT, 0);
-			input_sync(fscbtns.idev);
-			return 1;
-		}
-
-		__fscbtns_report_key(keycode, 1);
-		input_sync(fscbtns.idev);
-		return 0;
-	}
-
-	if(pressed && !fscbtns.timer.data) {
-		fscbtns.lp_timer_start = jiffies;
-		fscbtns.timer.data = keycode;
-		fscbtns.timer.function = fscbtns_lp_timeout;
-		fscbtns.timer.expires = jiffies + (REPEAT_DELAY*HZ)/1000;
-		add_timer(&fscbtns.timer);
-		return 1;
-	}
-
-	return 0;
-}
-#endif
-
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 static void fscbtns_sticky_timeout(unsigned long keycode)
 {
@@ -388,20 +318,10 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
 /* TODO: to bad! */
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
-	int handled;
-#endif
 	unsigned int keycode = fscbtns.config.keymap[kmindex];
 
-
-#ifdef CONFIG_LONGER_PRESS_MOD
-	handled = fscbtns_lp_report_key(keycode, pressed);
-	if(handled)
-		return;
-#endif
-
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	handled = fscbtns_sticky_report_key(keycode, pressed);
+	int handled = fscbtns_sticky_report_key(keycode, pressed);
 	if(handled)
 		return;
 #endif
@@ -434,9 +354,6 @@ static void fscbtns_event(void)
 		while(!test_bit(x, &changed))
 			x++;
 
-#ifndef CONFIG_LONGER_PRESS_MOD
-		//input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
-#endif
 		fscbtns_report_key(x, pressed);
 	}
 
@@ -736,7 +653,7 @@ err:
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
 	return error;
@@ -750,7 +667,7 @@ static void __exit fscbtns_module_exit(void)
 #ifdef CONFIG_ACPI
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)) || defined(CONFIG_LONGER_PRESS_MOD)
+#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
 }
