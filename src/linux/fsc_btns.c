@@ -102,6 +102,28 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	}
 };
 
+static struct fscbtns_config config_Lifebook_U810 __initdata = {
+	.invert_orientation_bit = 1,
+	.keymap = {
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_PROG1,
+		KEY_PROG2,
+		KEY_DIRECTION,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_UP,
+		KEY_DOWN,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_FN,
+		KEY_SLEEP
+	}
+};
+
 static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	.invert_orientation_bit = 0,
 	.keymap = {
@@ -164,8 +186,7 @@ static struct {						/* fscbtns_t */
 
 static unsigned int user_model;
 module_param_named(model, user_model, uint, 0);
-MODULE_PARM_DESC(model, "model (1 = Stylistic, 2 = T- and P-Series, 3 = Stylistic ST5xxx)");
-
+MODULE_PARM_DESC(model, "model (1 = Stylistic, 2 = Lifebook T- and P-Series, 3 = Stylistic ST5xxx, 4 = Lifebook U800)");
 
 /*** HELPER *******************************************************************/
 
@@ -593,6 +614,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		},
 		.driver_data = &config_Stylistic_Tseries
 	},
+ 	{
+ 		.callback = fscbtns_dmi_matched,
+		.ident = "Fujitsu LifeBook U810",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook U810")
+		},
+		.driver_data = &config_Lifebook_U810
+	},
 	{
 		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
@@ -639,6 +669,9 @@ static int __init fscbtns_module_init(void)
 			break;
 		case 3:
 			fscbtns_use_config(&config_Stylistic_ST5xxx);
+			break;
+		case 3:
+			fscbtns_use_config(&config_Lifebook_U810);
 			break;
 		default:
 			dmi_check_system(dmi_ids);
