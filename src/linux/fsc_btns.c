@@ -670,7 +670,7 @@ static int __init fscbtns_module_init(void)
 		case 3:
 			fscbtns_use_config(&config_Stylistic_ST5xxx);
 			break;
-		case 3:
+		case 4:
 			fscbtns_use_config(&config_Lifebook_U810);
 			break;
 		default:
