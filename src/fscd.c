@@ -18,8 +18,6 @@
 /******************************************************************************/
 
 #define ZAXIS_SCROLL_STEPS	3
-#define XOSD_COLOR		"green"
-#define XOSD_OUTLINE_COLOR	"darkgreen"
 
 /******************************************************************************/
 
@@ -40,7 +38,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <linux/input.h>
 #include <X11/Xlib.h>
 
 #ifdef ENABLE_NLS
@@ -128,6 +125,7 @@ static struct {
 	}
 };
 
+int handle_display_rotation(int mode);
 
 static unsigned keep_running = 1;
 static char *homedir;
@@ -214,121 +212,6 @@ static int run_script(const char *name)
 	debug(" RUN : script %s not found.", name);
 	return system(path) << 8;
 }
-
-//{{{ Input stuff
-#include <linux/input.h>
-static int input;
-
-#ifndef KEY_BRIGHTNESS_ZERO
-#define KEY_BRIGHTNESS_ZERO 244
-#endif
-
-int input_init(void)
-{
-	char filename[64];
-	char name[64];
-	int x;
-
-	for(x = 0; x < 255; x++) {
-		snprintf(filename, sizeof(filename), "/dev/input/event%d", x);
-		debug("INPUT: check input device %s...", filename);
-
-		input = open(filename, O_RDONLY);
-		if(input < 0)
-			continue;
-
-		if(ioctl(input, EVIOCGNAME(sizeof(name)), name) > 0)
-			if(strcmp(name, "fsc tablet buttons") == 0)
-				return 0;
-
-		close(input);
-	}
-
-	return -1;
-}
-
-void input_exit(void)
-{
-	close(input);
-}
-
-int input_get_switch_state(void)
-{
-	int state = 0;
-
-	if(ioctl(input, EVIOCGSW(sizeof(state)), &state) < 0)
-		return 0;
-
-	return !!(state & (1 << SW_TABLET_MODE));
-}
-//}}}
-
-//{{{ OSD stuff
-#ifdef ENABLE_XOSD
-#include <xosd.h>
-
-static xosd *osd = NULL;
-
-int osd_init(Display *display)
-{
-	if(osd) {
-		xosd_destroy(osd);
-		osd = NULL;
-	}
-	return 0;
-}
-
-void osd_exit(void)
-{
-	if(osd)
-		xosd_destroy(osd);
-	osd = NULL;
-}
-
-xosd *osd_new(int lines)
-{
-	if(osd) {
-		if(xosd_get_number_lines(osd) == lines)
-			return osd;
-
-		xosd_destroy(osd);
-	}
-
-	if(lines <= 0)
-		return osd = NULL;
-
-	osd = xosd_create(lines);
-
-	xosd_set_pos(osd, XOSD_bottom);
-	xosd_set_vertical_offset(osd, 16);
-	xosd_set_align(osd, XOSD_center);
-	xosd_set_horizontal_offset(osd, 0);
-
-	xosd_set_font(osd, "-*-helvetica-bold-r-normal-*-*-400-*-*-*-*-*-*");
-	xosd_set_outline_offset(osd, 1);
-	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
-	xosd_set_shadow_offset(osd, 3);
-	xosd_set_colour(osd, XOSD_COLOR);
-
-	return osd;
-}
-
-#define osd_hide() osd_exit()
-#define osd_timeout(s) xosd_set_timeout(osd, s)
-
-#define osd_info(format, a...) do {			\
-	xosd *osd = osd_new(1);				\
-	xosd_display(osd, 0, XOSD_printf, format, ##a); \
-} while(0)
-
-#define osd_slider(percent, format, a...) do {	\
-	xosd *osd = osd_new(2);				\
-	xosd_display(osd, 0, XOSD_printf, format, ##a);	\
-	xosd_display(osd, 1, XOSD_slider, percent);	\
-} while(0)
-
-#endif
-//}}}
 
 //{{{ WACOM stuff
 #ifdef ENABLE_WACOM
@@ -711,9 +594,13 @@ static DBusError dbus_error;
 static LibHalContext *hal;
 static char *fsc_tablet_device;
 
+#define HAL_SIGNAL_FILTER "type='signal', sender='org.freedesktop.Hal', interface='org.freedesktop.Hal.Device', member='PropertyModified', path='%s'"
+DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, void *data);
+
 int hal_init(void)
 {
 	char **devices;
+	char *buffer;
 	int count;
 
 	dbus_error_init(&dbus_error);
@@ -778,6 +665,15 @@ int hal_init(void)
 					devices[count]);
 
 			fsc_tablet_device = strdup(devices[count]);
+
+			buffer = malloc(sizeof(HAL_SIGNAL_FILTER) + strlen(fsc_tablet_device));
+			if(buffer) {
+				sprintf(buffer, HAL_SIGNAL_FILTER, fsc_tablet_device);
+				debug(" HAL : filter: %s.", buffer);
+				dbus_bus_add_match(dbus, buffer, &dbus_error);
+				dbus_connection_add_filter(dbus, dbus_prop_modified, NULL, NULL);
+				free(buffer);
+			}
 			break;
 		}
 
@@ -818,6 +714,44 @@ int get_tablet_sw(void)
 	}
 
 	return (tablet_mode == TRUE);
+}
+
+DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, void *data)
+{
+	DBusMessageIter iter;
+	//int i, err;
+
+	debug(" DBUS: dbus_prop_modified(%p, %s)", msg, (char*)data);
+
+	//org.freedesktop.Hal.Device/PropertyModified
+	if(dbus_message_is_signal(msg, "org.freedesktop.Hal.Device", "PropertyModified")) {
+		//int mode;
+
+		/*
+		err = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &i);
+		if(err) {
+			debug(" DBUS: dbus_prop_modified: broken signal");
+			return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+		}
+		debug(" DBUS: dbus_prop_modified: %d entries", i);
+		*/
+
+		dbus_message_iter_init(msg, &iter);
+		while(dbus_message_iter_has_next(&iter)) {
+			debug(" DBUS: dbus_prop_modified: %d", dbus_message_iter_get_arg_type(&iter));
+			dbus_message_iter_next(&iter);
+		}
+
+		// XXX: callback
+		handle_display_rotation(get_tablet_sw());
+
+		debug(" DBUS: dbus_prop_modified: signal handled");
+		return DBUS_HANDLER_RESULT_HANDLED;
+	}
+
+	debug(" DBUS: dbus_prop_modified: bad signal resived (%s/%s)",
+			dbus_message_get_interface(msg), dbus_message_get_member(msg));
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 //}}} 
 
@@ -1143,129 +1077,6 @@ int handle_x11_event(XKeyEvent *event)
 	return 0;
 }
 
-int handle_input_event(struct input_event *event)
-{
-	static unsigned key_fn=0, key_alt=0, key_rep=0;
-
-	switch(event->type) {
-	case EV_SYN:
-		break;
-
-	case EV_MSC:
-		debug("INPUT: misc event %d with %d",
-				event->code, event->value);
-		break;
-
-	case EV_KEY:
-		debug("INPUT: key %d %s", event->code,
-				((event->value == 1)? "pressed" :
-					((event->value == 2)? "autorepeat" :
-						"released")));
-
-		switch(event->code) {
-		case KEY_FN:
-			key_fn = event->value;
-
-			if(event->value == 2)
-				break;
-
-			XTestFakeKeyEvent(display,
-					XKeysymToKeycode(display, XK_Control_L),
-					event->value, CurrentTime);
-			XSync(display, False);
-
-#ifdef ENABLE_XOSD
-			if(event->value == 0) {
-				if(!mode_brightness && !mode_configure)
-					osd_hide();
-				break;
-			}
-
-			if(key_alt) {
-				osd_info(_("configuration..."));
-				mode_configure = current_time + (2 * STICKY_TIMEOUT);
-				x11_grab_scrollkeys();
-				break;
-			}
-
-			osd_info("[ Fn ]");
-#endif
-			break;
-
-		case KEY_LEFTALT:
-			key_alt = event->value;
-
-#ifdef ENABLE_XOSD
-			if(event->value == 2)
-				break;
-
-			if(event->value == 0) {
-				if(!mode_brightness && !mode_configure)
-					osd_hide();
-
-				break;
-			}
-
-			if(key_fn) {
-#ifdef BRIGHTNESS_CONTROL
-				brightness_show();
-				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
-				x11_grab_scrollkeys();
-#else
-				osd_hide();
-#endif
-				break;
-			}
-
-			osd_info("[ Alt ]");
-#endif
-			break;
-
-		case KEY_BRIGHTNESS_ZERO:
-			switch(event->value) {
-			case 0:
-				if(!key_rep)
-					dpms_force_off();
-				else
-					key_rep = 0;
-				break;
-
-			case 1:
-				break;
-
-			case 2:
-				if(!key_rep) {
-					key_rep = 1;
-					toggle_dpms();
-				}
-				break;
-			}
-			break;
-
-		default:
-			debug("INPUT: unknown key, skipping");
-		}
-		break;
-
-	case EV_SW:
-		switch(event->code) {
-		case SW_TABLET_MODE:
-			debug("INPUT: tablet mode = %d", event->value);
-			handle_display_rotation(event->value);
-			break;
-		default:
-			debug("INPUT: unknown switch, skipping");
-		}
-		break;
-
-	default:
-		fprintf(stderr, "unsupported event type %d",
-				event->type);
-	}
-
-	return 0;
-}
-
 int main(int argc, char **argv)
 {
 	int error;
@@ -1285,12 +1096,6 @@ int main(int argc, char **argv)
 #endif
 
 	homedir = getenv("HOME");
-
-	error = input_init();
-	if(error) {
-		fprintf(stderr, "can't open input device\n");
-		goto input_failed;
-	}
 
 	error = hal_init();
 	if(error) {
@@ -1330,14 +1135,9 @@ int main(int argc, char **argv)
 	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	x11_fix_keymap();
-	handle_display_rotation(input_get_switch_state());
+	handle_display_rotation(get_tablet_sw());
 
 	while(keep_running) {
-		fd_set rfd;
-		int result;
-		struct timeval tv;
-		int timeout = STICKY_TIMEOUT;
-
 #ifdef ENABLE_XOSD
 		gettimeofday(&tv, NULL);
 		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
@@ -1375,39 +1175,6 @@ int main(int argc, char **argv)
 		debug("LOOPY: time = %lu, timeout = %d", current_time, timeout);
 #endif
 
-		FD_ZERO(&rfd);
-		FD_SET(input, &rfd);
-		tv.tv_sec  = timeout / 1000;
-		tv.tv_usec = (timeout - tv.tv_sec*1000) * 1000;
-		result = select(input+1, &rfd, NULL, NULL, &tv);
-
-		if(result > 0) {
-			struct input_event ie;
-
-			result = read(input, &ie, sizeof(struct input_event));
-			if(result == sizeof(struct input_event))
-				result = handle_input_event(&ie);
-		}
-
-		if(result < 0) {
-			switch(-result) {
-				case EINTR:		// a signal was caught
-				case EAGAIN:		// no data was immediately available
-					break;
-
-				case EBADF:		// invalid file descriptor
-				case EPERM:		// operation not permitted
-				case ENODEV:		// no such device
-					input_exit();
-					sleep(1);
-					keep_running = (input_init() == 0);
-					break;
-
-				default:
-					keep_running = 0;
-			}
-		}
-
 		XSync(display, False);
 		while(keep_running && XPending(display)) {
 			XEvent xe;
@@ -1419,6 +1186,8 @@ int main(int argc, char **argv)
 
 			XSync(display, False);
 		}
+
+		dbus_connection_read_write_dispatch(dbus, 250);
 	}
 
 #ifdef ENABLE_XOSD
@@ -1433,8 +1202,6 @@ int main(int argc, char **argv)
 	brightness_exit();
 #endif
  hal_failed:
-	input_exit();
- input_failed:
 	return 0;
 }
 
