@@ -141,39 +141,38 @@ static int find_script(const char *name, char *path, unsigned maxlen)
 	int len, error;
 
 	if(!homedir) {
-		debug(" HOME: empty");
-		return -1;
+
+		len = strlen(homedir);
+		if(strlen(name) + len + 7 <= maxlen) {
+			strcpy(path, homedir);
+			strcpy(path + len, "/.fscd/");
+			strcpy(path + len + 7, name);
+
+			error = stat(path, &s);
+			debug(" RUN : %s: %d", path, error);
+			if((!error) &&
+			   (((s.st_mode & S_IFMT) == S_IFREG) ||
+			    ((s.st_mode & S_IFMT) == S_IFLNK)))
+				return 0;
+		} else
+			fprintf(stderr, "BUG: user script path too long");
+
+		len = strlen(homedir);
+		if(strlen(name) + len + 5 <= maxlen) {
+			strcpy(path, homedir);
+			strcpy(path + len, "/bin/");
+			strcpy(path + len + 5, name);
+
+			error = stat(path, &s);
+			debug(" RUN : %s: %d", path, error);
+			if((!error) &&
+			   (((s.st_mode & S_IFMT) == S_IFREG) ||
+			    ((s.st_mode & S_IFMT) == S_IFLNK)))
+				return 0;
+		} else
+			fprintf(stderr, "BUG: user script path too long");
+
 	}
-
-	len = strlen(homedir);
-	if(strlen(name) + len + 7 <= maxlen) {
-		strcpy(path, homedir);
-		strcpy(path + len, "/.fscd/");
-		strcpy(path + len + 7, name);
-
-		error = stat(path, &s);
-		debug(" RUN : %s: %d", path, error);
-		if((!error) &&
-		   (((s.st_mode & S_IFMT) == S_IFREG) ||
-		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return 0;
-	} else
-		fprintf(stderr, "BUG: user script path too long");
-
-	len = strlen(homedir);
-	if(strlen(name) + len + 5 <= maxlen) {
-		strcpy(path, homedir);
-		strcpy(path + len, "/bin/");
-		strcpy(path + len + 5, name);
-
-		error = stat(path, &s);
-		debug(" RUN : %s: %d", path, error);
-		if((!error) &&
-		   (((s.st_mode & S_IFMT) == S_IFREG) ||
-		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return 0;
-	} else
-		fprintf(stderr, "BUG: user script path too long");
 
 	len = sizeof(SCRIPTDIR) - 1;
 	if(strlen(name) + len + 1 <= maxlen) {
