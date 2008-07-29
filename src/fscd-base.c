@@ -882,14 +882,19 @@ static void set_brightness(int level)
 	return;
 }
 
+static void brightness_show(void)
+{
+	gui_brightness_show((get_brightness()*100) / brightness_max);
+}
+
 static void brightness_down(void)
 {
 	int current = get_brightness();
 
 	if(current > 0)
-		set_brightness(current-1);
+		set_brightness(--current);
 
-	brightness_show((current*100) / brightness_max);
+	gui_brightness_show((current*100) / brightness_max);
 }
 
 static void brightness_up(void)
@@ -897,9 +902,9 @@ static void brightness_up(void)
 	int current = get_brightness();
 
 	if(current < brightness_max)
-		set_brightness(current+1);
+		set_brightness(++current);
 
-	brightness_show((current*100) / brightness_max);
+	gui_brightness_show((current*100) / brightness_max);
 }
 #endif
 //}}}
@@ -994,11 +999,9 @@ int handle_display_rotation(int mode)
 
 static int handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
-	static int key_fn, key_alt;
-
-	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
-			key_fn, key_alt, mode_configure, mode_brightness);
+			mode_configure, mode_brightness);
 
 	do { // FIXME: for the breaks
 
@@ -1098,7 +1101,7 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 {
 	static int key_fn, key_alt;
 
-	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+	debug("TRACE", "handle_xinput_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
 			key_fn, key_alt, mode_configure, mode_brightness);
 
@@ -1124,7 +1127,7 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 		if(pressed) {
 #ifdef BRIGHTNESS_CONTROL
 			if(key_fn) {
-				gui_info("brightness...");
+				brightness_show();
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
 				x11_grab_scrollkeys();
 			}
@@ -1238,11 +1241,10 @@ int main(int argc, char **argv)
 		}
 #ifdef BRIGHTNESS_CONTROL
 		else if(mode_brightness) {
-			if(mode_brightness - current_time) {
+			if(mode_brightness < current_time) {
 				mode_brightness = 0;
 				gui_hide();
-				if(settings.scrollmode != SM_ZAXIS)
-					x11_ungrab_scrollkeys();
+				x11_ungrab_scrollkeys();
 			}
 		}
 #endif

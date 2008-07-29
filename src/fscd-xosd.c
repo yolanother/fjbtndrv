@@ -127,7 +127,7 @@ void screen_rotated(void)
 	osd = NULL;
 }
 
-void brightness_show(int percent)
+void gui_brightness_show(int percent)
 {
 	debug("TRACE", "brightness_show");
 
