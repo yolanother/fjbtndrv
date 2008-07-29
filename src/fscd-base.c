@@ -17,10 +17,6 @@
  */
 /******************************************************************************/
 
-#define ZAXIS_SCROLL_STEPS	3
-
-/******************************************************************************/
-
 #include "fscd-base.h"
 #include "fscd-gui.h"
 
@@ -36,6 +32,8 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <X11/Xlib.h>
+
+#define ZAXIS_SCROLL_STEPS	3
 
 #ifndef STICKY_TIMEOUT
 #  define STICKY_TIMEOUT 1400
@@ -74,40 +72,37 @@
 static struct {
 	ScrollMode scrollmode;
 	UserLock lock_rotate;
-	keymap_entry keymap[];
 } settings = {
 	.scrollmode = SM_KEY_PAGE,
-	.lock_rotate = UL_UNLOCKED,
-	.keymap = {
-		{ .code = 143, .name = "XF86ScrollDown" },
-		{ .code = 220, .name = "XF86ScrollUp" },
-		{ .code = 203, .name = "XF86RotateWindows", .grab = 1 },
-		{ .code = 101, .name = "SunVideoLowerBrightness",
-#ifdef BRIGHTNESS_KEYS
-		  .grab = 1
-#endif
-	       	},
-		{ .code = 212, .name = "SunVideoRaiseBrightness",
-#ifdef BRIGHTNESS_KEYS
-		  .grab = 1
-#endif
-		},
-		{ .code = 159, .name = "XF86Launch1" },
-		{ .code = 151, .name = "XF86Launch2" },
-		{ .code = 171, .name = "XF86Launch3" },
-		{ .code = 172, .name = "XF86Launch4" },
+	.lock_rotate = UL_UNLOCKED
+};
 
-		{ 0 }
+static keymap_entry keymap[] = {
+#define KEYMAP_SCROLLDOWN 0
+	{ .code = 186, .name = "XF86ScrollDown" },
+#define KEYMAP_SCROLLUP 1
+	{ .code = 185, .name = "XF86ScrollUp" },
+#define KEYMAP_ROTATEWINDOWS 2
+	{ .code = 161, .name = "XF86RotateWindows",
+	  .grab = 1 },
+#define KEYMAP_BRIGHTNESSDOWN 3
+	{ .code = 232, .name = "SunVideoLowerBrightness",
+#ifdef BRIGHTNESS_KEYS
+	  .grab = 1
+#endif
+       	},
+#define KEYMAP_BRIGHTNESSUP 4
+	{ .code = 233, .name = "SunVideoRaiseBrightness",
+#ifdef BRIGHTNESS_KEYS
+	  .grab = 1
+#endif
 	}
 };
 
 static unsigned keep_running = 1;
 static char *homedir;
-#ifdef ENABLE_XOSD
 static clock_t  current_time;
 static int mode_configure, mode_brightness;
-#endif
-
 
 #ifdef DEBUG
 #include <stdarg.h>
@@ -282,18 +277,80 @@ static void wacom_rotate(int mode)
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
 static Display *display;
+static XDevice *idevice;
 static Window root;
 static int x11_error(Display*, XErrorEvent*);
 static int x11_ioerror(Display*);
+static int xi_keypress;
+static int xi_keyrelease;
 
-Display* x11_init(void)
+Bool x11_check_extension(const char *name)
 {
-	Bool xtest, randr, dpms;
 	int opcode, event, error;
-	keymap_entry *km;
 #ifdef DEBUG
 	int major, minor;
 #endif
+
+	Bool found = XQueryExtension(display, name,
+			&opcode, &event, &error);
+	if(found) {
+#ifdef DEBUG
+		XTestQueryExtension(display,
+				&event, &error,
+				&major, &minor);
+		debug("X11", "Found %s %d.%d extension (%d, %d, %d)",
+			name, major, minor,
+			opcode, event, error);
+#endif
+	} else
+		fprintf(stderr, "No %s extension\n", name);
+
+	return found;
+}
+
+int x11_open_input_device(void)
+{
+	XDeviceInfo *idev_list;
+	XEventClass xeclass[2];
+	int i, idev_num, error;
+
+	idev_list = XListInputDevices(display, &idev_num);
+	for(i=0; i < idev_num; i++) {
+		if(strcmp(idev_list[i].name, "fsc_btns") == 0) {
+			idevice = XOpenDevice(display, idev_list[i].id);
+			break;
+		}
+	}
+	XFreeDeviceList(idev_list);
+
+	if(!idevice)
+		return -1;
+
+	DeviceKeyPress(idevice, xi_keypress, xeclass[0]);
+	DeviceKeyRelease(idevice, xi_keyrelease, xeclass[1]);
+	error = XSelectExtensionEvent(display, XDefaultRootWindow(display), xeclass, 2);
+	if(error) {
+		fprintf(stderr, "XSelectExtensionEvent failed.\n");
+		XCloseDevice(display, idevice);
+		return -1;
+	}
+
+	error = XGrabDevice(display, idevice, XDefaultRootWindow(display), False,
+			2, xeclass, GrabModeAsync, GrabModeAsync, CurrentTime);
+	if(error) {
+		fprintf(stderr, "XGrabDevice failed.\n");
+		XCloseDevice(display, idevice);
+		return -1;
+	}
+
+	return 0;
+}
+
+Display* x11_init(void)
+{
+	Bool xinput, xtest, randr, dpms;
+	keymap_entry *km;
+	int error;
 
 	display = XOpenDisplay(NULL);
 	if(!display)
@@ -312,51 +369,23 @@ Display* x11_init(void)
 	XSetErrorHandler(x11_error);
 	XSetIOErrorHandler(x11_ioerror);
 
-	xtest = XQueryExtension(display, "XTEST",
-			&opcode, &event, &error);
-	if(xtest) {
-#ifdef DEBUG
-		XTestQueryExtension(display,
-				&event, &error,
-				&major, &minor);
-		debug("X11", "Found XTest %d.%d extension (%d, %d, %d)",
-			major, minor,
-			opcode, event, error);
-#endif
-	} else
-		fprintf(stderr, "No XTest extension\n");
+	xinput = x11_check_extension("XInputExtension");
+	xtest  = x11_check_extension("XTEST");
+	randr  = x11_check_extension("RANDR");
+	dpms   = x11_check_extension("DPMS");
 
-	randr = XQueryExtension(display, "RANDR",
-			&opcode, &event, &error);
-	if(randr) {
-#ifdef DEBUG
-		XRRQueryVersion(display, &major,&minor);
-		debug("X11", "Found RandR %d.%d extension (%d, %d, %d)",
-				major, minor,
-				opcode, event, error);
-#endif
-	} else
-		fprintf(stderr, "No RandR extension\n");
-
-	dpms = XQueryExtension(display, "DPMS",
-			&opcode, &event, &error);
-	if(dpms) {
-#ifdef DEBUG
-		DPMSGetVersion(display, &major,&minor);
-		debug("X11", "Found DPMS %d.%d extension (%d, %d, %d)",
-				major, minor,
-				opcode, event, error);
-#endif
-	} else
-		fprintf(stderr, "No DPMS extension\n");
-
-	if(!xtest || !randr || !dpms) {
-		fprintf(stderr, "Can't open display\n");
+	if(!xinput || !xtest || !randr || !dpms) {
 		XCloseDisplay(display);
 		return NULL;
 	}
 
-	for(km = settings.keymap; km->code; km++) {
+	error = x11_open_input_device();
+	if(error) {
+		XCloseDisplay(display);
+		return NULL;
+	}
+
+	for(km = keymap; km->code; km++) {
 		km->sym = XStringToKeysym(km->name);
 
 		if(km->sym && km->grab) {
@@ -373,11 +402,13 @@ static void x11_exit(void)
 {
 	keymap_entry *km;
 
-	for(km = settings.keymap; km->code; km++)
+	for(km = keymap; km->code; km++)
 		if(km->sym && km->grab)
 			XUngrabKey(display, km->code, 0, root);
 
 	XSync(display, True);
+	XUngrabDevice(display, idevice, XDefaultRootWindow(display));
+	XCloseDevice(display, idevice);
 	XCloseDisplay(display);
 }
 
@@ -427,7 +458,7 @@ static int x11_fix_keymap(void)
 	debug("X11", "keymap with %d (%d-%d) entries and %d symbols per code",
 			(max-min), min, max, spc);
 
-	for(km = settings.keymap; km->code; km++) {
+	for(km = keymap; km->code; km++) {
 		me = (km->code - min) * spc;
 
 		if(map[me] == NoSymbol) {
@@ -442,8 +473,8 @@ static int x11_fix_keymap(void)
 					km->code, XKeysymToString(map[me]));
 	}
 
-	x11_keyremap(143, XK_Next);
-	x11_keyremap(220, XK_Prior);
+	x11_keyremap(keymap[KEYMAP_SCROLLDOWN].code, XK_Next);
+	x11_keyremap(keymap[KEYMAP_SCROLLUP].code, XK_Prior);
 
 	XSync(display, False);
 	return 0;
@@ -452,16 +483,18 @@ static int x11_fix_keymap(void)
 static void x11_grab_scrollkeys(void)
 {
 	debug("X11", "grab scroll keys");
-	XGrabKey(display, 143, 0, root, False, GrabModeAsync, GrabModeAsync);
-	XGrabKey(display, 220, 0, root, False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, keymap[KEYMAP_SCROLLDOWN].code, AnyModifier, root,
+			False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(display, keymap[KEYMAP_SCROLLUP].code, AnyModifier, root,
+			False, GrabModeAsync, GrabModeAsync);
 	XSync(display, False);
 }
 
 static void x11_ungrab_scrollkeys(void)
 {
 	debug("X11", "ungrab scroll keys");
-	XUngrabKey(display, 143, 0, root);
-	XUngrabKey(display, 220, 0, root);
+	XUngrabKey(display, keymap[KEYMAP_SCROLLDOWN].code, AnyModifier, root);
+	XUngrabKey(display, keymap[KEYMAP_SCROLLUP].code, AnyModifier, root);
 	XSync(display, False);
 }
 
@@ -479,11 +512,13 @@ static int enable_dpms(void)
 	return dpms_enabled();
 }
 
+/* TODO: toggle_dpms
 static int disable_dpms(void)
 {
 	DPMSDisable(display);
 	return !dpms_enabled();
 }
+*/
 
 static void dpms_force_off(void)
 {
@@ -876,20 +911,20 @@ static void scrollmode_set(ScrollMode mode)
 	switch(mode) {
 		case SM_ZAXIS:
 			gui_info("%s: %s", _("Scrolling"), _("Z-Axis"));
-			x11_keyremap(143, XF86XK_ScrollDown);
-			x11_keyremap(220, XF86XK_ScrollUp);
+			x11_keyremap(keymap[KEYMAP_SCROLLDOWN].code, XF86XK_ScrollDown);
+			x11_keyremap(keymap[KEYMAP_SCROLLUP].code, XF86XK_ScrollUp);
 			break;
 
 		case SM_KEY_PAGE:
 			gui_info("%s: %s", _("Scrolling"), _("Page Up/Down"));
-			x11_keyremap(143, XK_Next);
-			x11_keyremap(220, XK_Prior);
+			x11_keyremap(keymap[KEYMAP_SCROLLDOWN].code, XK_Next);
+			x11_keyremap(keymap[KEYMAP_SCROLLUP].code, XK_Prior);
 			break;
 
 		case SM_KEY_SPACE:
 			gui_info("%s: %s", _("Scrolling"), _("Space/Backspace"));
-			x11_keyremap(143, XK_space);
-			x11_keyremap(220, XK_BackSpace);
+			x11_keyremap(keymap[KEYMAP_SCROLLDOWN].code, XK_space);
+			x11_keyremap(keymap[KEYMAP_SCROLLUP].code, XK_BackSpace);
 			break;
 
 		case SM_KEY_MAX:
@@ -922,6 +957,7 @@ static void toggle_lock_rotate(void)
 	}
 }
 
+/* TODO:
 static void toggle_dpms(void)
 {
 	if(dpms_enabled()) {
@@ -932,6 +968,7 @@ static void toggle_dpms(void)
 		gui_info(_("DPMS enabled"));
 	}
 }
+*/
 
 int handle_display_rotation(int mode)
 {
@@ -955,11 +992,20 @@ int handle_display_rotation(int mode)
 	return error;
 }
 
-static int handle_x11_event(XKeyEvent *event)
+static int handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
-	switch(event->keycode) {
-	case 143: /* XF86XK_ScrollDown */
-#ifdef ENABLE_XOSD
+	static int key_fn, key_alt;
+
+	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+			current_time, keycode, state, (pressed ? "pressed" : "released"),
+			key_fn, key_alt, mode_configure, mode_brightness);
+
+	do { // FIXME: for the breaks
+
+	if(keycode == keymap[KEYMAP_SCROLLDOWN].code) {
+		if(pressed)
+			return 0;
+
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_prev();
@@ -976,11 +1022,13 @@ static int handle_x11_event(XKeyEvent *event)
 
 		if(settings.scrollmode == SM_ZAXIS)
 			fake_button(5);
-#endif
+
 		break;
 
-	case 220: /* XF86XK_ScrollUp */
-#ifdef ENABLE_XOSD
+	} else if(keycode == keymap[KEYMAP_SCROLLUP].code) {
+		if(pressed)
+			return 0;
+
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_next();
@@ -997,12 +1045,13 @@ static int handle_x11_event(XKeyEvent *event)
 
 		if(settings.scrollmode == SM_ZAXIS)
 			fake_button(4);
-#endif
 
 		break;
 
-	case 203: /* XF86XK_RotateWindows */
-#ifdef ENABLE_XOSD
+	} else if(keycode == keymap[KEYMAP_ROTATEWINDOWS].code) {
+		if(pressed)
+			return 0;
+
 		if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			toggle_lock_rotate();
@@ -1016,22 +1065,78 @@ static int handle_x11_event(XKeyEvent *event)
 			break;
 		}
 #endif
-#endif
 
 		rotate_screen(-1);
 		break;
 
 #ifdef BRIGHTNESS_CONTROL
-	case 101: /* XF86XK_MonBrightnessDown */
+	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {
+		if(pressed)
+			return 0;
+
 		brightness_down();
 		break;
 
-	case 212: /* XF86XK_MonBrightnessUp */
+	} else if(keycode == keymap[KEYMAP_BRIGHTNESSUP].code) {
+		if(pressed)
+			return 0;
+
 		brightness_up();
 		break;
 #endif
 
-	default:
+	} else {
+		debug("X11", "WOW, what a key!?");
+	}
+
+	} while(0);
+
+	return 0;
+}
+
+static int handle_xinput_event(unsigned int keycode, unsigned int state, int pressed)
+{
+	static int key_fn, key_alt;
+
+	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+			current_time, keycode, state, (pressed ? "pressed" : "released"),
+			key_fn, key_alt, mode_configure, mode_brightness);
+
+	if(keycode == 37) { // FN (Control)
+		debug("XI", "Control %s", (pressed ? "pressed" : "released"));
+
+		if(pressed) {
+			if(key_alt) {
+				gui_info("configuration...");
+				mode_configure = current_time + (2 * STICKY_TIMEOUT);
+				x11_grab_scrollkeys();
+			}
+
+			key_fn = current_time;
+		} else
+			key_fn = 0;
+
+		debug("XXX", "key_fn = %d", key_fn);
+
+	} else if(keycode == 64) { // Alt
+		debug("XI", "Alt %s", (pressed ? "pressed" : "released"));
+
+		if(pressed) {
+#ifdef BRIGHTNESS_CONTROL
+			if(key_fn) {
+				gui_info("brightness...");
+				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
+				x11_grab_scrollkeys();
+			}
+#endif
+
+			key_alt = current_time;
+		} else
+			key_alt = 0;
+
+		debug("XXX", "key_alt = %d", key_alt);
+
+	} else {
 		debug("X11", "WOW, what a key!?");
 	}
 
@@ -1097,64 +1202,56 @@ int main(int argc, char **argv)
 	handle_display_rotation(get_tablet_sw());
 
 	while(keep_running) {
-//XXX: port
-#undef ENABLE_XOSD
+		static struct timeval tv;
 
-#ifdef ENABLE_XOSD
 		gettimeofday(&tv, NULL);
-		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000); //msec
 
-		if(mode_configure) {
-			timeout = mode_configure - current_time;
-			debug("MAIN", "mode_configure = %u -> timeout = %d",
-					mode_configure, timeout);
-			if(timeout <= 0) {
-				timeout = STICKY_TIMEOUT;
-				mode_configure = 0;
-				osd_hide();
-				if(settings.scrollmode != SM_ZAXIS)
-					x11_ungrab_scrollkeys();
-			} else
-				if(timeout > STICKY_TIMEOUT)
-					timeout = STICKY_TIMEOUT;
-#ifdef BRIGHTNESS_CONTROL
-		} else if(mode_brightness) {
-			timeout = mode_brightness - current_time;
-			debug("MAIN", "mode_brightness = %u -> timeout = %d",
-					mode_brightness, timeout);
-			if(timeout <= 0) {
-				timeout = STICKY_TIMEOUT;
-				mode_brightness = 0;
-				osd_hide();
-				if(settings.scrollmode != SM_ZAXIS)
-					x11_ungrab_scrollkeys();
-			} else
-				if(timeout > STICKY_TIMEOUT)
-					timeout = STICKY_TIMEOUT;
-#endif
-		} else timeout = STICKY_TIMEOUT;
-
-		debug("MAIN", "time = %lu, timeout = %d", current_time, timeout);
-#endif
-
-		XSync(display, False);
 		while(keep_running && XPending(display)) {
-			XEvent xe;
+			static XEvent xevent;
 
-			XNextEvent(display, &xe);
-			if(xe.type == KeyPress) {
-				keep_running = (handle_x11_event((XKeyEvent*)&xe) >= 0);
+			XNextEvent(display, &xevent);
+			if(xevent.type == KeyPress) {
+				XKeyEvent *e = (XKeyEvent*) &xevent;
+				keep_running = (handle_x11_event(e->keycode, e->state, 1) >= 0);
+			} else if(xevent.type == KeyRelease) {
+				XKeyEvent *e = (XKeyEvent*) &xevent;
+				keep_running = (handle_x11_event(e->keycode, e->state, 0) >= 0);
+			} else if(xevent.type == xi_keypress) {
+				XDeviceKeyPressedEvent *e = (XDeviceKeyPressedEvent*) &xevent;
+				keep_running = (handle_xinput_event(e->keycode, e->state, 1) >= 0);
+			} else if(xevent.type == xi_keyrelease) {
+				XDeviceKeyReleasedEvent *e = (XDeviceKeyReleasedEvent*) &xevent;
+				keep_running = (handle_xinput_event(e->keycode, e->state, 0) >= 0);
 			}
 
 			XSync(display, False);
 		}
 
-		dbus_connection_read_write_dispatch(dbus, 250);
+		if(mode_configure) {
+			if(mode_configure < current_time) {
+				mode_configure = 0;
+				gui_hide();
+				if(settings.scrollmode != SM_ZAXIS)
+					x11_ungrab_scrollkeys();
+			}
+		}
+#ifdef BRIGHTNESS_CONTROL
+		else if(mode_brightness) {
+			if(mode_brightness - current_time) {
+				mode_brightness = 0;
+				gui_hide();
+				if(settings.scrollmode != SM_ZAXIS)
+					x11_ungrab_scrollkeys();
+			}
+		}
+#endif
+
+		debug("MAIN", "time = %lu, timeout = %d", current_time, 100);
+		dbus_connection_read_write_dispatch(dbus, 100);	// timeout in msec
 	}
 
-#ifdef ENABLE_XOSD
 	gui_exit();
-#endif
 #ifdef ENABLE_WACOM
 	wacom_exit();
 #endif
@@ -1163,6 +1260,7 @@ int main(int argc, char **argv)
 #ifdef BRIGHTNESS_CONTROL
 	brightness_exit();
 #endif
+	hal_exit();
  hal_failed:
 	return 0;
 }

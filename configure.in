@@ -135,6 +135,8 @@ fi
 
 AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop &>/dev/null])
 
+AM_CONDITIONAL(BUILD_XFSCD, [test x$enable_xosd = xyes])
+
 AC_CONFIG_FILES([
   Makefile
   src/Makefile

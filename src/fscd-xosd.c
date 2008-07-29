@@ -94,10 +94,7 @@ int gui_init(Display *display)
 
 void gui_exit(void)
 {
-	if(osd) {
-		xosd_destroy(osd);
-		osd = NULL;
-	}
+	gui_hide();
 }
 
 void gui_info(char *format, ...)
@@ -112,6 +109,14 @@ void gui_info(char *format, ...)
 	osd = osd_new(1);
 	xosd_display(osd, 0, XOSD_string, buffer);
 	xosd_set_timeout(osd, 2);
+}
+
+void gui_hide(void)
+{
+	if(osd) {
+		xosd_destroy(osd);
+		osd = NULL;
+	}
 }
 
 void screen_rotated(void)

@@ -21,6 +21,7 @@
 int  gui_init(Display*);
 void gui_exit(void);
 void gui_info(char *format, ...);
+void gui_hide(void);
 
 void screen_rotated(void);
 
