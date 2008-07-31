@@ -596,7 +596,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK")
 		},
 		.driver_data = &config_Lifebook_Tseries
@@ -614,7 +614,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic T Series",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic T")
 		},
 		.driver_data = &config_Stylistic_Tseries
@@ -632,7 +632,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STYLISTIC ST5")
 		},
 		.driver_data = &config_Stylistic_ST5xxx
@@ -641,7 +641,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.callback = fscbtns_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic ST5")
 		},
 		.driver_data = &config_Stylistic_ST5xxx
