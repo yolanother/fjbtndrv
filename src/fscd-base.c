@@ -32,7 +32,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <X11/Xlib.h>
-#include <locale.h>
 
 #define ZAXIS_SCROLL_STEPS	3
 
@@ -42,6 +41,7 @@
 
 #ifdef ENABLE_NLS
 #  include <libintl.h>
+#  include <locale.h>
 #  define _(x) gettext(x)
 #else
 #  define _(x) (x)
