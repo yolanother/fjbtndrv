@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <X11/Xlib.h>
+#include <locale.h>
 
 #define ZAXIS_SCROLL_STEPS	3
 
