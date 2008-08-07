@@ -16,6 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#ifndef _FSCD_BASE_H
+#define _FSCD_BASE_H
+
 #ifdef HAVE_CONFIG_H
 #  include "../config.h"
 #endif
@@ -49,3 +52,4 @@ void debug(const char *tag, const char *format, ...);
 
 int handle_display_rotation(int mode);
 
+#endif

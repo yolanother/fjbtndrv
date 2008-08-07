@@ -16,6 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#ifndef _FSCD_GUI_H
+#define _FSCD_GUI_H
+
 #include <X11/Xlib.h>
 
 int  gui_init(Display*);
@@ -27,3 +30,4 @@ void screen_rotated(void);
 
 void gui_brightness_show(int percent);
 
+#endif
