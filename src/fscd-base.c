@@ -1114,11 +1114,15 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 				gui_info("configuration...");
 				mode_configure = current_time + (2 * STICKY_TIMEOUT);
 				x11_grab_scrollkeys();
-			}
+			} else
+				gui_info("FN...");
 
 			key_fn = current_time;
-		} else
+		} else {
+			if(!mode_configure && !mode_brightness)
+				gui_hide();
 			key_fn = 0;
+		}
 
 		debug("XXX", "key_fn = %d", key_fn);
 
@@ -1131,12 +1135,16 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 				brightness_show();
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
 				x11_grab_scrollkeys();
-			}
+			} else
 #endif
+				gui_info("Alt...");
 
 			key_alt = current_time;
-		} else
+		} else {
+			if(!mode_configure && !mode_brightness)
+				gui_hide();
 			key_alt = 0;
+		}
 
 		debug("XXX", "key_alt = %d", key_alt);
 
