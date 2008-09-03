@@ -24,6 +24,7 @@
 
 #include "fscd-base.h"
 #include "fscd-gui.h"
+#include <stdio.h>
 #include <stdarg.h>
 #include <xosd.h>
 
@@ -32,13 +33,6 @@
 #  define _(x) gettext(x)
 #else
 #  define _(x) (x)
-#endif
-
-#ifdef DEBUG
-#  include <stdio.h>
-#  define debug(p, m, a...) fprintf(stderr, "%s: " m "\n", p, ##a)
-#else
-#  define debug(p, m, a...) /**/
 #endif
 
 static xosd *osd = NULL;

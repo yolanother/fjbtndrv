@@ -20,13 +20,6 @@
 #include "fscd-base.h"
 #include "fscd-gui.h"
 
-#ifdef DEBUG
-#  include <stdio.h>
-#  define debug(p, m, a...) fprintf(stderr, "%s: " m "\n", p, ##a)
-#else
-#  define debug(p, m, a...) /**/
-#endif
-
 int gui_init(Display *display)
 { return 0; }
 
