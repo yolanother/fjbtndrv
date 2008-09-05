@@ -101,7 +101,6 @@ static keymap_entry keymap[] = {
 };
 
 static unsigned keep_running = 1;
-static char *homedir;
 static clock_t  current_time;
 static int mode_configure, mode_brightness;
 
@@ -119,81 +118,53 @@ void debug(const char *tag, const char *format, ...)
 }
 #endif
 
-static int find_script(const char *name, char *path, unsigned maxlen)
+static char* find_script(const char *name)
 {
 	struct stat s;
-	int len, error;
+	int error;
+	char *path, *homedir;
 
-	if(!homedir) {
-
-		len = strlen(homedir);
-		if(strlen(name) + len + 7 <= maxlen) {
-			strcpy(path, homedir);
-			strcpy(path + len, "/.fscd/");
-			strcpy(path + len + 7, name);
-
-			error = stat(path, &s);
-			debug("XXX", " RUN : %s: %d", path, error);
-			if((!error) &&
-			   (((s.st_mode & S_IFMT) == S_IFREG) ||
-			    ((s.st_mode & S_IFMT) == S_IFLNK)))
-				return 0;
-		} else
-			fprintf(stderr, "BUG: user script path too long");
-
-		len = strlen(homedir);
-		if(strlen(name) + len + 5 <= maxlen) {
-			strcpy(path, homedir);
-			strcpy(path + len, "/bin/");
-			strcpy(path + len + 5, name);
-
-			error = stat(path, &s);
-			debug("XXX", " RUN : %s: %d", path, error);
-			if((!error) &&
-			   (((s.st_mode & S_IFMT) == S_IFREG) ||
-			    ((s.st_mode & S_IFMT) == S_IFLNK)))
-				return 0;
-		} else
-			fprintf(stderr, "BUG: user script path too long");
-
-	}
-
-	len = sizeof(SCRIPTDIR) - 1;
-	if(strlen(name) + len + 1 <= maxlen) {
-		strcpy(path, SCRIPTDIR);
-		path[len] = '/';
-		strcpy(path + len + 1, name);
+	homedir = getenv("HOME");
+	if(homedir) {
+		path = malloc(strlen(homedir) + strlen(name) + 8);
+		sprintf(path, "%s/.fscd/%s", homedir, name);
 
 		error = stat(path, &s);
 		debug("XXX", " RUN : %s: %d", path, error);
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return 0;
-	} else
-		fprintf(stderr, "BUG: global script path too long");
+			return path;
+		else
+			free(path);
+	}
 
-	return -1;
+	path = malloc(sizeof(SCRIPTDIR) + strlen(name) + 2);
+	sprintf(path, "%s/%s", SCRIPTDIR, name);
+
+	error = stat(path, &s);
+	debug("XXX", " RUN : %s: %d", path, error);
+	if((!error) &&
+	   (((s.st_mode & S_IFMT) == S_IFREG) ||
+	    ((s.st_mode & S_IFMT) == S_IFLNK)))
+		return path;
+	else
+		free(path);
+
+	return NULL;
 }
 
 static int run_script(const char *name)
 {
-	char path[258];
-	int len, error;
-
-       	error = find_script(name, path, sizeof(path)-3);
-	if(error)
+	int error;
+       	char *path = find_script(name);
+	if(!path)
 		return 0;
 
-	len = strlen(path);
-	if(!len)
-		return -1;
-
-	/* XXX: enable to run scripts async */
-	// strcpy(path + len, " &");
-
 	debug("XXX", " RUN : script %s not found.", name);
-	return system(path) << 8;
+	error = system(path) << 8;
+	free(path);
+	return error;
 }
 
 //{{{ WACOM stuff
@@ -1172,8 +1143,6 @@ int main(int argc, char **argv)
 	textdomain (PACKAGE);
 #endif
 #endif
-
-	homedir = getenv("HOME");
 
 	error = hal_init();
 	if(error) {
