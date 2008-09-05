@@ -433,16 +433,13 @@ static int x11_fix_keymap(void)
 	for(km = keymap; km->code; km++) {
 		me = (km->code - min) * spc;
 
-		if(map[me] == NoSymbol) {
+		if(map[me] != km->sym) {
 			debug("X11", "mapping keycode %d to symbol %s (0x%08x)",
 					km->code, km->name, (unsigned)km->sym);
 			XChangeKeyboardMapping(display, km->code, 1, &(km->sym), 1);
-		} else if(map[me] == km->sym) {
+		} else 
 			debug("X11", "keycode %d is ok.",
 					km->code);
-		} else
-			debug("X11", "keycode %d is already bound to %s.",
-					km->code, XKeysymToString(map[me]));
 	}
 
 	x11_keyremap(keymap[KEYMAP_SCROLLDOWN].code, XK_Next);
