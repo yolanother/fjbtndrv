@@ -11,12 +11,13 @@
 mode="${0##*-}"
 
 oskb_bin=
-#if [ x"$GNOME_DESKTOP_SESSION_ID" = x"true" ]; then ...
+[ "$oskb_bin" ] || oskb_bin="`type -p cellwriter`"
 [ "$oskb_bin" ] || oskb_bin="`type -p onboard`"
 [ "$oskb_bin" ] || oskb_bin="`type -p xvkbd`"
+[ "$oskb_bin" ] || exit 0
 
 killbyname () {
-  local pid=$( ps -u "$USER" | awk "\$4 ~ /^\<$1\>/ { print \$1 }" )
+  local pid=$( pgrep -u "$USER" "$1" )
   if [ "$pid" ]; then
     kill -TERM $pid
   fi
@@ -25,24 +26,13 @@ killbyname () {
 case "$mode" in
 
   tablet)
-    if test x"$KDE_FULL_SESSION" = x"true" && type -p "kvkbd"; then
-      kvkbd
-    elif type -p "onboard"; then
-      onboard &
-    elif type -p "xvkbd"; then
-      xvkbd &
-    else
-      exit 1
-    fi
+		"$oskb_bin" &
     ;;
 
   normal)
-    if [ x"$KDE_FULL_SESSION" = x"true" ]; then
-      dcop kvkbd MainApplication-Interface quit
-    fi
-    killbyname "run-onboard.py"
-    killbyname "xvkbd"
+		killbyname `basename "$oskb_bin"`
     ;;
 
 esac
 
+exit 0
