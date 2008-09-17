@@ -1,2 +1,3 @@
 # List of source files which contain translatable strings.
-src/fscd.c
+src/fscd-base.c
+src/fscd-xosd.c
