@@ -15,4 +15,4 @@ xfscd_SOURCES = fscd-base.c fscd-xosd.c
 xfscd_LDADD = $(HAL_LIBS) $(X11_LIBS) $(LIBWACOMCFG_LIBS) $(LIBXOSD_LIBS)
 endif
 
-EXTRA_DIST = Xwacom.h
+EXTRA_DIST = fscd-base.h fscd-gui.h Xwacom.h
