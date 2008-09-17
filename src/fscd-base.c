@@ -134,7 +134,7 @@ static char* find_script(const char *name)
 		sprintf(path, "%s/.fscd/%s", homedir, name);
 
 		error = stat(path, &s);
-		debug("XXX", " RUN : %s: %d", path, error);
+		debug("XXX", "%s: %d", path, error);
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
@@ -147,7 +147,7 @@ static char* find_script(const char *name)
 	sprintf(path, "%s/%s", SCRIPTDIR, name);
 
 	error = stat(path, &s);
-	debug("XXX", " RUN : %s: %d", path, error);
+	debug("XXX", "%s: %d", path, error);
 	if((!error) &&
 	   (((s.st_mode & S_IFMT) == S_IFREG) ||
 	    ((s.st_mode & S_IFMT) == S_IFLNK)))
@@ -525,6 +525,8 @@ static void dpms_force_off(void)
 	CARD16 state;
 	BOOL on;
 
+	debug("TRACE", "dpms_force_off");
+
 	DPMSInfo(display, &state, &on);
 	if(!on)
 		enable_dpms();
@@ -605,7 +607,26 @@ static void rotate_screen(int mode)
 	XRRFreeScreenConfigInfo(sc);
 }
 
-static int fake_button(unsigned int button)
+static void fake_key(KeySym sym)
+{
+	KeyCode keycode;
+
+	keycode = XKeysymToKeycode(display, sym);
+	debug("X11", "fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
+
+	if(!keycode) {
+		fprintf(stderr, "No keycode for %s, use xmodmap to define one.\n",
+				XKeysymToString(sym));
+		return;
+	}
+
+	XTestFakeKeyEvent(display, keycode, True,  CurrentTime);
+	XSync(display, False);
+	XTestFakeKeyEvent(display, keycode, False, CurrentTime);
+	XSync(display, False);
+}
+
+static void fake_button(unsigned int button)
 {
 	int steps = ZAXIS_SCROLL_STEPS;
 
@@ -616,8 +637,6 @@ static int fake_button(unsigned int button)
 		XTestFakeButtonEvent(display, button, False, CurrentTime);
 		XSync(display, False);
 	}
-
-	return 0;
 }
 //}}}
 
@@ -1120,7 +1139,8 @@ static int handle_x11_event(unsigned int keycode, unsigned int state, int presse
 
 #ifdef BRIGHTNESS_CONTROL
 		if(mode_brightness) {
-			mode_brightness = current_time + STICKY_TIMEOUT;
+			mode_brightness = 0;
+			gui_hide();
 			dpms_force_off();
 			break;
 		}
@@ -1180,8 +1200,6 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 			key_fn = 0;
 		}
 
-		debug("XXX", "key_fn = %d", key_fn);
-
 	} else if(keycode == 64) { // Alt
 		debug("XI", "Alt %s", (pressed ? "pressed" : "released"));
 
@@ -1199,10 +1217,10 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 		} else {
 			if(!mode_configure && !mode_brightness)
 				gui_hide();
+			if(key_alt + 3000 < current_time)
+				fake_key(XF86XK_Standby);
 			key_alt = 0;
 		}
-
-		debug("XXX", "key_alt = %d", key_alt);
 
 	} else {
 		debug("X11", "WOW, what a key!?");
