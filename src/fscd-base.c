@@ -104,6 +104,10 @@ static unsigned keep_running = 1;
 static clock_t  current_time;
 static int mode_configure, mode_brightness;
 
+//XXX: to fscd-base.h ?
+static int get_tablet_sw(void);
+static int get_tablet_orientation(int mode);
+
 #ifdef DEBUG
 #include <stdarg.h>
 void debug(const char *tag, const char *format, ...)
@@ -171,6 +175,7 @@ static int run_script(const char *name)
 #ifdef ENABLE_WACOM
 #include <wacomcfg/wacomcfg.h>
 #include "Xwacom.h"
+#include <X11/extensions/Xrandr.h>
 
 #ifdef ENABLE_DYNAMIC
 static struct {
@@ -221,20 +226,41 @@ static void wacom_exit(void)
 #endif
 }
 
-static void wacom_rotate(int mode)
+static void wacom_rotate(int rr_rotation)
 {
 	WACOMDEVICE * d;
+	int rotation;
+
+	debug("TRACE", "wacom_rotate");
 
 	if(!wacom_config)
 		return;
+
+	switch(rr_rotation) {
+		case RR_Rotate_0:
+			rotation = XWACOM_VALUE_ROTATE_NONE;
+			break;
+		case RR_Rotate_90:
+			rotation = XWACOM_VALUE_ROTATE_CCW;
+			break;
+		case RR_Rotate_180:
+			rotation = XWACOM_VALUE_ROTATE_HALF;
+			break;
+		case RR_Rotate_270:
+			rotation = XWACOM_VALUE_ROTATE_CW;
+			break;
+		default:
+			return;
+	}
+
+	debug("WACOM", "rotate to %d", rotation);
 
 	d = DLCALL(&wclib, WacomConfigOpenDevice, wacom_config, "stylus");
 	if(!d)
 		return;
 
 	DLCALL(&wclib, WacomConfigSetRawParam, d, XWACOM_PARAM_ROTATE,
-			(mode ? XWACOM_VALUE_ROTATE_CW : XWACOM_VALUE_ROTATE_NONE),
-			0);
+			rotation, 0);
 
 	DLCALL(&wclib, WacomConfigCloseDevice, d);
 }
@@ -504,59 +530,74 @@ static void dpms_force_off(void)
 	XSync(display, False);
 }
 
-static int rotate_screen(int mode)
+static void rotate_screen(int mode)
 {
 	Window rwin;
 	XRRScreenConfiguration *sc;
 	Rotation rotation, current_rotation;
 	SizeID size;
-	int error = -1;
 
 	rwin = DefaultRootWindow(display);
 	sc = XRRGetScreenInfo(display, rwin);
 	if(!sc)
-		goto err;
-
-	rotation = XRRRotations(display, 0, &current_rotation);
-	if(!(rotation & RR_Rotate_0) || !(rotation & RR_Rotate_270))
-		goto err_sc;
+		return;
 
 	size = XRRConfigCurrentConfiguration(sc, &current_rotation);
+	debug("TRACE", "XRRRotations: current_rotation=%d", current_rotation);
 
-	if(mode == -1)
-		mode = current_rotation & RR_Rotate_0;
+	if(mode == -1) {	/* toggle orientation */
+		register int normal = get_tablet_orientation(0);
+		register int tablet = get_tablet_orientation(1);
 
-	rotation  = current_rotation & ~0xf;
-	rotation |= (mode ? RR_Rotate_270 : RR_Rotate_0);
+		debug("XXX", "toggle rotatation %d (%d/%d)",
+				current_rotation, normal, tablet);
+
+		if(current_rotation & normal)
+			rotation = tablet;
+		else
+			rotation = normal;
+
+		debug("XXX", "target rotation: %d", rotation);
+	} else
+		rotation = get_tablet_orientation(mode);
+
+	if(rotation < 0)
+		goto err;
+
+	rotation |= current_rotation & ~0xf;
 
 	if(rotation != current_rotation) {
+		int error;
+
 		if(mode)
 			error = run_script("fscd-pre-rotate-tablet");
 		else
 			error = run_script("fscd-pre-rotate-normal");
 		if(error)
-			goto err_sc;
+			goto err;
 
-		error = XRRSetScreenConfig(display, sc, rwin, size, rotation, CurrentTime);
+		error = XRRSetScreenConfig(display, sc, rwin, size,
+				rotation, CurrentTime);
 		if(error)
-			goto err_sc;
+			goto err;
 
 #ifdef ENABLE_WACOM
-		wacom_rotate(mode);
+		wacom_rotate(rotation);
 #endif
 	
 		if(mode)
 			error = run_script("fscd-rotate-tablet");
 		else
 			error = run_script("fscd-rotate-normal");
+		if(error)
+			goto err;
 
 		screen_rotated();
+
 	}
 
- err_sc:
+  err:
 	XRRFreeScreenConfigInfo(sc);
- err:
-	return error;
 }
 
 static int fake_button(unsigned int button)
@@ -581,6 +622,7 @@ static int fake_button(unsigned int button)
 static DBusConnection *dbus;
 static DBusError dbus_error;
 static LibHalContext *hal;
+static char *laptop_panel;
 static char *fsc_tablet_device;
 
 #define HAL_SIGNAL_FILTER "type='signal', sender='org.freedesktop.Hal', interface='org.freedesktop.Hal.Device', member='PropertyModified', path='%s'"
@@ -616,11 +658,25 @@ static int hal_init(void)
 
 	libhal_ctx_set_dbus_connection(hal, dbus);
 
+	/* search panel */
+	devices = libhal_find_device_by_capability(hal,
+			"laptop_panel", &count, &dbus_error);
+	if(dbus_error_is_set(&dbus_error)) {
+		fprintf(stderr, "find_device_by_capability - %s\n",
+				dbus_error.message);
+		goto err_free_devices;
+	}
+
+	if((devices) || (count > 0))
+		laptop_panel = strdup(devices[0]);
+
+	libhal_free_string_array(devices);
+
 	/* search fsc_btns driver */
 	devices = libhal_find_device_by_capability(hal,
 			"input.switch", &count, &dbus_error);
 	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "find_device_by_capability - %si\n",
+		fprintf(stderr, "find_device_by_capability - %s\n",
 				dbus_error.message);
 		goto err_free_devices;
 	}
@@ -705,6 +761,47 @@ static int get_tablet_sw(void)
 	return (tablet_mode == TRUE);
 }
 
+static int get_tablet_orientation(int mode)
+{
+	char propname[40];
+	char *orientation;
+	int orientation_id;
+
+	debug("TRACE", "get_tablet_orientation: mode=%d", mode);
+
+	snprintf(propname, 39, "tablet_panel.orientation.%s",
+			(mode == 0 ? "normal" : "tablet_mode"));
+
+	orientation = libhal_device_get_property_string(hal, laptop_panel, propname,
+			&dbus_error);
+	if(dbus_error_is_set(&dbus_error)) {
+		fprintf(stderr, "query orientation failed - %s\n",
+				dbus_error.message);
+		return -1;
+	}
+
+	if(!orientation)
+		return -1;
+
+	debug("HAL", "get_tablet_orientation: orientation=%s", orientation);
+
+	if((orientation[0] == 'n') || (orientation[0] == 'N')) {
+		orientation_id = RR_Rotate_0;
+	} else if((orientation[0] == 'l') || (orientation[0] == 'L')) {
+		orientation_id = RR_Rotate_90;
+	} else if((orientation[0] == 'i') || (orientation[0] == 'I')) {
+		orientation_id = RR_Rotate_180;
+	} else if((orientation[0] == 'r') || (orientation[0] == 'R')) {
+		orientation_id = RR_Rotate_270;
+	} else
+		orientation_id = -1;
+	
+	libhal_free_string(orientation);
+
+	debug("HAL", "get_tablet_orientation: id=%d", orientation_id);
+	return orientation_id;	
+}
+
 DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, void *data)
 {
 	DBusMessageIter iter;
@@ -746,26 +843,12 @@ DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, voi
 
 //{{{ Brightness stuff
 #ifdef BRIGHTNESS_CONTROL
-static char *laptop_panel;
 static int brightness_max;
 
 static int brightness_init(void)
 {
-	char **devices;
-	int count;
-
-	devices = libhal_find_device_by_capability(hal,
-			"laptop_panel", &count, &dbus_error);
-	if(dbus_error_is_set(&dbus_error))
+	if(!laptop_panel)
 		return -1;
-
-	if((devices == NULL) || (count <= 0)) {
-		libhal_free_string_array(devices);
-		return -1;
-	}
-
-	laptop_panel = strdup(devices[0]);
-	libhal_free_string_array(devices);
 
 	brightness_max = libhal_device_get_property_int(hal, laptop_panel,
 			"laptop_panel.num_levels", &dbus_error) - 1;
