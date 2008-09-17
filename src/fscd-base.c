@@ -162,12 +162,14 @@ static int run_script(const char *name)
 {
 	int error;
        	char *path = find_script(name);
-	if(!path)
+	if(!path) {
+		debug("XXX", "script %s not found.", name);
 		return 0;
+	}
 
-	debug("XXX", " RUN : script %s not found.", name);
 	error = system(path) << 8;
 	free(path);
+	debug("XXX", "returncode: %d", error);
 	return error;
 }
 
@@ -312,9 +314,11 @@ int x11_open_input_device(void)
 	XEventClass xeclass[2];
 	int i, idev_num, error;
 
+	debug("xinput", "searching fsc_btns device ...");
 	idev_list = XListInputDevices(display, &idev_num);
 	for(i=0; i < idev_num; i++) {
-		if(strcmp(idev_list[i].name, "fsc_btns") == 0) {
+		debug("xinput", " ... device %s", idev_list[i].name);
+		if(strncmp(idev_list[i].name, "fsc_btns", 3) == 0) {
 			idevice = XOpenDevice(display, idev_list[i].id);
 			break;
 		}
@@ -379,6 +383,7 @@ Display* x11_init(void)
 
 	error = x11_open_input_device();
 	if(error) {
+		debug("X11", "xinput device not found");
 		XCloseDisplay(display);
 		return NULL;
 	}
