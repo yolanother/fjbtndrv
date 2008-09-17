@@ -1073,108 +1073,85 @@ int handle_display_rotation(int mode)
 	return error;
 }
 
-static int handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
+static void handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
 	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
 			mode_configure, mode_brightness);
 
-	do { // FIXME: for the breaks
-
 	if(keycode == keymap[KEYMAP_SCROLLDOWN].code) {
 		if(pressed)
-			return 0;
+			;
 
-		if(mode_configure) {
+		else if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_prev();
-			break;
 		}
 
 #ifdef BRIGHTNESS_CONTROL
-		if(mode_brightness) {
+		else if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_down();
-			break;
 		}
 #endif
 
-		if(settings.scrollmode == SM_ZAXIS)
+		else if(settings.scrollmode == SM_ZAXIS)
 			fake_button(5);
-
-		break;
 
 	} else if(keycode == keymap[KEYMAP_SCROLLUP].code) {
 		if(pressed)
-			return 0;
+			;
 
-		if(mode_configure) {
+		else if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			scrollmode_next();
-			break;
 		}
 
 #ifdef BRIGHTNESS_CONTROL
-		if(mode_brightness) {
+		else if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_up();
-			break;
 		}
 #endif
 
-		if(settings.scrollmode == SM_ZAXIS)
+		else if(settings.scrollmode == SM_ZAXIS)
 			fake_button(4);
-
-		break;
 
 	} else if(keycode == keymap[KEYMAP_ROTATEWINDOWS].code) {
 		if(pressed)
-			return 0;
+			;
 
-		if(mode_configure) {
+		else if(mode_configure) {
 			mode_configure = current_time + STICKY_TIMEOUT;
 			toggle_lock_rotate();
-			break;
 		}
 
 #ifdef BRIGHTNESS_CONTROL
-		if(mode_brightness) {
+		else if(mode_brightness) {
 			mode_brightness = 0;
 			gui_hide();
 			dpms_force_off();
-			break;
 		}
 #endif
 
-		rotate_screen(-1);
-		break;
+		else
+			rotate_screen(-1);
 
 #ifdef BRIGHTNESS_CONTROL
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {
-		if(pressed)
-			return 0;
-
-		brightness_down();
-		break;
+		if(!pressed)
+			brightness_down();
 
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSUP].code) {
-		if(pressed)
-			return 0;
-
-		brightness_up();
-		break;
+		if(!pressed)
+			brightness_up();
 #endif
 
-	} else {
+	} else
 		debug("X11", "WOW, what a key!?");
-	}
-
-	} while(0);
-
-	return 0;
 }
 
-static int handle_xinput_event(unsigned int keycode, unsigned int state, int pressed)
+static void handle_xinput_event(unsigned int keycode, unsigned int state, int pressed)
 {
 	static int key_fn, key_alt;
 
@@ -1189,6 +1166,7 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 			if(key_alt) {
 				gui_info("configuration...");
 				mode_configure = current_time + (2 * STICKY_TIMEOUT);
+				mode_brightness = 0;
 				x11_grab_scrollkeys();
 			} else
 				gui_info("FN...");
@@ -1208,6 +1186,7 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 			if(key_fn) {
 				brightness_show();
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
+				mode_configure = 0;
 				x11_grab_scrollkeys();
 			} else
 #endif
@@ -1222,11 +1201,8 @@ static int handle_xinput_event(unsigned int keycode, unsigned int state, int pre
 			key_alt = 0;
 		}
 
-	} else {
+	} else
 		debug("X11", "WOW, what a key!?");
-	}
-
-	return 0;
 }
 
 int main(int argc, char **argv)
@@ -1297,16 +1273,16 @@ int main(int argc, char **argv)
 			XNextEvent(display, &xevent);
 			if(xevent.type == KeyPress) {
 				XKeyEvent *e = (XKeyEvent*) &xevent;
-				keep_running = (handle_x11_event(e->keycode, e->state, 1) >= 0);
+				handle_x11_event(e->keycode, e->state, 1);
 			} else if(xevent.type == KeyRelease) {
 				XKeyEvent *e = (XKeyEvent*) &xevent;
-				keep_running = (handle_x11_event(e->keycode, e->state, 0) >= 0);
+				handle_x11_event(e->keycode, e->state, 0);
 			} else if(xevent.type == xi_keypress) {
 				XDeviceKeyPressedEvent *e = (XDeviceKeyPressedEvent*) &xevent;
-				keep_running = (handle_xinput_event(e->keycode, e->state, 1) >= 0);
+				handle_xinput_event(e->keycode, e->state, 1);
 			} else if(xevent.type == xi_keyrelease) {
 				XDeviceKeyReleasedEvent *e = (XDeviceKeyReleasedEvent*) &xevent;
-				keep_running = (handle_xinput_event(e->keycode, e->state, 0) >= 0);
+				handle_xinput_event(e->keycode, e->state, 0);
 			}
 
 			XSync(display, False);
