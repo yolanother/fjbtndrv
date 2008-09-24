@@ -53,6 +53,11 @@
       </match>
       -->
 
+      <merge key="input.x11_driver" type="string">evdev</merge>
+      <merge key="input.xkb.model" type="string">evdev</merge>
+      <merge key="input.xkb.rules" type="string" />
+      <merge key="input.xkb.layout" type="string" />
+      <merge key="input.xkb.variant" type="string" />
     </match>
   </device>
 </deviceinfo>
