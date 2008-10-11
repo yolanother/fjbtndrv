@@ -175,8 +175,13 @@ static int run_script(const char *name)
 
 //{{{ WACOM stuff
 #ifdef ENABLE_WACOM
+#ifdef HAVE_WACOMCFG_H
+#include <wacomcfg.h>
+#endif
+#ifdef HAVE_WACOMCFG_WACOMCFG_H
 #include <wacomcfg/wacomcfg.h>
-#include "Xwacom.h"
+#endif
+#include <Xwacom.h>
 #include <X11/extensions/Xrandr.h>
 
 #ifdef ENABLE_DYNAMIC
@@ -240,16 +245,16 @@ static void wacom_rotate(int rr_rotation)
 
 	switch(rr_rotation) {
 		case RR_Rotate_0:
-			rotation = XWACOM_VALUE_ROTATE_NONE;
+			rotation = 0; /* XWACOM_VALUE_ROTATE_NONE */
 			break;
 		case RR_Rotate_90:
-			rotation = XWACOM_VALUE_ROTATE_CCW;
+			rotation = 2; /* XWACOM_VALUE_ROTATE_CCW */
 			break;
 		case RR_Rotate_180:
-			rotation = XWACOM_VALUE_ROTATE_HALF;
+			rotation = 3; /* XWACOM_VALUE_ROTATE_HALF */
 			break;
 		case RR_Rotate_270:
-			rotation = XWACOM_VALUE_ROTATE_CW;
+			rotation = 1; /* XWACOM_VALUE_ROTATE_CW */
 			break;
 		default:
 			return;
