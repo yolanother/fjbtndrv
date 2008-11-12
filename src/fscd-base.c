@@ -803,14 +803,11 @@ static int get_tablet_orientation(int mode)
 
 	orientation = libhal_device_get_property_string(hal, laptop_panel, propname,
 			&dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
+	if(dbus_error_is_set(&dbus_error) || !orientation) {
 		fprintf(stderr, "query orientation failed - %s\n",
 				dbus_error.message);
-		return -1;
+		return (mode == 0 ? RR_Rotate_0 : RR_Rotate_270);
 	}
-
-	if(!orientation)
-		return -1;
 
 	debug("HAL", "get_tablet_orientation: orientation=%s", orientation);
 
