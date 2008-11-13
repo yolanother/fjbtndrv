@@ -47,23 +47,6 @@
 #  define _(x) (x)
 #endif
 
-#ifdef ENABLE_DYNAMIC 
-#  include <dlfcn.h>
-#  define DLOPEN(info, name) \
-	((info)->hdnl = dlopen(name, RTLD_NOW))
-#  define DLSYM(info, func) \
-	((info)->func = dlsym((info)->hdnl, #func))
-#  define DLCLOSE(info) \
-	(((info)->hdnl) \
-		? (dlclose((info)->hdnl) ? (int)((info)->hdnl=NULL) : -1) \
-		: 0)
-#  define DLCALL(info, func, args...) \
-	(((info)->hdnl && (info)->func) ? (info)->func(args) : 0)
-#else
-#  define DLCALL(info, func, args...) \
-	func(args)
-#endif
-
 #ifndef BRIGHTNESS_CONTROL
 #  ifdef BRIGHTNESS_KEYS
 #    undef BRIGHTNESS_KEYS
@@ -104,10 +87,6 @@ static unsigned keep_running = 1;
 static clock_t  current_time;
 static int mode_configure, mode_brightness;
 
-//XXX: to fscd-base.h ?
-static int get_tablet_sw(void);
-static int get_tablet_orientation(int mode);
-
 #ifdef DEBUG
 #include <stdarg.h>
 void debug(const char *tag, const char *format, ...)
@@ -121,158 +100,6 @@ void debug(const char *tag, const char *format, ...)
 	va_end(a);
 }
 #endif
-
-static char* find_script(const char *name)
-{
-	struct stat s;
-	int error;
-	char *path, *homedir;
-
-	homedir = getenv("HOME");
-	if(homedir) {
-		path = malloc(strlen(homedir) + strlen(name) + 8);
-		sprintf(path, "%s/.fscd/%s", homedir, name);
-
-		error = stat(path, &s);
-		debug("XXX", "%s: %d", path, error);
-		if((!error) &&
-		   (((s.st_mode & S_IFMT) == S_IFREG) ||
-		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return path;
-		else
-			free(path);
-	}
-
-	path = malloc(sizeof(SCRIPTDIR) + strlen(name) + 2);
-	sprintf(path, "%s/%s", SCRIPTDIR, name);
-
-	error = stat(path, &s);
-	debug("XXX", "%s: %d", path, error);
-	if((!error) &&
-	   (((s.st_mode & S_IFMT) == S_IFREG) ||
-	    ((s.st_mode & S_IFMT) == S_IFLNK)))
-		return path;
-	else
-		free(path);
-
-	return NULL;
-}
-
-static int run_script(const char *name)
-{
-	int error;
-       	char *path = find_script(name);
-	if(!path) {
-		debug("XXX", "script %s not found.", name);
-		return 0;
-	}
-
-	error = system(path) << 8;
-	free(path);
-	debug("XXX", "returncode: %d", error);
-	return error;
-}
-
-//{{{ WACOM stuff
-#ifdef ENABLE_WACOM
-#ifdef HAVE_WACOMCFG_H
-#include <wacomcfg.h>
-#endif
-#ifdef HAVE_WACOMCFG_WACOMCFG_H
-#include <wacomcfg/wacomcfg.h>
-#endif
-#include <Xwacom.h>
-#include <X11/extensions/Xrandr.h>
-
-#ifdef ENABLE_DYNAMIC
-static struct {
-	void *hdnl;
-	WACOMCONFIG * (*WacomConfigInit)(Display* pDisplay, WACOMERRORFUNC pfnErrorHandler);
-	WACOMDEVICE * (*WacomConfigOpenDevice)(WACOMCONFIG * hConfig, const char* pszDeviceName);
-	int (*WacomConfigCloseDevice)(WACOMDEVICE * hDevice);
-	int (*WacomConfigSetRawParam)(WACOMDEVICE * hDevice, int nParam, int nValue, unsigned * keys);
-	void (*WacomConfigFree)(void* pvData);
-} wclib;
-#endif
-
-static WACOMCONFIG * wacom_config;
-
-static int wacom_init(Display *display)
-{
-#ifdef ENABLE_DYNAMIC
-	if( !(DLOPEN(&wclib, "libwacomcfg.so.0") &&
-			DLSYM(&wclib, WacomConfigInit) &&
-			DLSYM(&wclib, WacomConfigFree) &&
-			DLSYM(&wclib, WacomConfigSetRawParam) &&
-			DLSYM(&wclib, WacomConfigOpenDevice) &&
-			DLSYM(&wclib, WacomConfigCloseDevice)) ) {
-		debug("WACOM", "%s", dlerror());
-		wclib.hdnl = NULL;
-		return -1;
-	}
-
-	debug("WACOM", "wacomcfg library ready");
-#endif
-
-	wacom_config = DLCALL(&wclib, WacomConfigInit, display, NULL);
-	if(!wacom_config) {
-		fprintf(stderr, "Can't open Wacom Device\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-static void wacom_exit(void)
-{
-	if(wacom_config)
-		DLCALL(&wclib, WacomConfigFree, wacom_config);
-
-#ifdef ENABLE_DYNAMIC
-	DLCLOSE(&wclib);
-#endif
-}
-
-static void wacom_rotate(int rr_rotation)
-{
-	WACOMDEVICE * d;
-	int rotation;
-
-	debug("TRACE", "wacom_rotate");
-
-	if(!wacom_config)
-		return;
-
-	switch(rr_rotation) {
-		case RR_Rotate_0:
-			rotation = 0; /* XWACOM_VALUE_ROTATE_NONE */
-			break;
-		case RR_Rotate_90:
-			rotation = 2; /* XWACOM_VALUE_ROTATE_CCW */
-			break;
-		case RR_Rotate_180:
-			rotation = 3; /* XWACOM_VALUE_ROTATE_HALF */
-			break;
-		case RR_Rotate_270:
-			rotation = 1; /* XWACOM_VALUE_ROTATE_CW */
-			break;
-		default:
-			return;
-	}
-
-	debug("WACOM", "rotate to %d", rotation);
-
-	d = DLCALL(&wclib, WacomConfigOpenDevice, wacom_config, "stylus");
-	if(!d)
-		return;
-
-	DLCALL(&wclib, WacomConfigSetRawParam, d, XWACOM_PARAM_ROTATE,
-			rotation, 0);
-
-	DLCALL(&wclib, WacomConfigCloseDevice, d);
-}
-#endif
-//}}}
 
 //{{{ X11 stuff
 #include <X11/Xlib.h>
@@ -543,7 +370,7 @@ static void dpms_force_off(void)
 	XSync(display, False);
 }
 
-static void rotate_screen(int mode)
+static void rotate_screen(void)
 {
 	Window rwin;
 	XRRScreenConfiguration *sc;
@@ -558,36 +385,16 @@ static void rotate_screen(int mode)
 	size = XRRConfigCurrentConfiguration(sc, &current_rotation);
 	debug("TRACE", "XRRRotations: current_rotation=%d", current_rotation);
 
-	if(mode == -1) {	/* toggle orientation */
-		register int normal = get_tablet_orientation(0);
-		register int tablet = get_tablet_orientation(1);
-
-		debug("XXX", "toggle rotatation %d (%d/%d)",
-				current_rotation, normal, tablet);
-
-		if(current_rotation & normal)
-			rotation = tablet;
-		else
-			rotation = normal;
-
-		debug("XXX", "target rotation: %d", rotation);
-	} else
-		rotation = get_tablet_orientation(mode);
-
-	if(rotation < 0)
-		goto err;
+	// TODO: make rotation steps configurable
+	rotation = (current_rotation & 0x7) << 1;
+	if(!rotation)
+		rotation = RR_Rotate_0;
 
 	rotation |= current_rotation & ~0xf;
+	debug("XXX", "target rotation: %d", rotation);
 
 	if(rotation != current_rotation) {
 		int error;
-
-		if(mode)
-			error = run_script("fscd-pre-rotate-tablet");
-		else
-			error = run_script("fscd-pre-rotate-normal");
-		if(error)
-			goto err;
 
 		error = XRRSetScreenConfig(display, sc, rwin, size,
 				rotation, CurrentTime);
@@ -597,16 +404,9 @@ static void rotate_screen(int mode)
 #ifdef ENABLE_WACOM
 		wacom_rotate(rotation);
 #endif
-	
-		if(mode)
-			error = run_script("fscd-rotate-tablet");
-		else
-			error = run_script("fscd-rotate-normal");
-		if(error)
-			goto err;
 
+		// TODO: needed???	
 		screen_rotated();
-
 	}
 
   err:
@@ -645,228 +445,6 @@ static void fake_button(unsigned int button)
 	}
 }
 //}}}
-
-//{{{ HAL stuff
-#include <dbus/dbus.h>
-#include <hal/libhal.h>
-static DBusConnection *dbus;
-static DBusError dbus_error;
-static LibHalContext *hal;
-static char *laptop_panel;
-static char *fsc_tablet_device;
-
-#define HAL_SIGNAL_FILTER "type='signal', sender='org.freedesktop.Hal', interface='org.freedesktop.Hal.Device', member='PropertyModified', path='%s'"
-DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, void *data);
-
-static int hal_init(void)
-{
-	char **devices;
-	char *buffer;
-	int count;
-
-	dbus_error_init(&dbus_error);
-
-	dbus = dbus_bus_get(DBUS_BUS_SYSTEM, &dbus_error);
-	if(!dbus || dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "Failed to connect to the D-BUS daemon: %s\n",
-				dbus_error.message);
-		goto err;
-	}
-
-	hal = libhal_ctx_new();
-	if(!hal) {
-		fprintf(stderr, "libhal_ctx_new failed\n");
-		goto err;
-	}
-
-	libhal_ctx_init(hal, &dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "init hal ctx failed - %s\n",
-				dbus_error.message);
-		goto err_free_ctx;
-	}
-
-	libhal_ctx_set_dbus_connection(hal, dbus);
-
-	/* search panel */
-	devices = libhal_find_device_by_capability(hal,
-			"laptop_panel", &count, &dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "find_device_by_capability - %s\n",
-				dbus_error.message);
-		goto err_free_devices;
-	}
-
-	if((devices) || (count > 0))
-		laptop_panel = strdup(devices[0]);
-
-	libhal_free_string_array(devices);
-
-	/* search fsc_btns driver */
-	devices = libhal_find_device_by_capability(hal,
-			"input.switch", &count, &dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "find_device_by_capability - %s\n",
-				dbus_error.message);
-		goto err_free_devices;
-	}
-
-	if((devices == NULL) || (count < 0)) {
-		fprintf(stderr, "no tablet device found\n");
-		goto err_free_devices;
-	}
-
-	if(count == 0) {
-		fprintf(stderr, "no devices found\n");
-		goto err_free_devices;
-	}
-
-	debug("HAL", "%d input.switch device(s) found:", count);
-	while(count-- && devices[count]) {
-		char *type;
-		debug("HAL", "check device %s", devices[count]);
-
-		type = libhal_device_get_property_string(hal,
-				devices[count], "button.type",
-				&dbus_error);
-		if(dbus_error_is_set(&dbus_error)) {
-			fprintf(stderr, "prop get failed - %s\n",
-					dbus_error.message);
-			goto err_input_next_device;
-		}
-
-		if(type && !strcmp("tablet_mode", type)) {
-			debug("HAL", "tablet mode device found: %s",
-					devices[count]);
-
-			fsc_tablet_device = strdup(devices[count]);
-
-			buffer = malloc(sizeof(HAL_SIGNAL_FILTER) + strlen(fsc_tablet_device));
-			if(buffer) {
-				sprintf(buffer, HAL_SIGNAL_FILTER, fsc_tablet_device);
-				debug("HAL", "filter: %s.", buffer);
-				dbus_bus_add_match(dbus, buffer, &dbus_error);
-				dbus_connection_add_filter(dbus, dbus_prop_modified, NULL, NULL);
-				free(buffer);
-			}
-			break;
-		}
-
- err_input_next_device:
-		libhal_free_string(type);
-	}
-	libhal_free_string_array(devices);
-
-	return 0;
-
- err_free_devices:
-	libhal_free_string_array(devices);
- err_free_ctx:
-	libhal_ctx_free(hal);
- err:
-	dbus_error_free(&dbus_error);
-	return -1;
-}
-
-static void hal_exit(void)
-{
-	if(hal) {
-		libhal_ctx_free(hal);
-		dbus_error_free(&dbus_error);
-	}
-}
-
-static int get_tablet_sw(void)
-{
-	dbus_bool_t tablet_mode;
-
-	tablet_mode = libhal_device_get_property_bool(hal, fsc_tablet_device,
-			"button.state.value", &dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "query button state failed - %s\n",
-				dbus_error.message);
-		return -1;
-	}
-
-	return (tablet_mode == TRUE);
-}
-
-static int get_tablet_orientation(int mode)
-{
-	char propname[40];
-	char *orientation;
-	int orientation_id;
-
-	debug("TRACE", "get_tablet_orientation: mode=%d", mode);
-
-	snprintf(propname, 39, "tablet_panel.orientation.%s",
-			(mode == 0 ? "normal" : "tablet_mode"));
-
-	orientation = libhal_device_get_property_string(hal, laptop_panel, propname,
-			&dbus_error);
-	if(dbus_error_is_set(&dbus_error) || !orientation) {
-		fprintf(stderr, "query orientation failed - %s\n",
-				dbus_error.message);
-		return (mode == 0 ? RR_Rotate_0 : RR_Rotate_270);
-	}
-
-	debug("HAL", "get_tablet_orientation: orientation=%s", orientation);
-
-	if((orientation[0] == 'n') || (orientation[0] == 'N')) {
-		orientation_id = RR_Rotate_0;
-	} else if((orientation[0] == 'l') || (orientation[0] == 'L')) {
-		orientation_id = RR_Rotate_90;
-	} else if((orientation[0] == 'i') || (orientation[0] == 'I')) {
-		orientation_id = RR_Rotate_180;
-	} else if((orientation[0] == 'r') || (orientation[0] == 'R')) {
-		orientation_id = RR_Rotate_270;
-	} else
-		orientation_id = -1;
-	
-	libhal_free_string(orientation);
-
-	debug("HAL", "get_tablet_orientation: id=%d", orientation_id);
-	return orientation_id;	
-}
-
-DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, void *data)
-{
-	DBusMessageIter iter;
-	//int i, err;
-
-	debug("DBUS", "dbus_prop_modified(%p, %s)", msg, (char*)data);
-
-	//org.freedesktop.Hal.Device/PropertyModified
-	if(dbus_message_is_signal(msg, "org.freedesktop.Hal.Device", "PropertyModified")) {
-		//int mode;
-
-		/*
-		err = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &i);
-		if(err) {
-			debug("XXX", " DBUS: dbus_prop_modified: broken signal");
-			return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-		}
-		debug("XXX", " DBUS: dbus_prop_modified: %d entries", i);
-		*/
-
-		dbus_message_iter_init(msg, &iter);
-		while(dbus_message_iter_has_next(&iter)) {
-			debug("XXX", " DBUS: dbus_prop_modified: %d", dbus_message_iter_get_arg_type(&iter));
-			dbus_message_iter_next(&iter);
-		}
-
-		// XXX: callback
-		handle_display_rotation(get_tablet_sw());
-
-		debug("XXX", " DBUS: dbus_prop_modified: signal handled");
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	debug("DBUS", "dbus_prop_modified: bad signal resived (%s/%s)",
-			dbus_message_get_interface(msg), dbus_message_get_member(msg));
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-}
-//}}} 
 
 //{{{ Brightness stuff
 #include <X11/Xatom.h>
@@ -1065,28 +643,6 @@ static void toggle_dpms(void)
 }
 */
 
-int handle_display_rotation(int mode)
-{
-	int error;
-		
-	if(mode)
-		error = run_script("fscd-pre-mode-tablet");
-	else
-		error = run_script("fscd-pre-mode-normal");
-	if(error)
-		return -1;
-
-	if(settings.lock_rotate == UL_UNLOCKED)
-		rotate_screen(mode);
-
-	if(mode)
-		error = run_script("fscd-mode-tablet");
-	else
-		error = run_script("fscd-mode-normal");
-
-	return error;
-}
-
 static void handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
 	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
@@ -1149,7 +705,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 #endif
 
 		else
-			rotate_screen(-1);
+			rotate_screen();
 
 #ifdef BRIGHTNESS_CONTROL
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {
@@ -1237,16 +793,10 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-	error = hal_init();
-	if(error) {
-		fprintf(stderr, "hal initalisation failed\n");
-		goto hal_failed;
-	}
-
 	Display *display = x11_init();
 	if(!display) {
 		fprintf(stderr, "x11 initalisation failed\n");
-		goto x_failed;
+		exit(1);
 	}
 
 #ifdef BRIGHTNESS_CONTROL
@@ -1273,7 +823,6 @@ int main(int argc, char **argv)
 	debug("INFO", "\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	x11_fix_keymap();
-	handle_display_rotation(get_tablet_sw());
 
 	while(keep_running) {
 		static struct timeval tv;
@@ -1320,8 +869,10 @@ int main(int argc, char **argv)
 		}
 #endif
 
-		debug("MAIN", "time = %lu, timeout = %d", current_time, 100);
-		dbus_connection_read_write_dispatch(dbus, 100);	// timeout in msec
+#ifdef DEBUG
+		//debug("MAIN", "time = %lu, timeout = %d", current_time, 100);
+		//usleep(100000);
+#endif
 	}
 
 	gui_exit();
@@ -1332,9 +883,6 @@ int main(int argc, char **argv)
 	brightness_exit();
 #endif
 	x11_exit();
- x_failed:
-	hal_exit();
- hal_failed:
 	return 0;
 }
 
