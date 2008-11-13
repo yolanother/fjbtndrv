@@ -2,7 +2,7 @@
 <deviceinfo version="0.2">
   <device>
     <match key="info.category" string="laptop_panel">
-      <match key="/org/freedesktop/Hal/devices/computer:system.hardware.vendor" string="FUJITSU SIEMENS">
+      <match key="/org/freedesktop/Hal/devices/computer:system.hardware.vendor" string="FUJITSU">
         <match key="/org/freedesktop/Hal/devices/computer:system.hardware.product" prefix_outof="LifeBook T;LIFEBOOK T;LIFEBOOK P1510;LIFEBOOK P1610">
           <append key="info.capabilities" type="strlist">tablet_panel</append>
           <merge key="tablet_panel.orientation.normal" type="string">normal</merge>
