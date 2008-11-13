@@ -17,7 +17,12 @@
  */
 /******************************************************************************/
 
+#ifdef HAVE_CONFIG_H
+#  include "../config.h"
+#endif
+
 #include "fscd-base.h"
+#include "fscd-wacom.h"
 #include "fscd-gui.h"
 
 #include <stdio.h>
