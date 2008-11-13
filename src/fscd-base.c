@@ -379,6 +379,7 @@ Display* x11_init(void)
 	xinput = x11_check_extension("XInputExtension");
 	xtest  = x11_check_extension("XTEST");
 	randr  = x11_check_extension("RANDR");
+	//TODO: randr version check, >= 1.2
 	dpms   = x11_check_extension("DPMS");
 
 	if(!xinput || !xtest || !randr || !dpms) {
@@ -868,122 +869,133 @@ DBusHandlerResult dbus_prop_modified(DBusConnection *dbus, DBusMessage *msg, voi
 //}}} 
 
 //{{{ Brightness stuff
+#include <X11/Xatom.h>
 #ifdef BRIGHTNESS_CONTROL
-static int brightness_max;
+static Atom backlight;
+static int brightness_output = -1;
+static long brightness_offset, brightness_max;
 
 static int brightness_init(void)
 {
-	if(!laptop_panel)
+	int o;
+	int err = -1;
+	XRRPropertyInfo *info;
+
+	backlight = XInternAtom(display, "BACKLIGHT", True);
+	if(backlight == None)
 		return -1;
 
-	brightness_max = libhal_device_get_property_int(hal, laptop_panel,
-			"laptop_panel.num_levels", &dbus_error) - 1;
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "query max brightness levels failed - %s\n",
-				dbus_error.message);
+	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
+	if(!sr)
 		return -1;
+
+	for(o = 0; (err != 0) && (o < sr->noutput); o++) {	
+		debug("X11", "output prop? (%d/%d)", o, sr->noutput);
+		info = XRRQueryOutputProperty(display, sr->outputs[o], backlight);
+		if(info) {
+			if(info->range && info->num_values == 2) {
+				brightness_output = o;
+				brightness_offset = info->values[0];
+				brightness_max = info->values[1] - brightness_offset;
+				debug("X11", "brightness: output=%d offset=%ld max=%ld",
+					brightness_output, brightness_offset, brightness_max);
+				err = 0;
+			}
+			XFree(info);
+		}
 	}
 
-	return 0;
+	XRRFreeScreenResources(sr);
+	return err;
 }
 
 static void brightness_exit(void)
 {
 }
 
-static int get_brightness(void)
+static long get_brightness(void)
 {
-	int level;
-	DBusMessage *message, *reply;
+	unsigned long   items, ba;
+	unsigned char   *prop;
+	Atom		type;
+	int		format;
+	long		value = -1;
 
-	if(!laptop_panel)
+	if(brightness_output < 0)
 		return -1;
 
-	message = dbus_message_new_method_call(
-			"org.freedesktop.Hal",
-			laptop_panel,
-			"org.freedesktop.Hal.Device.LaptopPanel",
-			"GetBrightness");
+	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
+	if(!sr)
+		return -1;
+	
+	int err = XRRGetOutputProperty(display, sr->outputs[brightness_output], backlight,
+			0, 4, False, False, None, &type, &format,
+			&items, &ba, &prop);
 
-	reply = dbus_connection_send_with_reply_and_block(dbus,
-			message, -1, &dbus_error);
-	if(dbus_error_is_set(&dbus_error)) {
-		fprintf(stderr, "send get brightness message - %s\n",
-				dbus_error.message);
-		goto err_free_msg;
+	XRRFreeScreenResources(sr);
+
+	if(err == Success && prop) {
+		if (type == XA_INTEGER || format == 32 || items == 1)
+			value = *((long*)prop) - brightness_offset;
+
+		XFree(prop);
 	}
-	dbus_message_unref(message);
 
-	if( !dbus_message_get_args(reply, NULL,
-			DBUS_TYPE_INT32, &level,
-			DBUS_TYPE_INVALID)) {
-		fprintf(stderr, "dbus_message_get_args failed - %s\n",
-				dbus_error.message);
-		goto err_free_msg;
-	}
-	dbus_message_unref(reply);
-
-	return level;
-
- err_free_msg:
-	dbus_message_unref(message);
-	return -1;
+	debug("X11", "backlight_get: value=%ld", value);
+	return value;
 }
 
-static void set_brightness(int level)
+static void set_brightness(long value)
 {
-	DBusMessage *message;
-
-	debug("HAL", "set_brightness: level = %d", level);
-
-	if(!laptop_panel)
+	if(brightness_output < 0)
 		return;
 
-	message = dbus_message_new_method_call(
-			"org.freedesktop.Hal",
-			laptop_panel,
-			"org.freedesktop.Hal.Device.LaptopPanel",
-			"SetBrightness");
+	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
+	if(!sr)
+		return;
 
-	if( !dbus_message_append_args(message,
-			DBUS_TYPE_INT32, &level,
-			DBUS_TYPE_INVALID)) {
-		debug("HAL", "append to message failed");
-		goto err_free_msg;
-	}
+	value += brightness_offset;
 
-	dbus_connection_send(dbus, message, NULL);
+	XRRChangeOutputProperty(display, sr->outputs[brightness_output], backlight,
+			XA_INTEGER, 32, PropModeReplace,
+			(unsigned char*) &value, 1);
 
- err_free_msg:
-	debug("HAL", "set_brightness: error");
-	dbus_message_unref(message);
-	return;
+	XRRFreeScreenResources(sr);
 }
 
-static void brightness_show(void)
+
+static void brightness_show()
 {
-	gui_brightness_show((get_brightness()*100) / brightness_max);
+	long current = get_brightness();
+	gui_brightness_show(current < 0 ? 0 : current * 100 / brightness_max);
 }
 
 static void brightness_down(void)
 {
-	int current = get_brightness();
+	long current = get_brightness();
+	if(current < 0)
+		return;
 
 	if(current > 0)
-		set_brightness(--current);
+		current--;
 
-	gui_brightness_show((current*100) / brightness_max);
+	set_brightness(current);
+	gui_brightness_show(current * 100 / brightness_max);
 }
 
 static void brightness_up(void)
 {
 	int current = get_brightness();
+	if(current < 0)
+		return;
 
 	if(current < brightness_max)
-		set_brightness(++current);
+		current++;
 
-	gui_brightness_show((current*100) / brightness_max);
+	set_brightness(current);
+	gui_brightness_show(current * 100 / brightness_max);
 }
+
 #endif
 //}}}
 
@@ -1231,18 +1243,18 @@ int main(int argc, char **argv)
 		goto hal_failed;
 	}
 
+	Display *display = x11_init();
+	if(!display) {
+		fprintf(stderr, "x11 initalisation failed\n");
+		goto x_failed;
+	}
+
 #ifdef BRIGHTNESS_CONTROL
 	error = brightness_init();
 	if(error) {
 		fprintf(stderr, "brightness initalisation failed\n");
 	}
 #endif
-
-	Display *display = x11_init();
-	if(!display) {
-		fprintf(stderr, "x11 initalisation failed\n");
-		goto x_failed;
-	}
 
 #ifdef ENABLE_WACOM
 	error = wacom_init(display);
@@ -1316,11 +1328,11 @@ int main(int argc, char **argv)
 #ifdef ENABLE_WACOM
 	wacom_exit();
 #endif
-	x11_exit();
- x_failed:
 #ifdef BRIGHTNESS_CONTROL
 	brightness_exit();
 #endif
+	x11_exit();
+ x_failed:
 	hal_exit();
  hal_failed:
 	return 0;
