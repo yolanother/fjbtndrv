@@ -375,9 +375,35 @@ static int handle_display_rotation(Display *display, Rotation rr)
 	XRRFreeScreenConfigInfo(sc);
 }
 
+static int rotation_locked(void)
+{
+	char *lockfile, *homedir;
+	struct stat s;
+	int error;
+
+	homedir = getenv("HOME");
+	if(!homedir)
+		return -1;
+
+	lockfile = malloc(strlen(homedir) + strlen(PACKAGE) + 17);
+	if(!lockfile)
+		return -1;
+
+	sprintf(lockfile, "%s/." PACKAGE "/lock.rotation", homedir);
+	error = stat(lockfile, &s);
+	free(lockfile);
+
+	return (error == 0);
+}
+
 static int handle_rotation(Display *display, LibHalContext *hal, char *udi, int mode)
 {
 	Rotation rr;
+
+	if(rotation_locked()) {
+		debug("LOCKED");
+		return 0;
+	}
 
 	rr = (udi) ? get_tablet_orientation(hal, udi, mode) : 0;
 	if(!rr)

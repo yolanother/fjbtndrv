@@ -60,10 +60,8 @@
 
 static struct {
 	ScrollMode scrollmode;
-	UserLock lock_rotate;
 } settings = {
 	.scrollmode = SM_KEY_PAGE,
-	.lock_rotate = UL_UNLOCKED
 };
 
 static keymap_entry keymap[] = {
@@ -105,6 +103,52 @@ void debug(const char *tag, const char *format, ...)
 	va_end(a);
 }
 #endif
+
+static void init_private_dir(void)
+{
+	char *path, *homedir;
+	struct stat s;
+	int error;
+
+	homedir = getenv("HOME");
+	if(!homedir)
+		return;
+
+	path = malloc(strlen(homedir) + strlen(PACKAGE) + 17);
+	if(!path)
+		return;
+
+	sprintf(path, "%s/." PACKAGE, homedir);
+	error = stat(path, &s);
+	if(error) {
+		error = mkdir(path, 0700);
+		if(error) {
+			fprintf(stderr, "can't create directory '%s'\n", path);
+			free(path);
+			return;
+		}
+	} else {
+		if(!S_ISDIR(s.st_mode)) {
+			fprintf(stderr, "'%s' exists, but is not a directory\n", path);
+			free(path);
+			return;
+		}
+	}
+
+	strcat(path, "/lock.rotate");
+	error = stat(path, &s);
+	if(!error) {
+		error = unlink(path);
+		if(error) {
+			fprintf(stderr, "failed to remove rotation lock.\n");
+			free(path);
+			return;
+		}
+	}
+	
+	free(path);
+}
+
 
 //{{{ X11 stuff
 #include <X11/Xlib.h>
@@ -620,19 +664,36 @@ static void scrollmode_prev(void)
 	scrollmode_set(settings.scrollmode? settings.scrollmode-1 : SM_KEY_MAX-1);
 }
 
-
 static void toggle_lock_rotate(void)
 {
-	switch(settings.lock_rotate) {
-		case UL_UNLOCKED:
-			settings.lock_rotate = UL_LOCKED;
+	char *lockfile, *homedir;
+	struct stat s;
+	int error, h;
+
+	homedir = getenv("HOME");
+	if(!homedir)
+		return;
+
+	lockfile = malloc(strlen(homedir) + strlen(PACKAGE) + 17);
+	if(!lockfile)
+		return;
+
+	sprintf(lockfile, "%s/." PACKAGE "/lock.rotation", homedir);
+
+	error = stat(lockfile, &s);	
+	if(error < 0) {
+		h = open(lockfile, O_CREAT, 0600);
+		if(h > 0) {
+			close(h);
 			gui_info(_("Rotation locked"));
-			break;
-		case UL_LOCKED:
-			settings.lock_rotate = UL_UNLOCKED;
+		}
+	} else {
+		h = unlink(lockfile);
+		if(h == 0)
 			gui_info(_("Rotation unlocked"));
-			break;
 	}
+
+	free(lockfile);
 }
 
 /* TODO:
@@ -797,6 +858,8 @@ int main(int argc, char **argv)
 	textdomain (PACKAGE);
 #endif
 #endif
+
+	init_private_dir();
 
 	Display *display = x11_init();
 	if(!display) {
