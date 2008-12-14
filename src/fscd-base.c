@@ -83,7 +83,9 @@ static keymap_entry keymap[] = {
 #ifdef BRIGHTNESS_KEYS
 	  .grab = 1
 #endif
-	}
+	},
+
+	{ .code = 0 }
 };
 
 static unsigned keep_running = 1;
