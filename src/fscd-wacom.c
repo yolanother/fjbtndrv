@@ -37,27 +37,15 @@
 
 #ifdef DEBUG
 void debug(const char *tag, const char *format, ...);
-#endif
-
-#ifdef ENABLE_DYNAMIC 
-#  include <dlfcn.h>
-#  define DLOPEN(info, name) \
-	((info)->hdnl = dlopen(name, RTLD_NOW))
-#  define DLSYM(info, func) \
-	((info)->func = dlsym((info)->hdnl, #func))
-#  define DLCLOSE(info) \
-	(((info)->hdnl) \
-		? (dlclose((info)->hdnl) ? (int)((info)->hdnl=NULL) : -1) \
-		: 0)
-#  define DLCALL(info, func, args...) \
-	(((info)->hdnl && (info)->func) ? (info)->func(args) : 0)
 #else
-#  define DLCALL(info, func, args...) \
-	func(args)
+#define debug(...) do { } while(0)
 #endif
 
 #ifdef ENABLE_DYNAMIC
-static struct {
+
+#include <dlfcn.h>
+
+static struct wclib_t {
 	void *hdnl;
 	WACOMCONFIG * (*WacomConfigInit)(Display* pDisplay, WACOMERRORFUNC pfnErrorHandler);
 	WACOMDEVICE * (*WacomConfigOpenDevice)(WACOMCONFIG * hConfig, const char* pszDeviceName);
@@ -65,6 +53,15 @@ static struct {
 	int (*WacomConfigSetRawParam)(WACOMDEVICE * hDevice, int nParam, int nValue, unsigned * keys);
 	void (*WacomConfigFree)(void* pvData);
 } wclib;
+
+#define CALL(func, args...) \
+	((&wclib)->hdnl ? (&wclib)->func(args) : 0)
+
+#else /* ENABLE_DYNAMIC */
+
+#define CALL(func, args...) \
+	func(args)
+
 #endif
 
 static WACOMCONFIG * wacom_config;
@@ -72,21 +69,38 @@ static WACOMCONFIG * wacom_config;
 int wacom_init(Display *display)
 {
 #ifdef ENABLE_DYNAMIC
-	if( !(DLOPEN(&wclib, "libwacomcfg.so.0") &&
-			DLSYM(&wclib, WacomConfigInit) &&
-			DLSYM(&wclib, WacomConfigFree) &&
-			DLSYM(&wclib, WacomConfigSetRawParam) &&
-			DLSYM(&wclib, WacomConfigOpenDevice) &&
-			DLSYM(&wclib, WacomConfigCloseDevice)) ) {
-		debug("WACOM", "%s", dlerror());
-		wclib.hdnl = NULL;
-		return -1;
-	}
+	struct wclib_t w;
 
-	debug("WACOM", "wacomcfg library ready");
+	w->hdnl = dlopen("libwacomcfg.so.0", RTLD_NOW);
+	if(!w->hdnl)
+		return -1;
+
+	w->WacomConfigInit = dlsym(w->hdnl, "WacomConfigInit");
+	if(!w->WacomConfigInit)
+		return -1;
+	
+	w->WacomConfigFree = dlsym(w->hdnl, "WacomConfigFree");
+	if(!w->WacomConfigFree)
+		return -1;
+	
+	w->WacomConfigSetRawParam = dlsym(w->hdnl, "WacomConfigSetRawParam");
+	if(!w->WacomConfigSetRawParam)
+		return -1;
+	
+	w->WacomConfigOpenDevice = dlsym(w->hdnl, "WacomConfigOpenDevice");
+	if(!w->WacomConfigOpenDevice)
+		return -1;
+	
+	w->WacomConfigCloseDevice = dlsym(w->hdnl, "WacomConfigCloseDevice");
+	if(!w->WacomConfigCloseDevice)
+		return -1;
+
+	memcpy(wclib, w, sizeof(wclib_t));
+
+	debug("WACOM", "wacomcfg library loaded");
 #endif
 
-	wacom_config = DLCALL(&wclib, WacomConfigInit, display, NULL);
+	wacom_config = CALL(WacomConfigInit, display, NULL);
 	if(!wacom_config)
 		return -1;
 
@@ -96,10 +110,11 @@ int wacom_init(Display *display)
 void wacom_exit(void)
 {
 	if(wacom_config)
-		DLCALL(&wclib, WacomConfigFree, wacom_config);
+		CALL(WacomConfigFree, wacom_config);
 
 #ifdef ENABLE_DYNAMIC
-	DLCLOSE(&wclib);
+	dlclose(wclib->hdnl);
+	wclib->hdnl = NULL;
 #endif
 }
 
@@ -132,14 +147,14 @@ void wacom_rotate(int rr_rotation)
 
 	debug("WACOM", "rotate to %d", rotation);
 
-	d = DLCALL(&wclib, WacomConfigOpenDevice, wacom_config, "stylus");
+	d = CALL(WacomConfigOpenDevice, wacom_config, "stylus");
 	if(!d)
 		return;
 
-	DLCALL(&wclib, WacomConfigSetRawParam, d, XWACOM_PARAM_ROTATE,
+	CALL(WacomConfigSetRawParam, d, XWACOM_PARAM_ROTATE,
 			rotation, 0);
 
-	DLCALL(&wclib, WacomConfigCloseDevice, d);
+	CALL(WacomConfigCloseDevice, d);
 }
 
 #endif
