@@ -342,8 +342,6 @@ static int x11_fix_keymap(void)
 
 	XDisplayKeycodes(display, &min, &max);
 	map = XGetKeyboardMapping(display, min, (max - min + 1), &spc);
-	debug("X11", "keymap with %d (%d-%d) entries and %d symbols per code",
-			(max-min), min, max, spc);
 
 	for(km = keymap; km->code; km++) {
 		me = (km->code - min) * spc;
@@ -366,7 +364,6 @@ static int x11_fix_keymap(void)
 
 static void x11_grab_scrollkeys(void)
 {
-	debug("X11", "grab scroll keys");
 	XGrabKey(display, keymap[KEYMAP_SCROLLDOWN].code, AnyModifier, root,
 			False, GrabModeAsync, GrabModeAsync);
 	XGrabKey(display, keymap[KEYMAP_SCROLLUP].code, AnyModifier, root,
@@ -376,7 +373,6 @@ static void x11_grab_scrollkeys(void)
 
 static void x11_ungrab_scrollkeys(void)
 {
-	debug("X11", "ungrab scroll keys");
 	XUngrabKey(display, keymap[KEYMAP_SCROLLDOWN].code, AnyModifier, root);
 	XUngrabKey(display, keymap[KEYMAP_SCROLLUP].code, AnyModifier, root);
 	XSync(display, False);
@@ -409,8 +405,6 @@ static void dpms_force_off(void)
 	CARD16 state;
 	BOOL on;
 
-	debug("TRACE", "dpms_force_off");
-
 	DPMSInfo(display, &state, &on);
 	if(!on)
 		enable_dpms();
@@ -434,7 +428,6 @@ static void rotate_screen(void)
 		return;
 
 	size = XRRConfigCurrentConfiguration(sc, &current_rotation);
-	debug("TRACE", "XRRRotations: current_rotation=%d", current_rotation);
 
 	// TODO: make rotation steps configurable
 	rotation = (current_rotation & 0x7) << 1;
@@ -442,7 +435,6 @@ static void rotate_screen(void)
 		rotation = RR_Rotate_0;
 
 	rotation |= current_rotation & ~0xf;
-	debug("XXX", "target rotation: %d", rotation);
 
 	if(rotation != current_rotation) {
 		int error;
@@ -469,7 +461,6 @@ static void fake_key(KeySym sym)
 	KeyCode keycode;
 
 	keycode = XKeysymToKeycode(display, sym);
-	debug("X11", "fake keycode %d (keysym 0x%04x)", keycode, (unsigned)sym);
 
 	if(!keycode) {
 		fprintf(stderr, "No keycode for %s, use xmodmap to define one.\n",
@@ -488,7 +479,6 @@ static void fake_button(unsigned int button)
 	int steps = ZAXIS_SCROLL_STEPS;
 
 	while(steps--) {
-		debug("X11", "fake button %d event", button);
 		XTestFakeButtonEvent(display, button, True,  CurrentTime);
 		XSync(display, False);
 		XTestFakeButtonEvent(display, button, False, CurrentTime);
@@ -519,7 +509,6 @@ static int brightness_init(void)
 		return -1;
 
 	for(o = 0; (err != 0) && (o < sr->noutput); o++) {	
-		debug("X11", "output prop? (%d/%d)", o, sr->noutput);
 		info = XRRQueryOutputProperty(display, sr->outputs[o], backlight);
 		if(info) {
 			if(info->range && info->num_values == 2) {
@@ -570,7 +559,7 @@ static long get_brightness(void)
 		XFree(prop);
 	}
 
-	debug("X11", "backlight_get: value=%ld", value);
+	debug("X11", "backlight value: %ld", value);
 	return value;
 }
 
@@ -785,8 +774,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 			brightness_up();
 #endif
 
-	} else
-		debug("X11", "WOW, what a key!?");
+	}
 }
 
 static void handle_xinput_event(unsigned int keycode, unsigned int state, int pressed)
@@ -839,8 +827,7 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 			key_alt = 0;
 		}
 
-	} else
-		debug("X11", "WOW, what a key!?");
+	}
 }
 
 int main(int argc, char **argv)
@@ -937,11 +924,6 @@ int main(int argc, char **argv)
 				x11_ungrab_scrollkeys();
 			}
 		}
-#endif
-
-#ifdef DEBUG
-		//debug("MAIN", "time = %lu, timeout = %d", current_time, 100);
-		//usleep(100000);
 #endif
 	}
 

@@ -72,7 +72,6 @@ static char* find_script(const char *name)
 			sprintf(path, "%s/." PACKAGE "/%s", homedir, name);
 
 			error = stat(path, &s);
-			debug("%s: %d", path, error);
 			if((!error) &&
 			   (((s.st_mode & S_IFMT) == S_IFREG) ||
 			    ((s.st_mode & S_IFMT) == S_IFLNK)))
@@ -87,7 +86,6 @@ static char* find_script(const char *name)
 		sprintf(path, "%s/%s", SCRIPTDIR, name);
 
 		error = stat(path, &s);
-		debug("%s: %d", path, error);
 		if((!error) &&
 		   (((s.st_mode & S_IFMT) == S_IFREG) ||
 		    ((s.st_mode & S_IFMT) == S_IFLNK)))
@@ -110,7 +108,7 @@ static int run_script(const char *name)
 
 	error = system(path) << 8;
 	free(path);
-	debug("returncode: %d", error);
+	debug("%s returns %d", path, error);
 
 	return error;
 }
@@ -296,8 +294,6 @@ static Rotation get_tablet_orientation(LibHalContext *hal, char *udi, int mode)
 	int orientation_id;
 	DBusError dbus_error;
 
-	debug("get_tablet_orientation: mode=%d", mode);
-
 	dbus_error_init(&dbus_error);
 
 	snprintf(propname, 39, "tablet_panel.orientation.%s",
@@ -310,7 +306,8 @@ static Rotation get_tablet_orientation(LibHalContext *hal, char *udi, int mode)
 		return -1;
 	}
 
-	debug("get_tablet_orientation: orientation=%s", orientation);
+	debug("hal saith, orientation for %s mode should be %s",
+		(mode ? "tablet" : "normal"), orientation);
 
 	if((orientation[0] == 'n') || (orientation[0] == 'N')) {
 		orientation_id = RR_Rotate_0;
@@ -325,7 +322,6 @@ static Rotation get_tablet_orientation(LibHalContext *hal, char *udi, int mode)
 	
 	libhal_free_string(orientation);
 
-	debug("get_tablet_orientation: id=%d", orientation_id);
 	return orientation_id;	
 }
 
@@ -343,7 +339,6 @@ static int handle_display_rotation(Display *display, Rotation rr)
 		return -1;
 
 	sz = XRRConfigCurrentConfiguration(sc, &cr);
-	debug("current rotation: %d", cr);
 
 	if(rr != cr & 0xf) {
 		error = run_script((rr & RR_Rotate_0)
@@ -408,7 +403,6 @@ static int handle_rotation(Display *display, LibHalContext *hal, char *udi, int 
 	rr = (udi) ? get_tablet_orientation(hal, udi, mode) : 0;
 	if(!rr)
 		rr = (mode == 0) ? RR_Rotate_0 : RR_Rotate_270;
-	debug(" target rotation: %d", rr);
 
 	return handle_display_rotation(display, rr);
 }
