@@ -1,0 +1,14 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=fscd
+Comment=Tablet PC helper
+Icon=exec
+Exec=@bindir@/fscrotd
+TryExec=@bindir@/fscrotd
+Terminal=false
+Type=Application
+Categories=
+NotShowIn=
+X-KDE-StartupNotify=false
+X-KDE-autostart-after=panel
+X-GNOME-Autostart-enabled=true
