@@ -26,4 +26,4 @@ endif
 
 endif
 
-EXTRA_DIST = fscd.h gui.h Xwacom.h
+EXTRA_DIST = fscd.h gui.h
