@@ -30,10 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <signal.h>
-#include <errno.h>
 #include <time.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <X11/Xlib.h>
@@ -832,12 +829,6 @@ int main(int argc, char **argv)
 	static struct timeval tv;
 	fd_set in;
 	int error, xfh;
-
-	if((geteuid() == 0) && (getuid() > 0)) {
-		fprintf(stderr, " *** suid is no longer needed ***\n");
-		sleep(5);
-		seteuid(getuid());
-	}
 
 #ifdef ENABLE_NLS
 #ifndef DEBUG

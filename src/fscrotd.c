@@ -26,14 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
-#include <signal.h>
-#include <errno.h>
-#include <time.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 #include <dbus/dbus.h>
@@ -413,12 +407,6 @@ int main(int argc, char **argv)
 	LibHalContext *hal;
 	char *udi_switch, *udi_panel;
 	int error;
-
-	if((geteuid() == 0) && (getuid() > 0)) {
-		fprintf(stderr, " *** suid is no longer needed ***\n");
-		sleep(5);
-		seteuid(getuid());
-	}
 
 	hal = hal_init();
 	if(!hal) {
