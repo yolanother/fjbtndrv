@@ -23,7 +23,7 @@
 
 #ifdef ENABLE_WACOM
 
-#include "fscd-wacom.h"
+#include "wacom.h"
 
 #ifdef HAVE_WACOMCFG_H
 #include <wacomcfg.h>

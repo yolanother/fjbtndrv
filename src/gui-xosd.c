@@ -22,8 +22,8 @@
 
 /******************************************************************************/
 
-#include "fscd-base.h"
-#include "fscd-gui.h"
+#include "fscd.h"
+#include "gui.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <xosd.h>

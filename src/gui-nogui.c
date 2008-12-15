@@ -17,8 +17,8 @@
  */
 /******************************************************************************/
 
-#include "fscd-base.h"
-#include "fscd-gui.h"
+#include "fscd.h"
+#include "gui.h"
 
 int gui_init(Display *display)
 { return 0; }

@@ -21,9 +21,9 @@
 #  include "../config.h"
 #endif
 
-#include "fscd-base.h"
-#include "fscd-wacom.h"
-#include "fscd-gui.h"
+#include "fscd.h"
+#include "wacom.h"
+#include "gui.h"
 
 #include <stdio.h>
 #include <stdlib.h>
