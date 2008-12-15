@@ -213,10 +213,20 @@ int x11_open_input_device(void)
 		return -1;
 	}
 
-	error = XGrabDevice(display, idevice, XDefaultRootWindow(display), False,
-			2, xeclass, GrabModeAsync, GrabModeAsync, CurrentTime);
+	error = XGrabDeviceKey(display, idevice, 37, 0, NULL,
+			XDefaultRootWindow(display), False,
+			2, xeclass, GrabModeAsync, GrabModeAsync);
 	if(error) {
-		fprintf(stderr, "XGrabDevice failed.\n");
+		fprintf(stderr, "XGrabDeviceKey Control failed.\n");
+		XCloseDevice(display, idevice);
+		return -1;
+	}
+
+	error = XGrabDeviceKey(display, idevice, 64, 0, NULL,
+			XDefaultRootWindow(display), False,
+			2, xeclass, GrabModeAsync, GrabModeAsync);
+	if(error) {
+		fprintf(stderr, "XGrabDeviceKey Alt failed.\n");
 		XCloseDevice(display, idevice);
 		return -1;
 	}
@@ -693,57 +703,13 @@ static void toggle_dpms(void)
 }
 */
 
-static void handle_key_event(unsigned int keycode, unsigned int state, int pressed)
+static void handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
-	static int key_fn, key_alt;
-
-	debug("TRACE", "handle_key_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
-			key_fn, key_alt, mode_configure, mode_brightness);
+			mode_configure, mode_brightness);
 
-	if(keycode == 37) { // FN (Control)
-		debug("XI", "Control %s", (pressed ? "pressed" : "released"));
-
-		if(pressed) {
-			if(key_alt) {
-				gui_info("configuration...");
-				mode_configure = current_time + (2 * STICKY_TIMEOUT);
-				mode_brightness = 0;
-				x11_grab_scrollkeys();
-			} else
-				gui_info("FN...");
-
-			key_fn = current_time;
-		} else {
-			if(!mode_configure && !mode_brightness)
-				gui_hide();
-			key_fn = 0;
-		}
-
-	} else if(keycode == 64) { // Alt
-		debug("XI", "Alt %s", (pressed ? "pressed" : "released"));
-
-		if(pressed) {
-#ifdef BRIGHTNESS_CONTROL
-			if(key_fn) {
-				brightness_show();
-				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
-				mode_configure = 0;
-				x11_grab_scrollkeys();
-			} else
-#endif
-				gui_info("Alt...");
-
-			key_alt = current_time;
-		} else {
-			if(!mode_configure && !mode_brightness)
-				gui_hide();
-			if(key_alt + 3000 < current_time)
-				fake_key(XF86XK_Standby);
-			key_alt = 0;
-		}
-
-	} else if(keycode == keymap[KEYMAP_SCROLLDOWN].code) {
+	if(keycode == keymap[KEYMAP_SCROLLDOWN].code) {
 		if(pressed)
 			;
 
@@ -810,6 +776,59 @@ static void handle_key_event(unsigned int keycode, unsigned int state, int press
 		if(!pressed)
 			brightness_up();
 #endif
+
+	}
+}
+
+static void handle_xinput_event(unsigned int keycode, unsigned int state, int pressed)
+{
+	static int key_fn, key_alt;
+
+	debug("TRACE", "handle_xinput_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+			current_time, keycode, state, (pressed ? "pressed" : "released"),
+			key_fn, key_alt, mode_configure, mode_brightness);
+
+	if(keycode == 37) { // FN (Control)
+		debug("XI", "Control %s", (pressed ? "pressed" : "released"));
+
+		if(pressed) {
+			if(key_alt) {
+				gui_info("configuration...");
+				mode_configure = current_time + (2 * STICKY_TIMEOUT);
+				mode_brightness = 0;
+				x11_grab_scrollkeys();
+			} else
+				gui_info("FN...");
+
+			key_fn = current_time;
+		} else {
+			if(!mode_configure && !mode_brightness)
+				gui_hide();
+			key_fn = 0;
+		}
+
+	} else if(keycode == 64) { // Alt
+		debug("XI", "Alt %s", (pressed ? "pressed" : "released"));
+
+		if(pressed) {
+#ifdef BRIGHTNESS_CONTROL
+			if(key_fn) {
+				brightness_show();
+				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
+				mode_configure = 0;
+				x11_grab_scrollkeys();
+			} else
+#endif
+				gui_info("Alt...");
+
+			key_alt = current_time;
+		} else {
+			if(!mode_configure && !mode_brightness)
+				gui_hide();
+			if(key_alt + 3000 < current_time)
+				fake_key(XF86XK_Standby);
+			key_alt = 0;
+		}
 
 	}
 }
@@ -885,12 +904,18 @@ int main(int argc, char **argv)
 
 			XNextEvent(display, &xevent);
 
-			if(xevent.type == xi_keypress) {
+			if(xevent.type == KeyPress) {
+				XKeyEvent *e = (XKeyEvent*) &xevent;
+				handle_x11_event(e->keycode, e->state, 1);
+			} else if(xevent.type == KeyRelease) {
+				XKeyEvent *e = (XKeyEvent*) &xevent;
+				handle_x11_event(e->keycode, e->state, 0);
+			} else if(xevent.type == xi_keypress) {
 				XDeviceKeyPressedEvent *e = (XDeviceKeyPressedEvent*) &xevent;
-				handle_key_event(e->keycode, e->state, 1);
+				handle_xinput_event(e->keycode, e->state, 1);
 			} else if(xevent.type == xi_keyrelease) {
 				XDeviceKeyReleasedEvent *e = (XDeviceKeyReleasedEvent*) &xevent;
-				handle_key_event(e->keycode, e->state, 0);
+				handle_xinput_event(e->keycode, e->state, 0);
 			}
 
 			XSync(display, False);
