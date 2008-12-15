@@ -51,7 +51,7 @@ void debug(const char *format, ...)
 #define HAL_SIGNAL_FILTER "type='signal', sender='org.freedesktop.Hal', interface='org.freedesktop.Hal.Device', member='PropertyModified', path='%s'"
 
 
-static keep_running = 1;
+static int keep_running = 1;
 
 static char* find_script(const char *name)
 {
@@ -180,7 +180,6 @@ static char* hal_find_switch(LibHalContext *hal)
 	char **devices;
 	int n;
 	DBusError dbus_error;
-	DBusConnection *dbus = libhal_ctx_get_dbus_connection(hal);
 
 	dbus_error_init(&dbus_error);
 
@@ -319,7 +318,7 @@ static Rotation get_tablet_orientation(LibHalContext *hal, char *udi, int mode)
 	return orientation_id;	
 }
 
-static int handle_display_rotation(Display *display, Rotation rr)
+static void handle_display_rotation(Display *display, Rotation rr)
 {
 	Window rw;
 	XRRScreenConfiguration *sc;
@@ -329,12 +328,11 @@ static int handle_display_rotation(Display *display, Rotation rr)
 
 	rw = DefaultRootWindow(display);
 	sc = XRRGetScreenInfo(display, rw);
-	if(!sc)
-		return -1;
+	if(!sc) return;
 
 	sz = XRRConfigCurrentConfiguration(sc, &cr);
 
-	if(rr != cr & 0xf) {
+	if(rr != (cr & 0xf)) {
 		error = run_script((rr & RR_Rotate_0)
 				? "pre-rotate-normal"
 				: "pre-rotate-tablet");
@@ -385,20 +383,20 @@ static int rotation_locked(void)
 	return (error == 0);
 }
 
-static int handle_rotation(Display *display, LibHalContext *hal, char *udi, int mode)
+static void handle_rotation(Display *display, LibHalContext *hal, char *udi, int mode)
 {
 	Rotation rr;
 
 	if(rotation_locked()) {
 		debug("LOCKED");
-		return 0;
+		return;
 	}
 
 	rr = (udi) ? get_tablet_orientation(hal, udi, mode) : 0;
 	if(!rr)
 		rr = (mode == 0) ? RR_Rotate_0 : RR_Rotate_270;
 
-	return handle_display_rotation(display, rr);
+	handle_display_rotation(display, rr);
 }
 
 int main(int argc, char **argv)
@@ -455,7 +453,7 @@ int main(int argc, char **argv)
 
 		dbus_connection_read_write(dbus, -1);
 
-		while(msg = dbus_connection_pop_message(dbus)) {
+		while((msg = dbus_connection_pop_message(dbus))) {
 			if(dbus_message_is_signal(msg, "org.freedesktop.Hal.Device", "PropertyModified") &&
 			   dbus_message_has_path(msg, udi_switch))
 				handle_rotation(display, hal, udi_panel,
