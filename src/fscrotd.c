@@ -336,8 +336,8 @@ static int handle_display_rotation(Display *display, Rotation rr)
 
 	if(rr != cr & 0xf) {
 		error = run_script((rr & RR_Rotate_0)
-				? "fscd-pre-rotate-normal"
-				: "fscd-pre-rotate-tablet");
+				? "pre-rotate-normal"
+				: "pre-rotate-tablet");
 		if(error)
 			goto err;
 
@@ -352,8 +352,8 @@ static int handle_display_rotation(Display *display, Rotation rr)
 #endif
 	
 		error = run_script((rr & RR_Rotate_0)
-				? "fscd-rotate-normal"
-				: "fscd-rotate-tablet");
+				? "rotate-normal"
+				: "rotate-tablet");
 		if(error)
 			goto err;
 
