@@ -1,4 +1,4 @@
-AC_INIT(fscd, svn, [http://fjbtndrv.sourceforge.net])
+AC_INIT(fjbtndrv, svn, [http://fjbtndrv.sourceforge.net])
 AC_PREREQ([2.57])
 AM_INIT_AUTOMAKE([gnu 1.9])
 
@@ -9,6 +9,7 @@ AC_SUBST(CPPFLAGS)
 AC_PROG_CC
 AM_PROG_CC_STDC
 AC_PROG_CPP
+AC_PROG_CXX
 AC_GNU_SOURCE
 AC_PROG_INSTALL
 
@@ -110,9 +111,9 @@ AM_CONDITIONAL(BUILD_FSCD, [test x$enable_fscd = xyes])
 
 AC_ARG_WITH(script-dir,
   AS_HELP_STRING([--with-script-dir=dir],
-                 [location of the helper scripts (Default: LIBDIR/fscd)]),
+                 [location of the helper scripts (Default: LIBDIR/fjbtndrv)]),
   scriptdir="$withval",
-  scriptdir="${libdir}/fscd")
+  scriptdir="${libdir}/fjbtndrv")
 AC_SUBST(scriptdir)
 
 AC_ARG_WITH(repeat-rate,
@@ -195,5 +196,5 @@ echo "
         autorepeat:     ${repeat_rate} chars/s after a ${repeat_delay}ms delay
         sticky keys:    ${sticky_timeout}ms
 
-  Type 'make' to build and then 'sudo make install' to install fscd.
+  Type 'make' to build and then 'sudo make install' to install fjbtndrv tools.
 "
