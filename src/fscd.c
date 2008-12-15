@@ -58,12 +58,6 @@
 #  endif
 #endif
 
-static struct {
-	ScrollMode scrollmode;
-} settings = {
-	.scrollmode = SM_KEY_PAGE,
-};
-
 static keymap_entry keymap[] = {
 #define KEYMAP_SCROLLDOWN 0
 	{ .code = 186, .name = "XF86ScrollDown" },
@@ -87,6 +81,8 @@ static keymap_entry keymap[] = {
 
 	{ .code = 0 }
 };
+
+ScrollMode scrollmode = SM_KEY_PAGE;
 
 static unsigned keep_running = 1;
 static clock_t  current_time;
@@ -619,7 +615,7 @@ static void brightness_up(void)
 
 static void scrollmode_set(ScrollMode mode)
 {
-	settings.scrollmode = mode;
+	scrollmode = mode;
 
 	switch(mode) {
 		case SM_ZAXIS:
@@ -647,12 +643,12 @@ static void scrollmode_set(ScrollMode mode)
 
 static void scrollmode_next(void)
 {
-	scrollmode_set((settings.scrollmode+1) % SM_KEY_MAX);
+	scrollmode_set((scrollmode+1) % SM_KEY_MAX);
 }
 
 static void scrollmode_prev(void)
 {
-	scrollmode_set(settings.scrollmode? settings.scrollmode-1 : SM_KEY_MAX-1);
+	scrollmode_set(scrollmode? scrollmode-1 : SM_KEY_MAX-1);
 }
 
 static void toggle_lock_rotate(void)
@@ -722,7 +718,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 		}
 #endif
 
-		else if(settings.scrollmode == SM_ZAXIS)
+		else if(scrollmode == SM_ZAXIS)
 			fake_button(5);
 
 	} else if(keycode == keymap[KEYMAP_SCROLLUP].code) {
@@ -741,7 +737,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 		}
 #endif
 
-		else if(settings.scrollmode == SM_ZAXIS)
+		else if(scrollmode == SM_ZAXIS)
 			fake_button(4);
 
 	} else if(keycode == keymap[KEYMAP_ROTATEWINDOWS].code) {
@@ -928,7 +924,7 @@ int main(int argc, char **argv)
 			if(mode_configure < current_time) {
 				mode_configure = 0;
 				gui_hide();
-				if(settings.scrollmode != SM_ZAXIS)
+				if(scrollmode != SM_ZAXIS)
 					x11_ungrab_scrollkeys();
 			}
 		}
