@@ -92,6 +92,7 @@ fi
 if test x$enable_xosd = xyes; then
   AC_DEFINE(ENABLE_XOSD, [], [enable osd support])
 fi
+AM_CONDITIONAL(HAVE_XOSD, [test x$enable_xosd = xyes])
 
 AC_ARG_ENABLE([debug],
   AS_HELP_STRING([--enable-debug],
@@ -100,6 +101,12 @@ AC_ARG_ENABLE([debug],
 if test x$enable_debug = xyes; then
   AC_DEFINE(DEBUG, [], [debug output])
 fi
+
+AC_ARG_ENABLE([fscd],
+  AS_HELP_STRING([--disable-fscd],
+    [Don't build and install fscd, but fscrotd (Default: enabled)]),
+  [enable_fscd=$enableval], [enable_fscd=yes])
+AM_CONDITIONAL(BUILD_FSCD, [test x$enable_fscd = xyes])
 
 AC_ARG_WITH(script-dir,
   AS_HELP_STRING([--with-script-dir=dir],
@@ -156,8 +163,6 @@ if test x$enable_brightness_keys = xyes; then
 fi
 
 AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop &>/dev/null])
-
-AM_CONDITIONAL(BUILD_XFSCD, [test x$enable_xosd = xyes])
 
 AC_CONFIG_FILES([
   Makefile

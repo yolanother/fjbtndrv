@@ -16,12 +16,15 @@ endif
 
 XDG_CONFIG_HOME ?= /etc/xdg
 xdgautostartdir = $(XDG_CONFIG_HOME)/autostart
-dist_xdgautostart_DATA = fscd.desktop
+dist_xdgautostart_DATA = fscrotd.desktop
+if BUILD_FSCD
+dist_xdgautostart_DATA += fscd.desktop
+endif
 
 fscdscriptsdir = @scriptdir@
 dist_fscdscripts_SCRIPTS = fscd-rotate.sample
 
-EXTRA_DIST = fscd.desktop.in
+EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in
 
 %: %.in Makefile
 	sed -e 's|@bindir[@]|$(bindir)|g' $< >$@
