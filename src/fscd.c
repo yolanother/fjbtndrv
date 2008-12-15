@@ -832,7 +832,10 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 
 int main(int argc, char **argv)
 {
-	int error;
+	Display *display;
+	static struct timeval tv;
+	fd_set in;
+	int error, xfh;
 
 	if((geteuid() == 0) && (getuid() > 0)) {
 		fprintf(stderr, " *** suid is no longer needed ***\n");
@@ -850,11 +853,13 @@ int main(int argc, char **argv)
 
 	init_private_dir();
 
-	Display *display = x11_init();
+	display = x11_init();
 	if(!display) {
 		fprintf(stderr, "x11 initalisation failed\n");
 		exit(1);
 	}
+
+	xfh = XConnectionNumber(display);
 
 #ifdef BRIGHTNESS_CONTROL
 	error = brightness_init();
@@ -882,15 +887,26 @@ int main(int argc, char **argv)
 	x11_fix_keymap();
 
 	while(keep_running) {
-		static struct timeval tv;
+		if(mode_brightness || mode_configure) {
+			clock_t t = (mode_brightness + mode_configure) - current_time + 100;
+			tv.tv_sec  = (t / 1000);
+			tv.tv_usec = (t % 1000) * 1000;
+			debug("MAIN", "block for %d.%d seconds...", tv.tv_sec, tv.tv_usec);
+		} else
+			tv.tv_sec = tv.tv_usec = 1000000;
+			
+		FD_ZERO(&in);
+		FD_SET(xfh, &in);
+		select(xfh+1, &in, NULL, NULL, &tv);
 
 		gettimeofday(&tv, NULL);
-		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000); //msec
+		current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 
 		while(keep_running && XPending(display)) {
 			static XEvent xevent;
 
 			XNextEvent(display, &xevent);
+
 			if(xevent.type == KeyPress) {
 				XKeyEvent *e = (XKeyEvent*) &xevent;
 				handle_x11_event(e->keycode, e->state, 1);
