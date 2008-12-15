@@ -65,22 +65,6 @@ xosd *osd_new(int lines)
 	return osd;
 }
 
-/*
-#define osd_hide() osd_exit()
-#define osd_timeout(s) xosd_set_timeout(osd, s)
-
-#define osd_info(format, a...) do {			\
-	xosd *osd = osd_new(1);				\
-	xosd_display(osd, 0, XOSD_printf, format, ##a); \
-} while(0)
-
-#define osd_slider(percent, format, a...) do {	\
-	xosd *osd = osd_new(2);				\
-	xosd_display(osd, 0, XOSD_printf, format, ##a);	\
-	xosd_display(osd, 1, XOSD_slider, percent);	\
-} while(0)
-*/
-
 int gui_init(Display *display)
 {
 	return 0;
@@ -128,6 +112,6 @@ void gui_brightness_show(int percent)
 	osd = osd_new(2);
 	xosd_display(osd, 0, XOSD_printf, "%s", _("Brightness"));
 	xosd_display(osd, 1, XOSD_slider, percent);
-	xosd_set_timeout(osd, 2);
+	xosd_set_timeout(osd, -1);
 }
 
