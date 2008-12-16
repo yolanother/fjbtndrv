@@ -493,6 +493,7 @@ static void fake_button(unsigned int button)
 //{{{ Brightness stuff
 #include <X11/Xatom.h>
 #ifdef BRIGHTNESS_CONTROL
+XRRScreenResources *screen_resources;
 static Atom backlight;
 static int brightness_output = -1;
 static long brightness_offset, brightness_max;
@@ -507,12 +508,15 @@ static int brightness_init(void)
 	if(backlight == None)
 		return -1;
 
-	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
-	if(!sr)
+	if(screen_resources)
+		XRRFreeScreenResources(screen_resources);
+
+	screen_resources = XRRGetScreenResources(display, root);
+	if(!screen_resources)
 		return -1;
 
-	for(o = 0; (err != 0) && (o < sr->noutput); o++) {	
-		info = XRRQueryOutputProperty(display, sr->outputs[o], backlight);
+	for(o = 0; (err != 0) && (o < screen_resources->noutput); o++) {	
+		info = XRRQueryOutputProperty(display, screen_resources->outputs[o], backlight);
 		if(info) {
 			if(info->range && info->num_values == 2) {
 				brightness_output = o;
@@ -526,12 +530,13 @@ static int brightness_init(void)
 		}
 	}
 
-	XRRFreeScreenResources(sr);
 	return err;
 }
 
 static void brightness_exit(void)
 {
+	if(screen_resources)
+		XRRFreeScreenResources(screen_resources);
 }
 
 static long get_brightness(void)
@@ -539,21 +544,28 @@ static long get_brightness(void)
 	unsigned long   items, ba;
 	unsigned char   *prop;
 	Atom		type;
-	int		format;
+	int		i, err, format;
 	long		value = -1;
+
+	if(!screen_resources)
+		return -1;
 
 	if(brightness_output < 0)
 		return -1;
 
-	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
-	if(!sr)
-		return -1;
-	
-	int err = XRRGetOutputProperty(display, sr->outputs[brightness_output], backlight,
-			0, 4, False, False, None, &type, &format,
-			&items, &ba, &prop);
+	i = 1;
+	while(1) {
+		err = XRRGetOutputProperty(display,
+				screen_resources->outputs[brightness_output],
+				backlight, 0, 4, False, False, None,
+				&type, &format, &items, &ba, &prop);
 
-	XRRFreeScreenResources(sr);
+		if((!i) || (err == Success))
+			break;
+
+		brightness_init();
+		i--;
+	}
 
 	if(err == Success && prop) {
 		if (type == XA_INTEGER || format == 32 || items == 1)
@@ -568,20 +580,18 @@ static long get_brightness(void)
 
 static void set_brightness(long value)
 {
-	if(brightness_output < 0)
+	if(!screen_resources)
 		return;
 
-	XRRScreenResources *sr = XRRGetScreenResources(display, XDefaultRootWindow(display));
-	if(!sr)
+	if(brightness_output < 0)
 		return;
 
 	value += brightness_offset;
 
-	XRRChangeOutputProperty(display, sr->outputs[brightness_output], backlight,
-			XA_INTEGER, 32, PropModeReplace,
+	XRRChangeOutputProperty(display,
+			screen_resources->outputs[brightness_output],
+			backlight, XA_INTEGER, 32, PropModeReplace,
 			(unsigned char*) &value, 1);
-
-	XRRFreeScreenResources(sr);
 }
 
 
