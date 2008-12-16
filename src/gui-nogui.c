@@ -37,7 +37,7 @@ void screen_rotated(void)
 	debug("TRACE", "screen rotated");
 }
 
-void gui_brightness_show(int percent)
+void gui_brightness_show(int percent, int timeout)
 {
 	debug("TRACE", "brightness_show");
 }

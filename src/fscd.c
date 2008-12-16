@@ -595,10 +595,11 @@ static void set_brightness(long value)
 }
 
 
-static void brightness_show()
+static void brightness_show(int timeout)
 {
 	long current = get_brightness();
-	gui_brightness_show(current < 0 ? 0 : current * 100 / brightness_max);
+	if(current >= 0)
+		gui_brightness_show(current * 100 / brightness_max, timeout);
 }
 
 static void brightness_down(void)
@@ -611,7 +612,6 @@ static void brightness_down(void)
 		current--;
 
 	set_brightness(current);
-	gui_brightness_show(current * 100 / brightness_max);
 }
 
 static void brightness_up(void)
@@ -624,7 +624,6 @@ static void brightness_up(void)
 		current++;
 
 	set_brightness(current);
-	gui_brightness_show(current * 100 / brightness_max);
 }
 
 #endif
@@ -732,6 +731,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 		else if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_down();
+			brightness_show(-1);
 		}
 #endif
 
@@ -751,6 +751,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 		else if(mode_brightness) {
 			mode_brightness = current_time + STICKY_TIMEOUT;
 			brightness_up();
+			brightness_show(-1);
 		}
 #endif
 
@@ -779,12 +780,16 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 
 #ifdef BRIGHTNESS_CONTROL
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {
-		if(!pressed)
+		if(!pressed) {
 			brightness_down();
+			brightness_show(2);
+		}
 
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSUP].code) {
-		if(!pressed)
+		if(!pressed) {
 			brightness_up();
+			brightness_show(2);
+		}
 #endif
 
 	}
@@ -823,7 +828,7 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 		if(pressed) {
 #ifdef BRIGHTNESS_CONTROL
 			if(key_fn) {
-				brightness_show();
+				brightness_show(-1);
 				mode_brightness = current_time + (2 * STICKY_TIMEOUT);
 				mode_configure = 0;
 				x11_grab_scrollkeys();

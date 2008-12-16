@@ -28,6 +28,6 @@ void gui_hide(void);
 
 void screen_rotated(void);
 
-void gui_brightness_show(int percent);
+void gui_brightness_show(int percent, int timeout);
 
 #endif

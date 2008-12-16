@@ -105,13 +105,13 @@ void screen_rotated(void)
 	osd = NULL;
 }
 
-void gui_brightness_show(int percent)
+void gui_brightness_show(int percent, int timeout)
 {
 	debug("TRACE", "brightness_show");
 
 	osd = osd_new(2);
 	xosd_display(osd, 0, XOSD_printf, "%s", _("Brightness"));
 	xosd_display(osd, 1, XOSD_slider, percent);
-	xosd_set_timeout(osd, -1);
+	xosd_set_timeout(osd, timeout);
 }
 
