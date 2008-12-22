@@ -1,14 +1,13 @@
 # German translations for fscd package.
-# Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforce.net>
-# This file is distributed under the same license as the fscd package.
-# Robert Gerlach <khnz@users.sourceforge.net>, 2007.
+# Copyright (C) 2007-2008 Robert Gerlach <khnz@users.sourceforce.net>
+# This file is distributed under the same license as the fjbtndrv package.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: fscd 0.50\n"
+"Project-Id-Version: fjbtndrv 2.00\n"
 "Report-Msgid-Bugs-To: fjbtndrv-devel@lists.sourceforge.net\n"
 "POT-Creation-Date: 2008-12-15 04:59+0100\n"
-"PO-Revision-Date: 2007-11-26 20:50+0200\n"
+"PO-Revision-Date: 2008-12-15 04:59+0100\n"
 "Last-Translator: Robert Gerlach <khnz@users.sourceforge.net>\n"
 "Language-Team: German\n"
 "MIME-Version: 1.0\n"
