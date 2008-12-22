@@ -26,11 +26,11 @@ killbyname () {
 case "$mode" in
 
   tablet)
-		"$oskb_bin" &
+    "$oskb_bin" &
     ;;
 
   normal)
-		killbyname `basename "$oskb_bin"`
+    killbyname `basename "$oskb_bin"`
     ;;
 
 esac
