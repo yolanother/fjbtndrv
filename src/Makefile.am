@@ -1,4 +1,6 @@
+if BUILD_KERNEL_MODULE
 SUBDIRS = linux
+endif
 
 DEFS += -DLOCALEDIR=\"$(localedir)\" -DSCRIPTDIR=\"$(scriptdir)\"
 export DEFS
