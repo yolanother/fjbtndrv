@@ -26,6 +26,6 @@ else
 fscd_SOURCES += gui-nogui.c
 endif
 
-endif /* BUILD_FSCD */
+endif # BUILD_FSCD
 
 EXTRA_DIST = fscd.h gui.h
