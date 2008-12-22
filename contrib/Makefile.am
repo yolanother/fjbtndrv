@@ -13,7 +13,7 @@ dist_xdgautostart_DATA += fscd.desktop
 endif
 
 fscdscriptsdir = @scriptdir@
-dist_fscdscripts_SCRIPTS = fscd-rotate.sample
+dist_fscdscripts_SCRIPTS = rotate-script.sample
 
 EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in
 

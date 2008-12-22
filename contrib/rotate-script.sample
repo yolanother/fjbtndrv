@@ -1,6 +1,6 @@
 #!/bin/bash
 # Sample script for fscd.
-# Copy or link this script to fscd-rotate-normal and fscd-rotate-tablet.
+# Copy or link this script to rotate-normal and rotate-tablet.
 #
 # Copyright (C) 2007 Robert Gerlach <khnz@users.sourceforge.net>
 # 
