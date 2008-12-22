@@ -163,8 +163,6 @@ if test x$enable_brightness_keys = xyes; then
   AC_DEFINE(BRIGHTNESS_KEYS, [], [handle brightness up/down keys])
 fi
 
-AM_CONDITIONAL(HAVE_FUJITSU_LAPTOP_MODULE, [modinfo fujitsu-laptop &>/dev/null])
-
 AC_CONFIG_FILES([
   Makefile
   src/Makefile
