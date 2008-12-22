@@ -1,1 +1,0 @@
-KERNEL=="event[0-9]*", DRIVERS=="fsc_btns", ENV{ID_CLASS}="hotkey", GROUP="users", MODE="640"

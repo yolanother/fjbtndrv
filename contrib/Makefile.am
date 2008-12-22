@@ -1,6 +1,3 @@
-udevrulesdir = /etc/udev/rules.d
-dist_udevrules_DATA = 65-fsc_btns.rules
-
 fdidir = /usr/share/hal/fdi/information/20thirdparty
 dist_fdi_DATA = 30-orientations-fjbtndrv.fdi
 dist_fdi_DATA += 30-keymap-fjbtndrv.fdi
