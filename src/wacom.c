@@ -22,13 +22,13 @@
 
 #include "wacom.h"
 
+#include <string.h>
 #ifdef HAVE_WACOMCFG_H
 #include <wacomcfg.h>
 #endif
 #ifdef HAVE_WACOMCFG_WACOMCFG_H
 #include <wacomcfg/wacomcfg.h>
 #endif
-
 #include <Xwacom.h>
 #include <X11/extensions/Xrandr.h>
 
@@ -68,31 +68,31 @@ int wacom_init(Display *display)
 #ifdef ENABLE_DYNAMIC
 	struct wclib_t w;
 
-	w->hdnl = dlopen("libwacomcfg.so.0", RTLD_NOW);
-	if(!w->hdnl)
+	w.hdnl = dlopen("libwacomcfg.so.0", RTLD_NOW);
+	if(!w.hdnl)
 		return -1;
 
-	w->WacomConfigInit = dlsym(w->hdnl, "WacomConfigInit");
-	if(!w->WacomConfigInit)
+	w.WacomConfigInit = dlsym(w.hdnl, "WacomConfigInit");
+	if(!w.WacomConfigInit)
 		return -1;
 	
-	w->WacomConfigFree = dlsym(w->hdnl, "WacomConfigFree");
-	if(!w->WacomConfigFree)
+	w.WacomConfigFree = dlsym(w.hdnl, "WacomConfigFree");
+	if(!w.WacomConfigFree)
 		return -1;
 	
-	w->WacomConfigSetRawParam = dlsym(w->hdnl, "WacomConfigSetRawParam");
-	if(!w->WacomConfigSetRawParam)
+	w.WacomConfigSetRawParam = dlsym(w.hdnl, "WacomConfigSetRawParam");
+	if(!w.WacomConfigSetRawParam)
 		return -1;
 	
-	w->WacomConfigOpenDevice = dlsym(w->hdnl, "WacomConfigOpenDevice");
-	if(!w->WacomConfigOpenDevice)
+	w.WacomConfigOpenDevice = dlsym(w.hdnl, "WacomConfigOpenDevice");
+	if(!w.WacomConfigOpenDevice)
 		return -1;
 	
-	w->WacomConfigCloseDevice = dlsym(w->hdnl, "WacomConfigCloseDevice");
-	if(!w->WacomConfigCloseDevice)
+	w.WacomConfigCloseDevice = dlsym(w.hdnl, "WacomConfigCloseDevice");
+	if(!w.WacomConfigCloseDevice)
 		return -1;
 
-	memcpy(wclib, w, sizeof(wclib_t));
+	memcpy(&wclib, &w, sizeof(struct wclib_t));
 
 	debug("WACOM", "wacomcfg library loaded");
 #endif
@@ -110,8 +110,8 @@ void wacom_exit(void)
 		CALL(WacomConfigFree, wacom_config);
 
 #ifdef ENABLE_DYNAMIC
-	dlclose(wclib->hdnl);
-	wclib->hdnl = NULL;
+	dlclose(wclib.hdnl);
+	wclib.hdnl = NULL;
 #endif
 }
 
