@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+VERSION=`dpkg-query -W -f='${Version}' fsc-btns-kernel-source | cut -d'-' -f1 | cut -d':' -f2`
+
+#DEBHELPER#
+
+case "$1" in
+  configure)
+    dkms remove -m fsc_btns -v $VERSION --all 2>/dev/null || true
+    dkms add -m fsc_btns -v $VERSION
+    dkms build -m fsc_btns -v $VERSION
+    dkms install -m fsc_btns -v $VERSION --force
+    ;;
+esac
+
+

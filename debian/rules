@@ -6,189 +6,76 @@
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-
 CFLAGS = -Wall -g
-
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
 	CFLAGS += -O2
 endif
 
-ifeq ($(shell lsb_release --short --id),Ubuntu)
-	INSTALL_MOD_DIR := ubuntu/misc
-else
-	INSTALL_MOD_DIR := extra
-endif
 
-################################################################################
-
-k = $(shell echo $(KVERS) | grep -q ^2.6 && echo k)
-
-# Name of the source package
-psource:=fsc-btns-source
-
-# The short upstream name, used for the module source directory
-sname:=fsc-btns
-
-# prefix of the target package name
-PACKAGE=fsc-btns-modules
-# modifieable for experiments or debugging m-a
-MA_DIR ?= /usr/share/modass
-# load generic variable handling
--include $(MA_DIR)/include/generic.make
-# load default rules, including kdist, kdist_image, ...
--include $(MA_DIR)/include/common-rules.make
-  
-# module assistant calculates all needed things for us and sets
-# following variables:
-# KSRC (kernel source directory), KVERS (kernel version string), KDREV
-# (revision of the Debian kernel-image package), CC (the correct
-# compiler), VERSION (the final package version string), PKGNAME (full
-# package name with KVERS included), DEB_DESTDIR (path to store DEBs)
-  
-# The kdist_config target is called by make-kpkg modules_config and
-# by kdist* rules by dependency. It should configure the module so it is
-# ready for compilation (mostly useful for calling configure).
-# prep-deb-files from module-assistant creates the neccessary debian/ files 
-kdist_config: prep-deb-files
-  
-# the kdist_clean target is called by make-kpkg modules_clean and from
-# kdist* rules. It is responsible for cleaning up any changes that have
-# been made by the other kdist_commands (except for the .deb files created)
-kdist_clean:
-	$(MAKE) -C $(KSRC) M=$(PWD) clean
-	rm -f *.ko Module.symvers
-
-# the binary-modules rule is invoked by module-assistant while processing the
-# kdist* targets. It is called by module-assistant or make-kpkg and *not*
-# during a normal build
-binary-modules:
-	dh_testroot
-	dh_clean -k
-	dh_installdirs lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
-
-	$(MAKE) -C $(KSRC) M=$(PWD) modules EXTRA_CFLAGS="$(EXTRA_CFLAGS)"
-
-	mkdir -p debian/$(PKGNAME)/lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
-	cp fsc_btns.$ko debian/$(PKGNAME)/lib/modules/$(KVERS)/$(INSTALL_MOD_DIR)
-
-	dh_installdocs
-	dh_installchangelogs
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_gencontrol -- -v$(VERSION)
-	dh_md5sums
-	dh_builddeb --destdir=$(DEB_DESTDIR)
-	dh_clean -k
-
-
-################################################################################
-
-CONFIGURE_FLAGS := --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --with-script-dir=/usr/lib/fscd --enable-dynamic --enable-xosd --enable-wacom
+VERSION := $(shell dpkg-parsechangelog | egrep '^Version:' | cut -d' ' -f2 | cut -d'-' -f1 | cut -d':' -f2 )
 
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
+	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
+		--prefix=/usr \
+		--disable-kernel-module \
+		--enable-dynamic \
+		--enable-xosd \
+		--enable-wacom \
+		CFLAGS="$(CFLAGS)" \
+		LDFLAGS="-L$(CURDIR)/debian/wacomcfg -Wl,-z,defs" \
+		CPPFLAGS="$(CPPFLAGS) -I$(CURDIR)/debian/wacomcfg"
 	touch configure-stamp
 
-config.status: configure
-	dh_testdir
-ifneq "$(wildcard /usr/share/misc/config.sub)" ""
-	cp -f /usr/share/misc/config.sub config.sub
-endif
-ifneq "$(wildcard /usr/share/misc/config.guess)" ""
-	cp -f /usr/share/misc/config.guess config.guess
-endif
-	# don't build the kernel modules with make
-	sed -i '/^SUBDIRS =/ s/linux//' src/Makefile.in
-	#
-	mkdir -p obj-fscd
-	@cd obj-fscd && ../configure $(CONFIGURE_FLAGS) CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
-	rm -f config.h
-	#
-	mkdir -p obj-fscd-gnome
-	@cd obj-fscd-gnome && ../configure $(CONFIGURE_FLAGS) --disable-brightness-keys CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs" CPPFLAGS="-I$(CURDIR)/debian"
-
-
 build: build-stamp
-build-stamp:  config.status
+build-stamp: configure-stamp
 	dh_testdir
-	@for pkg in fscd fscd-gnome; do \
-		cd $(CURDIR)/obj-$$pkg; \
-		$(MAKE); \
-	 done
-	#docbook-to-man debian/fscd.sgml > fscd.1
+	$(MAKE)
 	touch $@
 
 clean:
 	dh_testdir
 	dh_testroot
-	rm -fr obj-*
-	rm -f build-stamp 
-	rm -f config.sub config.guess config.h
-	rm -f src/linux/Module.symvers
+	-$(MAKE) distclean
+	rm -f build-stamp configure-stamp
 	dh_clean 
 
-install: DH_OPTIONS=
+install: d=$(CURDIR)/debian/tmp
 install: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k 
-	dh_installdirs
-	# copy kernel modules
-	dh_installdirs -p$(psource) usr/src/modules/$(sname)/debian
-	cp src/linux/fsc_btns.c src/linux/Makefile obj-fscd/config.h debian/$(psource)/usr/src/modules/$(sname)
-	sed -i 's/".*config.h"/"config.h"/' debian/$(psource)/usr/src/modules/$(sname)/fsc_btns.c
-	cp debian/control debian/compat debian/rules debian/changelog debian/copyright \
-		debian/$(psource)/usr/src/modules/$(sname)/debian
-	cp debian/*_KVERS_* debian/$(psource)/usr/src/modules/$(sname)/debian
-	cp debian/*.modules.in debian/$(psource)/usr/src/modules/$(sname)/debian
-	cd debian/$(psource)/usr/src && tar c modules | bzip2 -9 > $(sname).tar.bz2 && rm -rf modules
-	# disable installation of the kernel module and install
-	@test -f src/linux/Makefile.dh || sed -i.dh 's/^install:.*/install-disabled:/' src/linux/Makefile
-	@for pkg in fscd fscd-gnome; do \
-		cd $(CURDIR)/obj-$$pkg; \
-		$(MAKE) DESTDIR=$(CURDIR)/debian/$$pkg install; \
-	 done
-	#
-	mv src/linux/Makefile.dh src/linux/Makefile
-	#
-	dh_install
+	$(MAKE) DESTDIR=$(d) install
 
+install-kernel-source: d=$(CURDIR)/debian/tmp/usr/src/fsc_btns-$(VERSION)
+install-kernel-source: configure-stamp
+	install --mode=755 -d $(d)
+	install --mode=644 src/linux/fsc_btns.c $(d)
+	install --mode=644 src/linux/Makefile $(d)
+	$(MAKE) -C contrib dkms.conf
+	install --mode=644 contrib/dkms.conf $(d)
 
-binary-indep: build install
+binary-arch: build install install-kernel-source
+	dh_testdir -a
+	dh_testroot -a
+	dh_installchangelogs -a ChangeLog
+	dh_installdocs -a
+#	dh_installexamples -a
+	dh_install -a --sourcedir=$(CURDIR)/debian/tmp
+#	dh_installman -a
+	dh_link -a
+	dh_strip -a
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -a
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
 
-binary-arch: build install
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs ChangeLog
-	dh_installdocs
-	dh_installexamples
-#	dh_install
-#	dh_installmenu
-#	dh_installdebconf	
-#	dh_installlogrotate
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installmime
-#	dh_python
-#	dh_installinit
-#	dh_installcron
-#	dh_installinfo
-	dh_installman
-	dh_link
-	dh_strip
-	dh_compress
-	dh_fixperms
-#	dh_perl
-#	dh_makeshlibs
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
-
-binary: binary-indep binary-arch
+binary: binary-arch
 .PHONY: build clean binary-indep binary-arch binary install 

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+VERSION=`dpkg-query -W -f='${Version}' fsc-btns-kernel-source | cut -d'-' -f1 | cut -d':' -f2`
+
+#DEBHELPER#
+
+case "$1" in
+  remove|upgrade)
+    dkms remove -m fsc_btns -v $VERSION --all || true
+    ;;
+esac
+
