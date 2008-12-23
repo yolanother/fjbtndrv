@@ -1,0 +1,8 @@
+PACKAGE_NAME="fsc_btns"
+PACKAGE_VERSION="@VERSION@"
+AUTOINSTALL="yes"
+REMAKE_INITRD="no"
+DEST_MODULE_LOCATION="/kernel/driver/input/misc"
+MAKE="make"
+CLEAN="make clean"
+

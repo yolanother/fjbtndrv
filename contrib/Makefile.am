@@ -12,7 +12,15 @@ endif
 fscdscriptsdir = @scriptdir@
 dist_fscdscripts_SCRIPTS = rotate-script.sample
 
-EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in
+EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in dkms.conf.in
+
+edit = sed \
+	-e 's|@bindir[@]|$(bindir)|g' \
+	-e 's|@VERSION[@]|$(VERSION)|g'
 
 %: %.in Makefile
-	sed -e 's|@bindir[@]|$(bindir)|g' $< >$@
+	$(edit) $< >$@
+
+clean::
+	rm -f fscrotd.desktop fscd.desktop dkms.conf
+
