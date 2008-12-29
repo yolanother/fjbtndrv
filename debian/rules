@@ -64,7 +64,7 @@ binary-arch: build install install-kernel-source
 	dh_installchangelogs -a ChangeLog
 	dh_installdocs -a
 #	dh_installexamples -a
-	dh_install -a --sourcedir=$(CURDIR)/debian/tmp
+	dh_install -a --sourcedir=$(CURDIR)/debian/tmp --fail-missing
 #	dh_installman -a
 	dh_link -a
 	dh_strip -a

@@ -1,2 +1,4 @@
 usr/bin/fscrotd
+usr/lib/fjbtndrv/rotate-script.sample
 usr/share/hal/fdi/information/20thirdparty/30-orientations-fjbtndrv.fdi
+etc/xdg/autostart/fscrotd.desktop

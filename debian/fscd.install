@@ -1,2 +1,4 @@
 usr/bin/fscd
+usr/share/locale
 usr/share/hal/fdi/information/20thirdparty/30-keymap-fjbtndrv.fdi
+etc/xdg/autostart/fscd.desktop
