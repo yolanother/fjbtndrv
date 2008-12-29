@@ -28,6 +28,7 @@ configure-stamp:
 		CFLAGS="$(CFLAGS)" \
 		LDFLAGS="-L$(CURDIR)/debian/wacomcfg -Wl,-z,defs" \
 		CPPFLAGS="$(CPPFLAGS) -I$(CURDIR)/debian/wacomcfg"
+	sed -i 's/-lXinerama//' config.status Makefile src/Makefile
 	touch configure-stamp
 
 build: build-stamp
