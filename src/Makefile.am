@@ -28,4 +28,4 @@ endif
 
 endif # BUILD_FSCD
 
-EXTRA_DIST = fscd.h gui.h wacom.h
+EXTRA_DIST = fjbtndrv.h gui.h wacom.h
