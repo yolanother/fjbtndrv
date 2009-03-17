@@ -9,7 +9,7 @@ bin_PROGRAMS = fscrotd
 
 fscrotd_SOURCES = fscrotd.c wacom.c
 fscrotd_CPPFLAGS = $(HAL_CFLAGS) $(XRANDR_CFLAGS) $(LIBWACOMCFG_CFLAGS)
-fscrotd_LDADD = $(HAL_LIBS) $(XRANDR_LIBS) $(LIBWACOMCFG_LIBS)
+fscrotd_LDADD = $(HAL_LIBS) $(XINPUT_LIBS) $(XRANDR_LIBS) $(LIBWACOMCFG_LIBS)
 
 if BUILD_FSCD
 bin_PROGRAMS += fscd
