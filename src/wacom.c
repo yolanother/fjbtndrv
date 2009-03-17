@@ -23,6 +23,7 @@
 #include "fjbtndrv.h"
 #include "wacom.h"
 
+#include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_WACOMCFG_H
 #include <wacomcfg.h>
