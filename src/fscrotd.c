@@ -18,6 +18,7 @@
 #  include "../config.h"
 #endif
 
+#include "fjbtndrv.h"
 #include "wacom.h"
 
 #include <stdio.h>
@@ -41,8 +42,6 @@ void debug(const char *format, ...)
 	putc('\n', stderr);
 	va_end(a);
 }
-#else
-#define debug(...) do {} while(0)
 #endif
 
 #define HAL_SIGNAL_FILTER "type='signal', sender='org.freedesktop.Hal', interface='org.freedesktop.Hal.Device', member='PropertyModified', path='%s'"
@@ -413,6 +412,7 @@ int main(int argc, char **argv)
 	udi_switch = hal_find_switch(hal);
 	if(!udi_switch) {
 		fprintf(stderr, "no tablet switch\n");
+		return 1;
 		//TODO: goto after_hal_error;
 		exit(1);
 	}

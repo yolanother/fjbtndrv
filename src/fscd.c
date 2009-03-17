@@ -18,7 +18,7 @@
 #  include "../config.h"
 #endif
 
-#include "fscd.h"
+#include "fjbtndrv.h"
 #include "wacom.h"
 #include "gui.h"
 
@@ -84,14 +84,13 @@ static int mode_configure, mode_brightness;
 
 #ifdef DEBUG
 #include <stdarg.h>
-void debug(const char *tag, const char *format, ...)
+void debug(const char *format, ...)
 {
 	va_list a;
-	char buffer[256];
 
 	va_start(a, format);
-	snprintf(buffer, 255, "%s: %s\n", tag, format);
-	vfprintf(stderr, buffer, a);
+	vfprintf(stderr, format, a);
+	putc('\n', stderr);
 	va_end(a);
 }
 #endif
@@ -171,7 +170,7 @@ Bool x11_check_extension(const char *name)
 		XTestQueryExtension(display,
 				&event, &error,
 				&major, &minor);
-		debug("X11", "Found %s %d.%d extension (%d, %d, %d)",
+		debug("Found %s %d.%d extension (%d, %d, %d)",
 			name, major, minor,
 			opcode, event, error);
 #endif
@@ -187,10 +186,10 @@ int x11_open_input_device(void)
 	XEventClass xeclass[2];
 	int i, idev_num, error;
 
-	debug("xinput", "searching fsc_btns device ...");
+	debug("searching fsc_btns device ...");
 	idev_list = XListInputDevices(display, &idev_num);
 	for(i=0; i < idev_num; i++) {
-		debug("xinput", " ... device %s", idev_list[i].name);
+		debug(" ... device %s", idev_list[i].name);
 		if(strncmp(idev_list[i].name, "fsc_btns", 3) == 0) {
 			idevice = XOpenDevice(display, idev_list[i].id);
 			break;
@@ -267,7 +266,7 @@ Display* x11_init(void)
 
 	error = x11_open_input_device();
 	if(error) {
-		debug("X11", "xinput device not found");
+		debug("xinput device not found");
 		XCloseDisplay(display);
 		return NULL;
 	}
@@ -276,7 +275,7 @@ Display* x11_init(void)
 		km->sym = XStringToKeysym(km->name);
 
 		if(km->sym && km->grab) {
-			debug("X11", "grab key %s [%d]", km->name, km->code);
+			debug("grab key %s [%d]", km->name, km->code);
 			XGrabKey(display, km->code, 0, root, False, GrabModeAsync, GrabModeAsync);
 		}
 	}
@@ -326,7 +325,7 @@ static int x11_keyremap(int code, KeySym sym)
 	me  = (code - min) * spc;
 
 	if(map[me] != sym) {
-		debug("X11", "mapping keycode %d to symbol %s (0x%08x)",
+		debug("mapping keycode %d to symbol %s (0x%08x)",
 				code, XKeysymToString(sym), (unsigned)sym);
 		XChangeKeyboardMapping(display, code, 1, &sym, 1);
 		return 1;
@@ -347,11 +346,11 @@ static int x11_fix_keymap(void)
 		me = (km->code - min) * spc;
 
 		if(map[me] != km->sym) {
-			debug("X11", "mapping keycode %d to symbol %s (0x%08x)",
+			debug("mapping keycode %d to symbol %s (0x%08x)",
 					km->code, km->name, (unsigned)km->sym);
 			XChangeKeyboardMapping(display, km->code, 1, &(km->sym), 1);
 		} else 
-			debug("X11", "keycode %d is ok.",
+			debug("keycode %d is ok.",
 					km->code);
 	}
 
@@ -519,7 +518,7 @@ static int brightness_init(void)
 				brightness_output = o;
 				brightness_offset = info->values[0];
 				brightness_max = info->values[1] - brightness_offset;
-				debug("X11", "brightness: output=%d offset=%ld max=%ld",
+				debug("brightness: output=%d offset=%ld max=%ld",
 					brightness_output, brightness_offset, brightness_max);
 				err = 0;
 			}
@@ -571,7 +570,7 @@ static long get_brightness(void)
 		XFree(prop);
 	}
 
-	debug("X11", "backlight value: %ld", value);
+	debug("backlight value: %ld", value);
 	return value;
 }
 
@@ -711,7 +710,7 @@ static void toggle_dpms(void)
 
 static void handle_x11_event(unsigned int keycode, unsigned int state, int pressed)
 {
-	debug("TRACE", "handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
+	debug("handle_x11_event: time=%lu keycode=%d, state=%d, action=%s [cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
 			mode_configure, mode_brightness);
 
@@ -796,12 +795,12 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 {
 	static int key_fn, key_alt;
 
-	debug("TRACE", "handle_xinput_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
+	debug("handle_xinput_event: time=%lu keycode=%d, state=%d, action=%s [fn=%d, alt=%d, cfg=%d, bri=%d]",
 			current_time, keycode, state, (pressed ? "pressed" : "released"),
 			key_fn, key_alt, mode_configure, mode_brightness);
 
 	if(keycode == 37) { // FN (Control)
-		debug("XI", "Control %s", (pressed ? "pressed" : "released"));
+		debug("Control %s", (pressed ? "pressed" : "released"));
 
 		if(pressed) {
 			if(key_alt) {
@@ -820,7 +819,7 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 		}
 
 	} else if(keycode == 64) { // Alt
-		debug("XI", "Alt %s", (pressed ? "pressed" : "released"));
+		debug("Alt %s", (pressed ? "pressed" : "released"));
 
 		if(pressed) {
 #ifdef BRIGHTNESS_CONTROL
@@ -891,7 +890,7 @@ int main(int argc, char **argv)
 
 	gui_info("%s %s %s", PACKAGE, VERSION, _("started"));
 
-	debug("INFO", "\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
+	debug("\n *** Please report bugs to " PACKAGE_BUGREPORT " ***\n");
 
 	x11_fix_keymap();
 
@@ -900,7 +899,7 @@ int main(int argc, char **argv)
 			clock_t t = (mode_brightness + mode_configure) - current_time + 100;
 			tv.tv_sec  = (t / 1000);
 			tv.tv_usec = (t % 1000) * 1000;
-			debug("MAIN", "block for %d.%d seconds...", tv.tv_sec, tv.tv_usec);
+			debug("block for %d.%d seconds...", tv.tv_sec, tv.tv_usec);
 		} else
 			tv.tv_sec = tv.tv_usec = 1000000;
 			

@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fscd.h"
+#include "fjbtndrv.h"
 #include "gui.h"
 #include <stdio.h>
 #include <stdarg.h>
@@ -94,7 +94,7 @@ void gui_hide(void)
 
 void screen_rotated(void)
 {
-	debug("TRACE", "screen rotated");
+	debug("screen rotated");
 
 	xosd_destroy(osd);
 	osd = NULL;
@@ -102,7 +102,7 @@ void screen_rotated(void)
 
 void gui_brightness_show(int percent, int timeout)
 {
-	debug("TRACE", "brightness_show");
+	debug("brightness_show");
 
 	osd = osd_new(2);
 	xosd_display(osd, 0, XOSD_printf, "%s", _("Brightness"));

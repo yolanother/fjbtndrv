@@ -39,11 +39,9 @@ typedef struct keymap_entry {
 } keymap_entry;
 
 #ifdef DEBUG
-void debug(const char *tag, const char *format, ...);
+void debug(const char *format, ...);
 #else
 #define debug(...) do {} while(0)
 #endif
-
-int handle_display_rotation(int mode);
 
 #endif

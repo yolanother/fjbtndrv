@@ -20,6 +20,7 @@
 
 #ifdef ENABLE_WACOM
 
+#include "fjbtndrv.h"
 #include "wacom.h"
 
 #include <string.h>
@@ -31,12 +32,6 @@
 #endif
 #include <Xwacom.h>
 #include <X11/extensions/Xrandr.h>
-
-#ifdef DEBUG
-void debug(const char *tag, const char *format, ...);
-#else
-#define debug(...) do { } while(0)
-#endif
 
 #ifdef ENABLE_DYNAMIC
 
@@ -94,7 +89,7 @@ int wacom_init(Display *display)
 
 	memcpy(&wclib, &w, sizeof(struct wclib_t));
 
-	debug("WACOM", "wacomcfg library loaded");
+	debug("wacomcfg library loaded");
 #endif
 
 	wacom_config = CALL(WacomConfigInit, display, NULL);
@@ -120,7 +115,7 @@ void wacom_rotate(int rr_rotation)
 	WACOMDEVICE * d;
 	int rotation;
 
-	debug("TRACE", "wacom_rotate");
+	debug("wacom_rotate");
 
 	if(!wacom_config)
 		return;
@@ -142,7 +137,7 @@ void wacom_rotate(int rr_rotation)
 			return;
 	}
 
-	debug("WACOM", "rotate to %d", rotation);
+	debug("rotate to %d", rotation);
 
 	d = CALL(WacomConfigOpenDevice, wacom_config, "stylus");
 	if(!d)

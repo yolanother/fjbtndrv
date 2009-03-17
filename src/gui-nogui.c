@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fscd.h"
+#include "fjbtndrv.h"
 #include "gui.h"
 
 int gui_init(Display *display)
@@ -31,11 +31,11 @@ void gui_hide(void)
 
 void screen_rotated(void)
 {
-	debug("TRACE", "screen rotated");
+	debug("screen rotated");
 }
 
 void gui_brightness_show(int percent, int timeout)
 {
-	debug("TRACE", "brightness_show");
+	debug("brightness_show");
 }
 
