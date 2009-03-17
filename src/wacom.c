@@ -32,6 +32,7 @@
 #endif
 #include <Xwacom.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/extensions/XInput.h>
 
 #ifdef ENABLE_DYNAMIC
 
@@ -56,10 +57,39 @@ static struct wclib_t {
 
 #endif
 
-static WACOMCONFIG * wacom_config;
+static WACOMCONFIG *wacom_config;
+static char *devname;
 
 int wacom_init(Display *display)
 {
+	Atom a;
+	XDeviceInfo *devices;
+	int nr;
+
+	a = XInternAtom(display, "Wacom Stylus", True);
+	if(!a) {
+		debug("no 'Wacom Stylus' atom");
+		return -1;
+	}
+
+	devices = XListInputDevices(display, &nr);
+	if(devices) {
+		int i;
+		for(i = 0; i < nr; i++)
+			if(devices[i].type == a) {
+				devname = strdup(devices[i].name);
+				debug("wacom device found - %s", devname);
+				break;
+			}
+
+		XFreeDeviceList(devices);
+	}
+
+	if(!devname) {
+		debug("no wacom device found.");
+		return -1;
+	}
+	
 #ifdef ENABLE_DYNAMIC
 	struct wclib_t w;
 
@@ -93,14 +123,19 @@ int wacom_init(Display *display)
 #endif
 
 	wacom_config = CALL(WacomConfigInit, display, NULL);
-	if(!wacom_config)
+	if(!wacom_config) {
+		debug("failed to init wacomcfg");
 		return -1;
+	}
 
 	return 0;
 }
 
 void wacom_exit(void)
 {
+	if(devname)
+		free(devname);
+
 	if(wacom_config)
 		CALL(WacomConfigFree, wacom_config);
 
@@ -117,7 +152,7 @@ void wacom_rotate(int rr_rotation)
 
 	debug("wacom_rotate");
 
-	if(!wacom_config)
+	if(!wacom_config || !devname)
 		return;
 
 	switch(rr_rotation) {
@@ -139,7 +174,7 @@ void wacom_rotate(int rr_rotation)
 
 	debug("rotate to %d", rotation);
 
-	d = CALL(WacomConfigOpenDevice, wacom_config, "stylus");
+	d = CALL(WacomConfigOpenDevice, wacom_config, devname);
 	if(!d)
 		return;
 
