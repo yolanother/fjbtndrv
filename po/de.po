@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fjbtndrv 2.00\n"
 "Report-Msgid-Bugs-To: fjbtndrv-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2008-12-15 04:59+0100\n"
-"PO-Revision-Date: 2008-12-15 04:59+0100\n"
+"POT-Creation-Date: 2009-03-17 11:50+0100\n"
+"PO-Revision-Date: 2009-03-17 11:50+0100\n"
 "Last-Translator: Robert Gerlach <khnz@users.sourceforge.net>\n"
 "Language-Team: German\n"
 "MIME-Version: 1.0\n"
@@ -15,30 +15,38 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Brightness"
-msgstr "Helligkeit"
-
+#: src/fscd.c:634 src/fscd.c:640 src/fscd.c:646
 msgid "Scrolling"
 msgstr "Scrollen"
 
-msgid "Page Up/Down"
-msgstr "Bild Auf/Ab"
-
-msgid "Space/Backspace"
-msgstr "Leer-/Rücktaste"
-
+#: src/fscd.c:634
 msgid "Z-Axis"
 msgstr "Z-Achse"
 
+#: src/fscd.c:640
+msgid "Page Up/Down"
+msgstr "Bild Auf/Ab"
+
+#: src/fscd.c:646
+msgid "Space/Backspace"
+msgstr "Leer-/Rücktaste"
+
+#: src/fscd.c:687
 msgid "Rotation locked"
 msgstr "Bildschirm drehen gesperrt"
 
+#: src/fscd.c:692
 msgid "Rotation unlocked"
 msgstr "Bildschirm drehen entgesperrt"
 
+#: src/fscd.c:807
 msgid "configuration..."
 msgstr "Konfiguration..."
 
-msgid "%s %s started"
-msgstr "%s %s gestarted"
+#: src/fscd.c:891
+msgid "started"
+msgstr "gestarted"
 
+#: src/gui-xosd.c:110
+msgid "Brightness"
+msgstr "Helligkeit"

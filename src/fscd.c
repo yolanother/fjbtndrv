@@ -804,7 +804,7 @@ static void handle_xinput_event(unsigned int keycode, unsigned int state, int pr
 
 		if(pressed) {
 			if(key_alt) {
-				gui_info("configuration...");
+				gui_info(_("configuration..."));
 				mode_configure = current_time + (2 * STICKY_TIMEOUT);
 				mode_brightness = 0;
 				x11_grab_scrollkeys();

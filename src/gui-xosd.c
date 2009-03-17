@@ -79,6 +79,8 @@ void gui_info(char *format, ...)
 	vsnprintf(buffer, 255, format, a);
 	va_end(a);
 
+	debug("gui info: %s", buffer);
+
 	osd = osd_new(1);
 	xosd_display(osd, 0, XOSD_string, buffer);
 	xosd_set_timeout(osd, 2);
