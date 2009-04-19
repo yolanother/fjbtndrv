@@ -46,6 +46,10 @@
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 
+#if !defined return_ACPI_STATUS
+#  define return_ACPI_STATUS(x)    return x
+#endif
+
 #define MODULENAME "fsc_btns"
 
 MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
