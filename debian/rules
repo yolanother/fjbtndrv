@@ -24,10 +24,7 @@ configure-stamp:
 		--disable-kernel-module \
 		--enable-dynamic \
 		--enable-xosd \
-		--enable-wacom \
-		CFLAGS="$(CFLAGS)" \
-		LDFLAGS="-L$(CURDIR)/debian/wacomcfg -Wl,-z,defs" \
-		CPPFLAGS="$(CPPFLAGS) -I$(CURDIR)/debian/wacomcfg"
+		CFLAGS="$(CFLAGS)"
 	sed -i 's/-lXinerama//' config.status Makefile src/Makefile
 	touch configure-stamp
 

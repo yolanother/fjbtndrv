@@ -19,7 +19,6 @@
 #endif
 
 #include "fjbtndrv.h"
-#include "wacom.h"
 #include "gui.h"
 
 #include <stdio.h>
@@ -442,10 +441,6 @@ static void rotate_screen(void)
 				rotation, CurrentTime);
 		if(error)
 			goto err;
-
-#ifdef ENABLE_WACOM
-		wacom_rotate(rotation);
-#endif
 
 		// TODO: needed???	
 		screen_rotated();
@@ -876,13 +871,6 @@ int main(int argc, char **argv)
 	}
 #endif
 
-#ifdef ENABLE_WACOM
-	error = wacom_init(display);
-	if(error) {
-		fprintf(stderr, "wacom initalisation failed\n");
-	}
-#endif
-
 	error = gui_init(display);
 	if(error) {
 		fprintf(stderr, "gui initalisation failed\n");
@@ -952,9 +940,6 @@ int main(int argc, char **argv)
 	}
 
 	gui_exit();
-#ifdef ENABLE_WACOM
-	wacom_exit();
-#endif
 #ifdef BRIGHTNESS_CONTROL
 	brightness_exit();
 #endif

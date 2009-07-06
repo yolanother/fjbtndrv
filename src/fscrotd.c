@@ -19,12 +19,14 @@
 #endif
 
 #include "fjbtndrv.h"
-#include "wacom.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
+#include <limits.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -49,57 +51,158 @@ void debug(const char *format, ...)
 
 static int keep_running = 1;
 
-static char* find_script(const char *name)
+typedef struct _scriptlist {
+	char name[PATH_MAX];
+	struct _scriptlist * next;
+} scriptlist;
+
+static int is_regular_file(const char *filename)
 {
 	struct stat s;
-	int error;
-	char *path, *homedir;
+	char buffer[PATH_MAX];
+	int error, len;
+
+	error = stat(filename, &s);
+	if(error)
+		return 0;
+
+	if((s.st_mode & S_IFMT) == S_IFREG)
+		return 1;
+
+	else if((s.st_mode & S_IFMT) == S_IFLNK) {
+		len = readlink(filename, buffer, PATH_MAX-1);
+		if(len > 0) {
+			buffer[len] = '\0';
+			return is_regular_file(buffer);
+		} else
+			perror(filename);
+	}
+
+	return 0;
+}
+
+// TODO: better name
+static int is_script(const char *filename)
+{
+	int len = strlen(filename);
+
+	return ((filename[0] != '.') &&
+		(filename[len-1] != '~') &&
+		(strcasecmp(&(filename[len-4]), ".bak") != 0));
+}
+
+static scriptlist* find_scripts(const char *name)
+{
+	DIR *dh;
+	struct dirent *de;
+	int error, len;
+	char *homedir, buffer[PATH_MAX];
+	scriptlist *paths, **next;
+
+	paths = NULL;
+	next = &paths;
 
 	homedir = getenv("HOME");
 	if(homedir) {
-		path = malloc(strlen(homedir) + strlen(PACKAGE) + strlen(name) + 4);
-		if(path) {
-			sprintf(path, "%s/." PACKAGE "/%s", homedir, name);
+		len = snprintf(buffer, PATH_MAX, "%s/." PACKAGE "/%s", homedir, name);
+		if(len > 0 && is_regular_file(buffer)) {
+			fprintf(stderr, "fscrotd: %s is obsolete\n",
+					buffer, buffer);
+			*next = malloc(sizeof(scriptlist));
+			strcpy((*next)->name, buffer);
+			next = &((*next)->next);
+		}
 
-			error = stat(path, &s);
-			if((!error) &&
-			   (((s.st_mode & S_IFMT) == S_IFREG) ||
-			    ((s.st_mode & S_IFMT) == S_IFLNK)))
-				return path;
+		
+		len = snprintf(buffer, PATH_MAX, "%s/." PACKAGE "/%s.d", homedir, name);
+		if(len > 0) {
+			dh = opendir(buffer);
+			if(dh) {
+				buffer[len++] = '/';
 
-			free(path);
+				while((de = readdir(dh))) {
+					if((!de->d_name) || (de->d_name[0] == '.'))
+						continue;
+
+					strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
+					if(is_regular_file(buffer) &&
+					   is_script(buffer)) {
+						*next = malloc(sizeof(scriptlist));
+						strcpy((*next)->name, buffer);
+						next = &((*next)->next);
+					}
+				}
+
+				closedir(dh);
+			}
 		}
 	}
 
-	path = malloc(sizeof(SCRIPTDIR) + strlen(name) + 2);
-	if(path) {
-		sprintf(path, "%s/%s", SCRIPTDIR, name);
-
-		error = stat(path, &s);
-		if((!error) &&
-		   (((s.st_mode & S_IFMT) == S_IFREG) ||
-		    ((s.st_mode & S_IFMT) == S_IFLNK)))
-			return path;
-
-		free(path);
+	len = snprintf(buffer, PATH_MAX, "%s/%s", SCRIPTDIR, name);
+	if(len > 0 && is_regular_file(buffer)) {
+		fprintf(stderr, "fscrotd: %s is obsolete\n",
+				buffer, buffer);
+		*next = malloc(sizeof(scriptlist));
+		strcpy((*next)->name, buffer);
+		next = &((*next)->next);
 	}
 
-	return NULL;
+	len = snprintf(buffer, PATH_MAX, "%s/%s.d", SCRIPTDIR, name);
+	if(len > 0) {
+		dh = opendir(buffer);
+		if(dh) {
+			buffer[len++] = '/';
+
+			while((de = readdir(dh))) {
+				if((!de->d_name) || (de->d_name[0] == '.'))
+					continue;
+
+				strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
+				if(is_regular_file(buffer) &&
+				   is_script(buffer)) {
+					*next = malloc(sizeof(scriptlist));
+					strcpy((*next)->name, buffer);
+					next = &((*next)->next);
+				}
+			}
+
+			closedir(dh);
+		}
+	}
+
+	(*next) = NULL;
+	return paths;
 }
 
-static int run_script(const char *name)
+static void free_scriptlist(scriptlist* list)
+{
+	if(!list)
+		return;
+
+	if(list->next)
+		free_scriptlist(list->next);
+
+	free(list);
+}
+
+static int run_scripts(const char *name)
 {
 	int error;
-       	char *path;
+       	scriptlist *paths, *path;
 
-	path = find_script(name);
-	if(!path)
+	debug("HOOKS: %s", name);
+
+	paths = find_scripts(name);
+	if(!paths)
 		return 0;
 
-	error = system(path) << 8;
-	free(path);
-	debug("%s returns %d", path, error);
+	path = paths;
+	do {	
+		error = system(path->name) << 8;
+		debug("  %s: %d", path->name, error);
+	} while((!error) && (path = path->next));
 
+	free_scriptlist(paths);
 	return error;
 }
 
@@ -329,7 +432,7 @@ static void handle_display_rotation(Display *display, Rotation rr)
 	sz = XRRConfigCurrentConfiguration(sc, &cr);
 
 	if(rr != (cr & 0xf)) {
-		error = run_script((rr & RR_Rotate_0)
+		error = run_scripts((rr & RR_Rotate_0)
 				? "pre-rotate-normal"
 				: "pre-rotate-tablet");
 		if(error)
@@ -341,11 +444,7 @@ static void handle_display_rotation(Display *display, Rotation rr)
 		if(error)
 			goto err;
 
-#ifdef ENABLE_WACOM
-		wacom_rotate(rr);
-#endif
-	
-		error = run_script((rr & RR_Rotate_0)
+		error = run_scripts((rr & RR_Rotate_0)
 				? "rotate-normal"
 				: "rotate-tablet");
 		if(error)
@@ -435,12 +534,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef ENABLE_WACOM
-	error = wacom_init(display);
-	if(error)
-		fprintf(stderr, "wacom initalisation failed\n");
-#endif
-
 	handle_rotation(display, hal, udi_panel,
 			get_tablet_sw(hal, udi_switch));
 
@@ -460,9 +553,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-#ifdef ENABLE_WACOM
-	wacom_exit();
-#endif
 	XCloseDisplay(display);
 	libhal_ctx_free(hal);
 	return 0;

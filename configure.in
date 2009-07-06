@@ -42,50 +42,6 @@ if test x$enable_dynamic = xyes; then
   AC_DEFINE(ENABLE_DYNAMIC, [], [dynamic library loading])
 fi
 
-AC_ARG_WITH(linuxwacom,
-  AS_HELP_STRING([--with-linuxwacom=srcdir],
-    [location of the linuxwacom source (Default: none)]),
-  [ linuxwacomdir="$withval" ],
-  [ linuxwacomdir=no ])
-
-if test x"$linuxwacomdir" != x"no"; then
-  if test -d "$linuxwacomdir"; then
-    if test -f "$linuxwacomdir/src/util/wacomcfg.h"; then
-      LIBWACOMCFG_CFLAGS="-I$linuxwacomdir/src/util -I$linuxwacomdir/src/include"
-    else
-      AC_MSG_ERROR([no linuxwacom sources found in $linuxwacomdir])
-    fi
-  else
-    AC_MSG_ERROR([$linuxwacomdir is not a directory])
-  fi
-fi
-
-AC_ARG_ENABLE([wacom],
-  AS_HELP_STRING([--disable-wacom],
-    [Disable WACOM support (Default: auto)]),
-  [enable_wacom=$enableval], [enable_wacom=auto])
-if test x$enable_wacom != xno; then
-  has_wacom=no
-  save_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $LIBWACOMCFG_CFLAGS"
-  AC_CHECK_HEADERS([wacomcfg/wacomcfg.h wacomcfg.h],
-    [ AC_CHECK_LIB([wacomcfg], [WacomConfigInit], [has_wacom=yes], []) ], [])
-  if test x$enable_wacom = xyes -a x$has_wacom != xyes; then
-    AC_MSG_ERROR([wacom library not found])
-  fi
-  enable_wacom=$has_wacom
-    CPPFLAGS="$save_CPPFLAGS"
-fi
-if test x$enable_wacom = xyes; then
-  AC_DEFINE(ENABLE_WACOM, [], [enable wacom support])
-  if test x$enable_dynamic != xyes; then
-    LIBWACOMCFG_LIBS=-lwacomcfg
-  fi
-fi
-
-AC_SUBST(LIBWACOMCFG_CFLAGS)
-AC_SUBST(LIBWACOMCFG_LIBS)
-
 AC_ARG_ENABLE([xosd],
   AS_HELP_STRING([--disable-xosd],
     [Disable OSD support (Default: auto)]),
@@ -195,7 +151,6 @@ echo "
 
         prefix:         ${prefix}
         debug:          ${enable_debug}
-        wacom support:  ${enable_wacom}
         osd support:    ${enable_xosd}
 
         autorepeat:     ${repeat_rate} chars/s after a ${repeat_delay}ms delay
