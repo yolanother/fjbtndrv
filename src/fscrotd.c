@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2008 Robert Gerlach
+ * Copyright (C) 2007-2009 Robert Gerlach
  *
  * You can redistribute and/or modify this program under the terms of the
  * GNU General Public License version 3 as published by the Free Software
@@ -19,14 +19,13 @@
 #endif
 
 #include "fjbtndrv.h"
+#include "rotation.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <limits.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -50,161 +49,6 @@ void debug(const char *format, ...)
 
 
 static int keep_running = 1;
-
-typedef struct _scriptlist {
-	char name[PATH_MAX];
-	struct _scriptlist * next;
-} scriptlist;
-
-static int is_regular_file(const char *filename)
-{
-	struct stat s;
-	char buffer[PATH_MAX];
-	int error, len;
-
-	error = stat(filename, &s);
-	if(error)
-		return 0;
-
-	if((s.st_mode & S_IFMT) == S_IFREG)
-		return 1;
-
-	else if((s.st_mode & S_IFMT) == S_IFLNK) {
-		len = readlink(filename, buffer, PATH_MAX-1);
-		if(len > 0) {
-			buffer[len] = '\0';
-			return is_regular_file(buffer);
-		} else
-			perror(filename);
-	}
-
-	return 0;
-}
-
-// TODO: better name
-static int is_script(const char *filename)
-{
-	int len = strlen(filename);
-
-	return ((filename[0] != '.') &&
-		(filename[len-1] != '~') &&
-		(strcasecmp(&(filename[len-4]), ".bak") != 0));
-}
-
-static scriptlist* find_scripts(const char *name)
-{
-	DIR *dh;
-	struct dirent *de;
-	int error, len;
-	char *homedir, buffer[PATH_MAX];
-	scriptlist *paths, **next;
-
-	paths = NULL;
-	next = &paths;
-
-	homedir = getenv("HOME");
-	if(homedir) {
-		len = snprintf(buffer, PATH_MAX, "%s/." PACKAGE "/%s", homedir, name);
-		if(len > 0 && is_regular_file(buffer)) {
-			fprintf(stderr, "fscrotd: %s is obsolete\n",
-					buffer, buffer);
-			*next = malloc(sizeof(scriptlist));
-			strcpy((*next)->name, buffer);
-			next = &((*next)->next);
-		}
-
-		
-		len = snprintf(buffer, PATH_MAX, "%s/." PACKAGE "/%s.d", homedir, name);
-		if(len > 0) {
-			dh = opendir(buffer);
-			if(dh) {
-				buffer[len++] = '/';
-
-				while((de = readdir(dh))) {
-					if((!de->d_name) || (de->d_name[0] == '.'))
-						continue;
-
-					strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
-					if(is_regular_file(buffer) &&
-					   is_script(buffer)) {
-						*next = malloc(sizeof(scriptlist));
-						strcpy((*next)->name, buffer);
-						next = &((*next)->next);
-					}
-				}
-
-				closedir(dh);
-			}
-		}
-	}
-
-	len = snprintf(buffer, PATH_MAX, "%s/%s", SCRIPTDIR, name);
-	if(len > 0 && is_regular_file(buffer)) {
-		fprintf(stderr, "fscrotd: %s is obsolete\n",
-				buffer, buffer);
-		*next = malloc(sizeof(scriptlist));
-		strcpy((*next)->name, buffer);
-		next = &((*next)->next);
-	}
-
-	len = snprintf(buffer, PATH_MAX, "%s/%s.d", SCRIPTDIR, name);
-	if(len > 0) {
-		dh = opendir(buffer);
-		if(dh) {
-			buffer[len++] = '/';
-
-			while((de = readdir(dh))) {
-				if((!de->d_name) || (de->d_name[0] == '.'))
-					continue;
-
-				strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
-				if(is_regular_file(buffer) &&
-				   is_script(buffer)) {
-					*next = malloc(sizeof(scriptlist));
-					strcpy((*next)->name, buffer);
-					next = &((*next)->next);
-				}
-			}
-
-			closedir(dh);
-		}
-	}
-
-	(*next) = NULL;
-	return paths;
-}
-
-static void free_scriptlist(scriptlist* list)
-{
-	if(!list)
-		return;
-
-	if(list->next)
-		free_scriptlist(list->next);
-
-	free(list);
-}
-
-static int run_scripts(const char *name)
-{
-	int error;
-       	scriptlist *paths, *path;
-
-	debug("HOOKS: %s", name);
-
-	paths = find_scripts(name);
-	if(!paths)
-		return 0;
-
-	path = paths;
-	do {	
-		error = system(path->name) << 8;
-		debug("  %s: %d", path->name, error);
-	} while((!error) && (path = path->next));
-
-	free_scriptlist(paths);
-	return error;
-}
 
 static int x11_ioerror(Display *dpy)
 {
@@ -417,46 +261,6 @@ static Rotation get_tablet_orientation(LibHalContext *hal, char *udi, int mode)
 	return orientation_id;	
 }
 
-static void handle_display_rotation(Display *display, Rotation rr)
-{
-	Window rw;
-	XRRScreenConfiguration *sc;
-	Rotation cr;
-	SizeID sz;
-	int error;
-
-	rw = DefaultRootWindow(display);
-	sc = XRRGetScreenInfo(display, rw);
-	if(!sc) return;
-
-	sz = XRRConfigCurrentConfiguration(sc, &cr);
-
-	if(rr != (cr & 0xf)) {
-		error = run_scripts((rr & RR_Rotate_0)
-				? "pre-rotate-normal"
-				: "pre-rotate-tablet");
-		if(error)
-			goto err;
-
-		error = XRRSetScreenConfig(display, sc, rw, sz,
-				rr | (cr & ~0xf),
-				CurrentTime);
-		if(error)
-			goto err;
-
-		error = run_scripts((rr & RR_Rotate_0)
-				? "rotate-normal"
-				: "rotate-tablet");
-		if(error)
-			goto err;
-
-		//TODO: screen_rotated();
-	}
-
-  err:
-	XRRFreeScreenConfigInfo(sc);
-}
-
 static int rotation_locked(void)
 {
 	char *lockfile, *homedir;
@@ -491,7 +295,7 @@ static void handle_rotation(Display *display, LibHalContext *hal, char *udi, int
 	if(!rr)
 		rr = (mode == 0) ? RR_Rotate_0 : RR_Rotate_270;
 
-	handle_display_rotation(display, rr);
+	rotate_display(display, rr);
 }
 
 int main(int argc, char **argv)

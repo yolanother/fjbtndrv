@@ -20,6 +20,7 @@
 
 #include "fjbtndrv.h"
 #include "gui.h"
+#include "rotation.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -413,43 +414,6 @@ static void dpms_force_off(void)
 	XSync(display, False);
 }
 
-static void rotate_screen(void)
-{
-	Window rwin;
-	XRRScreenConfiguration *sc;
-	Rotation rotation, current_rotation;
-	SizeID size;
-
-	rwin = DefaultRootWindow(display);
-	sc = XRRGetScreenInfo(display, rwin);
-	if(!sc)
-		return;
-
-	size = XRRConfigCurrentConfiguration(sc, &current_rotation);
-
-	// TODO: make rotation steps configurable
-	rotation = (current_rotation & 0x7) << 1;
-	if(!rotation)
-		rotation = RR_Rotate_0;
-
-	rotation |= current_rotation & ~0xf;
-
-	if(rotation != current_rotation) {
-		int error;
-
-		error = XRRSetScreenConfig(display, sc, rwin, size,
-				rotation, CurrentTime);
-		if(error)
-			goto err;
-
-		// TODO: needed???	
-		screen_rotated();
-	}
-
-  err:
-	XRRFreeScreenConfigInfo(sc);
-}
-
 static void fake_key(KeySym sym)
 {
 	KeyCode keycode;
@@ -767,7 +731,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 #endif
 
 		else
-			rotate_screen();
+			rotate_display(display, 0);
 
 #ifdef BRIGHTNESS_CONTROL
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {
