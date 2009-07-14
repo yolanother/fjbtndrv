@@ -30,11 +30,6 @@ find_stylus () {
 
 rotate=
 verbose=
-
-if [ $# = 0 ]; then
-	set -- "${0##*-}"
-fi
-
 while [ "$1" ]; do
 	case "$1" in
 		-v) verbose=y;;
