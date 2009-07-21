@@ -28,4 +28,4 @@ endif
 
 endif # BUILD_FSCD
 
-EXTRA_DIST = fjbtndrv.h gui.h
+EXTRA_DIST = fjbtndrv.h rotation.h gui.h
