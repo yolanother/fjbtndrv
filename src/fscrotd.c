@@ -295,7 +295,7 @@ static void handle_rotation(Display *display, LibHalContext *hal, char *udi, int
 	if(!rr)
 		rr = (mode == 0) ? RR_Rotate_0 : RR_Rotate_270;
 
-	rotate_display(display, rr);
+	rotate_display(display, rr, mode);
 }
 
 int main(int argc, char **argv)

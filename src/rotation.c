@@ -31,44 +31,42 @@
 #include <sys/wait.h>
 #include <X11/extensions/Xrandr.h>
 
+
 typedef struct _scriptlist {
 	char name[PATH_MAX];
 	struct _scriptlist * next;
 } scriptlist;
 
-static int is_regular_file(const char *filename)
+static int is_script(const char *filename)
 {
 	struct stat s;
 	char buffer[PATH_MAX];
-	int error, len;
+	int error;
+	int len = strlen(filename);
+
+	if((filename[0] != '.') &&
+	   (filename[len-1] != '~') &&
+	   !strcasecmp(&(filename[len-4]), ".bak") ||
+	   !strcasecmp(&(filename[len-4]), ".old"))
+		return 0;
 
 	error = stat(filename, &s);
 	if(error)
 		return 0;
 
-	if((s.st_mode & S_IFMT) == S_IFREG)
-		return 1;
+	if((s.st_mode & S_IFMT) == S_IFREG) {
+		return !!(s.st_mode & S_IXUSR);
+	}
 
 	else if((s.st_mode & S_IFMT) == S_IFLNK) {
 		len = readlink(filename, buffer, PATH_MAX-1);
 		if(len > 0) {
 			buffer[len] = '\0';
-			return is_regular_file(buffer);
+			return is_script(buffer);
 		} else
 			perror(filename);
 	}
 
-	return 0;
-}
-
-// TODO: better name
-static int is_script(const char *filename)
-{
-	int len = strlen(filename);
-
-	return ((filename[0] != '.') &&
-		(filename[len-1] != '~') &&
-		(strcasecmp(&(filename[len-4]), ".bak") != 0));
 }
 
 static scriptlist* find_scripts(void)
@@ -95,8 +93,7 @@ static scriptlist* find_scripts(void)
 						continue;
 
 					strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
-					if(is_regular_file(buffer) &&
-					   is_script(buffer)) {
+					if(is_script(buffer)) {
 						*next = malloc(sizeof(scriptlist));
 						strcpy((*next)->name, buffer);
 						next = &((*next)->next);
@@ -119,8 +116,7 @@ static scriptlist* find_scripts(void)
 					continue;
 
 				strncpy(&(buffer[len]), de->d_name, PATH_MAX - len);
-				if(is_regular_file(buffer) &&
-				   is_script(buffer)) {
+				if(is_script(buffer)) {
 					*next = malloc(sizeof(scriptlist));
 					strcpy((*next)->name, buffer);
 					next = &((*next)->next);
@@ -146,23 +142,30 @@ static void free_scriptlist(scriptlist* list)
 	free(list);
 }
 
-static int run_scripts(const char *arg)
+static int run_scripts(Rotation current_orientation, Rotation orientation,
+		       int mode, int pre_post)
 {
 	int error;
        	scriptlist *paths, *path;
 
-	debug("HOOKS: %s", arg);
+	debug("HOOKS: orientation=%d mode=%d", orientation, mode);
 
 	paths = find_scripts();
 	if(!paths)
 		return 0;
+
+	setenv("CURRENT_ORIENTATION", r2s(current_orientation), 1);
+	setenv("ORIENTATION", r2s(orientation), 1);
+	setenv("ACTION", pre_post ? "rotated" : "rotating", 1);
+	if(mode >= 0)
+		setenv("MODE", m2s(mode), 1);
 
 	path = paths;
 	do {
 		int pid = fork();
 		if(pid == 0) {
 			debug("EXEC: %s", path->name);
-			execl(path->name, path->name, arg, NULL);
+			execl(path->name, path->name, NULL);
 		} else {
 			waitpid(pid, &error, 0);
 			debug("  waitpid: error=%d", error);
@@ -175,7 +178,7 @@ static int run_scripts(const char *arg)
 
 char* r2s(Rotation r)
 {
-	switch(r) {
+	switch(r & 0x0f) {
 		case RR_Rotate_0:
 			return "normal";
 		
@@ -193,7 +196,15 @@ char* r2s(Rotation r)
 	}
 }
 
-void rotate_display(Display *display, Rotation rr)
+char* m2s(int mode)
+{
+	if(mode)
+		return "tablet";
+	else
+		return "normal";
+}
+
+void rotate_display(Display *display, Rotation rr, int mode)
 {
 	Window rw;
 	XRRScreenConfiguration *sc;
@@ -213,13 +224,9 @@ void rotate_display(Display *display, Rotation rr)
 	}
 
 	if(rr != (cr & 0xf)) {
-/* TODO:
-		error = run_scripts((rr & RR_Rotate_0)
-				? "pre-normal"
-				: "pre-tablet", cr);
+		error = run_scripts(cr, rr, mode, 0);
 		if(error)
 			goto err;
-*/
 
 		error = XRRSetScreenConfig(display, sc, rw, sz,
 				rr | (cr & ~0xf),
@@ -227,7 +234,7 @@ void rotate_display(Display *display, Rotation rr)
 		if(error)
 			goto err;
 
-		error = run_scripts(r2s(rr));
+		error = run_scripts(cr, rr, mode, 1);
 		if(error)
 			goto err;
 

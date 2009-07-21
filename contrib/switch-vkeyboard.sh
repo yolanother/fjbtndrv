@@ -8,29 +8,27 @@
 # it under the terms of the GNU General Public License version 2.
 ################################################################################
 
-mode="${0##*-}"
-
 oskb_bin=
 [ "$oskb_bin" ] || oskb_bin="`type -p cellwriter`"
 [ "$oskb_bin" ] || oskb_bin="`type -p onboard`"
 [ "$oskb_bin" ] || oskb_bin="`type -p xvkbd`"
 [ "$oskb_bin" ] || exit 0
 
-killbyname () {
-  local pid=$( pgrep -u "$USER" "$1" )
-  if [ "$pid" ]; then
-    kill -TERM $pid
-  fi
-}
-
-case "$mode" in
+case "$MODE" in
 
   tablet)
-    "$oskb_bin" &
+    if test "$ACTION" = "rotated"; then
+      "$oskb_bin" &
+    fi
     ;;
 
   normal)
-    killbyname `basename "$oskb_bin"`
+    if test "$ACTION" = "rotating"; then
+      pid=$( pgrep -u "$USER" "`basename "$oskb_bin"`" )
+      if [ "$pid" ]; then
+        kill -TERM $pid
+      fi
+    fi
     ;;
 
 esac

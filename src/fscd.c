@@ -731,7 +731,7 @@ static void handle_x11_event(unsigned int keycode, unsigned int state, int press
 #endif
 
 		else
-			rotate_display(display, 0);
+			rotate_display(display, 0, -1);
 
 #ifdef BRIGHTNESS_CONTROL
 	} else if(keycode == keymap[KEYMAP_BRIGHTNESSDOWN].code) {

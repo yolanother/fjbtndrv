@@ -2,20 +2,6 @@
 
 export LANG=C
 
-xsetwacom="`which xsetwacom`" || exit 0
-xinput="`which xinput`" || exit 0
-
-
-usage () {
-	echo "usage: $0 [-v] <normal|left|right|inverted>"
-	exit 1
-}
-
-info () {
-	[ "$verbose" ] || return
-	echo "$@" >&2
-}
-
 find_stylus () {
 	$xinput --list --short \
 	| cut -d\" -f2 \
@@ -28,27 +14,20 @@ find_stylus () {
 }
 
 
-rotate=
-verbose=
-while [ "$1" ]; do
-	case "$1" in
-		-v) verbose=y;;
-		n|normal) rotate=0;; # normal
-		r|right) rotate=1;; # right
-		l|left) rotate=2;; # left
-		i|invert|inverted) rotate=3;; # inverted
-		*) usage;;
-	esac
-	shift
-done
+test "$ACTION" = "rotated" || exit 0
+xsetwacom="`which xsetwacom`" || exit 0
+xinput="`which xinput`" || exit 0
 
-test "$rotate" || usage
+case "$ORIENTATION" in
+	n*) rotate=0 ;;
+	r*) rotate=1 ;;
+	l*) rotate=2 ;;
+	i*) rotate=3 ;;
+	*)  exit 1 ;;
+esac
 
 devname="`find_stylus`"
-info "device: $devname"
-
 if [ "$devname" ]; then
-	info "exec: xsetwacom set \"$devname\" rotate \"$rotate\""
 	$xsetwacom set "$devname" rotate "$rotate"
 	$xsetwacom set "$devname" xyDefault
 else
