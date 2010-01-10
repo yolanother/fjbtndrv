@@ -316,15 +316,12 @@ int main(int argc, char **argv)
 	if(!udi_switch) {
 		fprintf(stderr, "no tablet switch\n");
 		return 1;
-		//TODO: goto after_hal_error;
-		exit(1);
 	}
 
 	error = hal_add_switch_filter(hal, udi_switch);
 	if(error) {
 		fprintf(stderr, "failed to add signal filter\n");
-		//TODO: goto after_hal_error;
-		exit(1);
+		return 1;
 	}
 
 	udi_panel = hal_find_panel(hal);
@@ -334,8 +331,7 @@ int main(int argc, char **argv)
 	display = x11_init();
 	if(!display) {
 		fprintf(stderr, "x11 initalisation failed\n");
-		//TODO: goto after_hal_error;
-		exit(1);
+		return 1;
 	}
 
 	handle_rotation(display, hal, udi_panel,
