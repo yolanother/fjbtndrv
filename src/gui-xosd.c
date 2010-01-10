@@ -29,6 +29,7 @@
 
 #define XOSD_COLOR		"green"
 #define XOSD_OUTLINE_COLOR	"darkgreen"
+#define XOSD_FONT               "-*-*-*-r-normal-sans-*-240-*-*-*-*-*-*"
 
 static xosd *osd = NULL;
 
@@ -51,7 +52,7 @@ xosd *osd_new(int lines)
 	xosd_set_align(osd, XOSD_center);
 	xosd_set_horizontal_offset(osd, 0);
 
-	xosd_set_font(osd, "-*-*-*-r-normal-sans-*-240-*-*-*-*-*-*");
+	xosd_set_font(osd, XOSD_FONT);
 	xosd_set_outline_offset(osd, 1);
 	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
 	xosd_set_shadow_offset(osd, 3);
