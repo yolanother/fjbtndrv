@@ -31,7 +31,6 @@
 #include <sys/wait.h>
 #include <X11/extensions/Xrandr.h>
 
-
 typedef struct _scriptlist {
 	char name[PATH_MAX];
 	struct _scriptlist * next;

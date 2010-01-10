@@ -22,6 +22,5 @@
 
 void rotate_display(Display*, Rotation, int);
 char* r2s(Rotation);
-char* m2s(int);
 
 #endif

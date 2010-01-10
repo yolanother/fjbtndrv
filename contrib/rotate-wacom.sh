@@ -13,7 +13,6 @@ find_stylus () {
 	done
 }
 
-
 test "$ACTION" = "rotated" || exit 0
 xsetwacom="`which xsetwacom`" || exit 0
 xinput="`which xinput`" || exit 0
