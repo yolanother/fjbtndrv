@@ -136,7 +136,7 @@ static char* hal_find_switch(LibHalContext *hal)
 
 	debug("%d input.switch device(s) found:", n);
 
-	while(!udi && devices[--n]) {
+	while((--n >= 0) && (devices[n])) {
 		char *type;
 		debug("  check switch %s", devices[n]);
 
