@@ -1,4 +1,4 @@
-AC_INIT(fjbtndrv, svn, [http://fjbtndrv.sourceforge.net])
+AC_INIT(fjbtndrv, git, [http://fjbtndrv.sourceforge.net])
 AC_PREREQ([2.57])
 AM_INIT_AUTOMAKE([gnu 1.9])
 
