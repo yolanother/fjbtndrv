@@ -1,5 +1,5 @@
 # German translations for fscd package.
-# Copyright (C) 2007-2008 Robert Gerlach <khnz@users.sourceforce.net>
+# Copyright (C) 2007-2010 Robert Gerlach <khnz@users.sourceforce.net>
 # This file is distributed under the same license as the fjbtndrv package.
 #
 msgid ""

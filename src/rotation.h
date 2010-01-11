@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Robert Gerlach
+ * Copyright (C) 2009-2010 Robert Gerlach
  *
  * You can redistribute and/or modify this program under the terms of the
  * GNU General Public License version 3 as published by the Free Software
