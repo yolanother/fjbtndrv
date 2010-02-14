@@ -28,7 +28,7 @@
 #endif
 
 #define XOSD_COLOR		"green"
-#define XOSD_OUTLINE_COLOR	"darkgreen"
+#define XOSD_OUTLINE_COLOR	"DarkGreen"
 #define XOSD_FONT               "-*-*-*-r-normal-sans-*-240-*-*-*-*-*-*"
 
 static xosd *osd = NULL;
