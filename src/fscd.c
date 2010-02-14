@@ -186,11 +186,13 @@ int x11_open_input_device(void)
 	XEventClass xeclass[2];
 	int i, idev_num, error;
 
-	debug("searching fsc_btns device ...");
+	debug("searching tablet buttons device ...");
 	idev_list = XListInputDevices(display, &idev_num);
 	for(i=0; i < idev_num; i++) {
 		debug(" ... device %s", idev_list[i].name);
-		if(strncmp(idev_list[i].name, "fsc_btns", 3) == 0) {
+		if((strcmp(idev_list[i].name, "fsc_btns") == 0)
+		   || (strcmp(idev_list[i].name, "fsc tablet buttons") == 0)
+		   || (strcmp(idev_list[i].name, "\"fsc tablet buttons\"") == 0)) {
 			idevice = XOpenDevice(display, idev_list[i].id);
 			break;
 		}
