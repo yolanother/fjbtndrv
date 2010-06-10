@@ -19,14 +19,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include "../../config.h"
-#else
-#  define DEBUG
-#  define REPEAT_DELAY 700
-#  define REPEAT_RATE 16
-#  define STICKY_TIMEOUT 1400
 #endif
-
-#define SPLIT_INPUT_DEVICE
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -46,23 +39,22 @@
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 
-#if !defined return_ACPI_STATUS
-#  define return_ACPI_STATUS(x)    return x
-#endif
-
 #define MODULENAME "fsc_btns"
 
-MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
-MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("git");
+#ifndef HAVE_CONFIG_H
+#  define REPEAT_DELAY 700
+#  define REPEAT_RATE 16
+#  define STICKY_TIMEOUT 1400
+#endif
+
+#undef DEBUG
+#define SPLIT_INPUT_DEVICE
 
 static const struct acpi_device_id fscbtns_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
 	{ .id = "" }
 };
-MODULE_DEVICE_TABLE(acpi, fscbtns_ids);
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
@@ -81,7 +73,7 @@ static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
 
 struct fscbtns_config {
 	int invert_orientation_bit;
-	unsigned int keymap[16];
+	unsigned short keymap[16];
 };
 
 static struct fscbtns_config config_Lifebook_Tseries __initdata = {
@@ -237,25 +229,24 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->id.version = 0x0101;
 
 	idev->keycode = fscbtns.config.keymap;
-	idev->keycodesize = sizeof(unsigned int);
-	idev->keycodemax = sizeof(fscbtns.config.keymap) / idev->keycodesize;
+	idev->keycodesize = sizeof(fscbtns.config.keymap[0]);
+	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
 
 #ifdef REPEAT_RATE
-	set_bit(EV_REP, idev->evbit);
+	__set_bit(EV_REP, idev->evbit);
 #endif
-	set_bit(EV_KEY, idev->evbit);
+	__set_bit(EV_KEY, idev->evbit);
 
-	// XXX: TODO: fix and cleanup this stupid cast
-	for(x = 0; x < idev->keycodemax; x++)
-		if(((unsigned int*)idev->keycode)[x])
-			set_bit(((unsigned int*)idev->keycode)[x], idev->keybit);
+	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
+		if(fscbtns.config.keymap[x])
+			__set_bit(fscbtns.config.keymap[x], idev->keybit);
 
-	set_bit(EV_MSC, idev->evbit);
-	set_bit(MSC_SCAN, idev->mscbit);
+	__set_bit(EV_MSC, idev->evbit);
+	__set_bit(MSC_SCAN, idev->mscbit);
 
 #ifndef SPLIT_INPUT_DEVICE
-	set_bit(EV_SW, idev->evbit);
-	set_bit(SW_TABLET_MODE, idev->swbit);
+	__set_bit(EV_SW, idev->evbit);
+	__set_bit(SW_TABLET_MODE, idev->swbit);
 #endif
 
 	error = input_register_device(idev);
@@ -291,8 +282,8 @@ static int __devinit input_fscbtns_setup_sw(struct device *dev)
 	idev->id.product = 0x0002;
 	idev->id.version = 0x0101;
 
-	set_bit(EV_SW, idev->evbit);
-	set_bit(SW_TABLET_MODE, idev->swbit);
+	__set_bit(EV_SW, idev->evbit);
+	__set_bit(SW_TABLET_MODE, idev->swbit);
 
 	error = input_register_device(idev);
 	if(error) {
@@ -547,20 +538,20 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 	switch(res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
 			fscbtns.interrupt = res->data.irq.interrupts[0];
-			return_ACPI_STATUS(AE_OK);
+			return AE_OK;
 
 		case ACPI_RESOURCE_TYPE_IO:
 			fscbtns.address = res->data.io.minimum;
-			return_ACPI_STATUS(AE_OK);
+			return AE_OK;
 
 		case ACPI_RESOURCE_TYPE_END_TAG:
 			if(fscbtns.interrupt && fscbtns.address)
-				return_ACPI_STATUS(AE_OK);
+				return AE_OK;
 			else
-				return_ACPI_STATUS(AE_NOT_FOUND);
+				return AE_NOT_FOUND;
 
 		default:
-			return_ACPI_STATUS(AE_ERROR);
+			return AE_ERROR;
 	}
 }
 
@@ -689,40 +680,38 @@ static int __init fscbtns_module_init(void)
 			dmi_check_system(dmi_ids);
 	}
 
-	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
-	if(ACPI_FAILURE(error))
-		return -EINVAL;
-
-	if(!fscbtns.interrupt || !fscbtns.address)
-		return -ENODEV;
-
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	init_timer(&fscbtns.timer);
 #endif
 
+	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
+	if(ACPI_FAILURE(error)) {
+		error = -EINVAL;
+		goto err;
+	}
+
+	if(!fscbtns.interrupt || !fscbtns.address) {
+		error = -ENODEV;
+		goto err_acpi;
+	}
+
 	error = platform_driver_register(&fscbtns_platform_driver);
 	if(error)
-		goto err;
+		goto err_acpi;
 
-	fscbtns.pdev = platform_device_alloc(MODULENAME, -1);
-	if(!fscbtns.pdev) {
-		error = -ENOMEM;
+	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
+	if (IS_ERR(fscbtns.pdev)) {
+		error = PTR_ERR(fscbtns.pdev);
 		goto err_pdrv;
 	}
 
-	error = platform_device_add(fscbtns.pdev);
-	if(error)
-		goto err_pdev;
-
 	return 0;
 
-err_pdev:
-	platform_device_put(fscbtns.pdev);
 err_pdrv:
 	platform_driver_unregister(&fscbtns_platform_driver);
-err:
+err_acpi:
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
-
+err:
 #if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
@@ -731,14 +720,20 @@ err:
 
 static void __exit fscbtns_module_exit(void)
 {
-	platform_device_unregister(fscbtns.pdev);
-	platform_driver_unregister(&fscbtns_platform_driver);
-	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
-
 #if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
 	del_timer_sync(&fscbtns.timer);
 #endif
+	platform_device_unregister(fscbtns.pdev);
+	platform_driver_unregister(&fscbtns_platform_driver);
+	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 }
 
 module_init(fscbtns_module_init);
 module_exit(fscbtns_module_exit);
+
+MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
+MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("2.1.2");
+
+MODULE_DEVICE_TABLE(acpi, fscbtns_ids);
