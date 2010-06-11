@@ -1,19 +1,21 @@
-# German translations for fscd package.
-# Copyright (C) 2007-2010 Robert Gerlach <khnz@users.sourceforce.net>
+# Dutch translation for fjbtndrv
+# Copyright (c) 2010 Rosetta Contributors and Canonical Ltd 2010
 # This file is distributed under the same license as the fjbtndrv package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2010.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: fjbtndrv 2.00\n"
+"Project-Id-Version: fjbtndrv\n"
 "Report-Msgid-Bugs-To: khnz@users.sourceforge.net\n"
 "POT-Creation-Date: 2010-06-11 02:14+0200\n"
-"PO-Revision-Date: 2009-03-17 11:50+0100\n"
-"Last-Translator: Robert Gerlach <khnz@users.sourceforge.net>\n"
-"Language-Team: German\n"
+"PO-Revision-Date: 2010-01-12 12:46+0000\n"
+"Last-Translator: cumulus007 <cumulus0007@gmail.com>\n"
+"Language-Team: Dutch <nl@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Launchpad-Export-Date: 2010-06-10 23:28+0000\n"
+"X-Generator: Launchpad (build Unknown)\n"
 
 #: src/fscd.c:595 src/fscd.c:601 src/fscd.c:607
 msgid "Scrolling"
@@ -21,32 +23,32 @@ msgstr "Scrollen"
 
 #: src/fscd.c:595
 msgid "Z-Axis"
-msgstr "Z-Achse"
+msgstr "Z-as"
 
 #: src/fscd.c:601
 msgid "Page Up/Down"
-msgstr "Bild Auf/Ab"
+msgstr "Page Up/Down"
 
 #: src/fscd.c:607
 msgid "Space/Backspace"
-msgstr "Leer-/Rücktaste"
+msgstr "Spatiebalk/Backspace"
 
 #: src/fscd.c:648
 msgid "Rotation locked"
-msgstr "Bildschirm drehen gesperrt"
+msgstr "Rotatie vergrendeld"
 
 #: src/fscd.c:653
 msgid "Rotation unlocked"
-msgstr "Bildschirm drehen entgesperrt"
+msgstr "Rotatie ontgrendeld"
 
 #: src/fscd.c:768
 msgid "configuration..."
-msgstr "Konfiguration..."
+msgstr "configuratie..."
 
 #: src/fscd.c:845
 msgid "started"
-msgstr "gestarted"
+msgstr "gestart"
 
 #: src/gui-xosd.c:116
 msgid "Brightness"
-msgstr "Helligkeit"
+msgstr "Helderheid"

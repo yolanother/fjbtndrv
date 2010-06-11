@@ -14,6 +14,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#  include "../config.h"
+#endif
+
 #include "fjbtndrv.h"
 #include "gui.h"
 #include <stdio.h>
@@ -22,6 +26,7 @@
 
 #ifdef ENABLE_NLS
 #  include <libintl.h>
+#  include <locale.h>
 #  define _(x) gettext(x)
 #else
 #  define _(x) (x)
@@ -29,7 +34,7 @@
 
 #define XOSD_COLOR		"green"
 #define XOSD_OUTLINE_COLOR	"DarkGreen"
-#define XOSD_FONT               "-*-*-*-r-normal-sans-*-240-*-*-*-*-*-*"
+#define XOSD_FONT               "-*-*-*-r-normal-*-*-200-*-*-*-*-*-*"
 
 static xosd *osd = NULL;
 
@@ -55,7 +60,7 @@ xosd *osd_new(int lines)
 	xosd_set_font(osd, XOSD_FONT);
 	xosd_set_outline_offset(osd, 1);
 	xosd_set_outline_colour(osd, XOSD_OUTLINE_COLOR);
-	xosd_set_shadow_offset(osd, 3);
+	xosd_set_shadow_offset(osd, 2);
 	xosd_set_colour(osd, XOSD_COLOR);
 
 	return osd;
