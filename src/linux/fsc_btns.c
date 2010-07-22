@@ -217,7 +217,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	int x;
 
 	idev = input_allocate_device();
-	if(!idev)
+	if (!idev)
 		return -ENOMEM;
 
 	idev->dev.parent = dev;
@@ -238,7 +238,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	__set_bit(EV_KEY, idev->evbit);
 
 	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
-		if(fscbtns.config.keymap[x])
+		if (fscbtns.config.keymap[x])
 			__set_bit(fscbtns.config.keymap[x], idev->keybit);
 
 	__set_bit(EV_MSC, idev->evbit);
@@ -250,7 +250,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 #endif
 
 	error = input_register_device(idev);
-	if(error) {
+	if (error) {
 		input_free_device(idev);
 		return error;
 	}
@@ -271,7 +271,7 @@ static int __devinit input_fscbtns_setup_sw(struct device *dev)
 	int error;
 
 	idev = input_allocate_device();
-	if(!idev)
+	if (!idev)
 		return -ENOMEM;
 
 	idev->dev.parent = dev;
@@ -286,7 +286,7 @@ static int __devinit input_fscbtns_setup_sw(struct device *dev)
 	__set_bit(SW_TABLET_MODE, idev->swbit);
 
 	error = input_register_device(idev);
-	if(error) {
+	if (error) {
 		input_free_device(idev);
 		return error;
 	}
@@ -298,10 +298,10 @@ static int __devinit input_fscbtns_setup_sw(struct device *dev)
 
 static void input_fscbtns_remove(void)
 {
-	if(fscbtns.idev)
+	if (fscbtns.idev)
 		input_unregister_device(fscbtns.idev);
 #ifdef SPLIT_INPUT_DEVICE
-	if(fscbtns.idev_sw)
+	if (fscbtns.idev_sw)
 		input_unregister_device(fscbtns.idev_sw);
 #endif
 }
@@ -316,11 +316,11 @@ static void fscbtns_report_orientation(void)
 
 	int orientation = fscbtns_read_register(0xdd);
 
-	if(orientation & 0x02) {
+	if (orientation & 0x02) {
 		orientation ^= fscbtns.config.invert_orientation_bit;
 		orientation &= 0x01;
 
-		if(orientation != fscbtns.orientation) {
+		if (orientation != fscbtns.orientation) {
 			input_report_switch(idev, SW_TABLET_MODE,
 					fscbtns.orientation = orientation);
 			input_sync(idev);
@@ -338,11 +338,11 @@ static void fscbtns_sticky_timeout(unsigned long keycode)
 
 static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 {
-	if(pressed) {
+	if (pressed) {
 		del_timer(&fscbtns.timer);
 		fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
 
-		if(fscbtns.timer.data == keycode) {
+		if (fscbtns.timer.data == keycode) {
 			input_report_key(fscbtns.idev, keycode, 0);
 			input_sync(fscbtns.idev);
 		}
@@ -350,7 +350,7 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 		return 0;
 	}
 
-	if((fscbtns.timer.data) && (fscbtns.timer.data != keycode)) {
+	if ((fscbtns.timer.data) && (fscbtns.timer.data != keycode)) {
 		input_report_key(fscbtns.idev, keycode, 0);
 		input_sync(fscbtns.idev);
 		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
@@ -358,7 +358,7 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 		return 1;
 	}
 
-	if(test_bit(keycode, modification_mask) && (fscbtns.timer.expires > jiffies)) {
+	if (test_bit(keycode, modification_mask) && (fscbtns.timer.expires > jiffies)) {
 		fscbtns.timer.data = keycode;
 		fscbtns.timer.function = fscbtns_sticky_timeout;
 		add_timer(&fscbtns.timer);
@@ -372,14 +372,14 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
 	unsigned int keycode = fscbtns.config.keymap[kmindex];
-	if(keycode == KEY_RESERVED)
+	if (keycode == KEY_RESERVED)
 		return;
 
-	if(pressed)
+	if (pressed)
 		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, kmindex);
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	if( fscbtns_sticky_report_key(keycode, pressed) )
+	if (fscbtns_sticky_report_key(keycode, pressed))
 		return;
 #endif
 
@@ -400,7 +400,7 @@ static void fscbtns_event(void)
 
 	changed = keymask ^ prev_keymask;
 
-	if(changed) {
+	if (changed) {
 		int x = 0;
 		int pressed = !!(keymask & changed);
 
@@ -430,7 +430,7 @@ static DECLARE_WORK(isr_wq, fscbtns_isr_do);
 
 static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 {
-	if(!(fscbtns_status() & 0x01))
+	if (!(fscbtns_status() & 0x01))
 		return IRQ_NONE;
 
 	schedule_work(&isr_wq);
@@ -453,7 +453,7 @@ static int fscbtns_busywait(void)
 static void fscbtns_reset(void)
 {
 	fscbtns_ack();
-	if(fscbtns_busywait())
+	if (fscbtns_busywait())
 		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
 }
 
@@ -462,16 +462,16 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 	int error;
 
 	error = input_fscbtns_setup(&pdev->dev);
-	if(error)
+	if (error)
 		goto err_input;
 
 #ifdef SPLIT_INPUT_DEVICE
 	error = input_fscbtns_setup_sw(&pdev->dev);
-	if(error)
+	if (error)
 		goto err_input;
 #endif
 
-	if(!request_region(fscbtns.address, 8, MODULENAME)) {
+	if (!request_region(fscbtns.address, 8, MODULENAME)) {
 		printk(KERN_ERR MODULENAME ": region 0x%04x busy\n", fscbtns.address);
 		error = -EBUSY;
 		goto err_input;
@@ -484,7 +484,7 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 
 	error = request_irq(fscbtns.interrupt, fscbtns_isr,
 			IRQF_SHARED, MODULENAME, fscbtns_isr);
-	if(error) {
+	if (error) {
 		printk(KERN_ERR MODULENAME ": unable to get irq %d\n", fscbtns.interrupt);
 		goto err_io;
 	}
@@ -545,7 +545,7 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 			return AE_OK;
 
 		case ACPI_RESOURCE_TYPE_END_TAG:
-			if(fscbtns.interrupt && fscbtns.address)
+			if (fscbtns.interrupt && fscbtns.address)
 				return AE_OK;
 			else
 				return AE_NOT_FOUND;
@@ -559,12 +559,12 @@ static int acpi_fscbtns_add(struct acpi_device *adev)
 {
 	acpi_status status;
 
-	if(!adev)
+	if (!adev)
 		return -EINVAL;
 
 	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
 			fscbtns_walk_resources, NULL);
-	if(ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
 	return 0;
@@ -685,18 +685,18 @@ static int __init fscbtns_module_init(void)
 #endif
 
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
-	if(ACPI_FAILURE(error)) {
+	if (ACPI_FAILURE(error)) {
 		error = -EINVAL;
 		goto err;
 	}
 
-	if(!fscbtns.interrupt || !fscbtns.address) {
+	if (!fscbtns.interrupt || !fscbtns.address) {
 		error = -ENODEV;
 		goto err_acpi;
 	}
 
 	error = platform_driver_register(&fscbtns_platform_driver);
-	if(error)
+	if (error)
 		goto err_acpi;
 
 	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
