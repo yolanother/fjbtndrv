@@ -224,7 +224,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	__set_bit(EV_REP, idev->evbit);
 	__set_bit(EV_KEY, idev->evbit);
 
-	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
+	for (x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
 		if (fscbtns.config.keymap[x])
 			__set_bit(fscbtns.config.keymap[x], idev->keybit);
 
