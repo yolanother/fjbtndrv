@@ -17,14 +17,9 @@
  * 59 Temple Place Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "../../config.h"
-#endif
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/dmi.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
@@ -41,13 +36,10 @@
 
 #define MODULENAME "fsc_btns"
 
-#ifndef HAVE_CONFIG_H
-#  define REPEAT_DELAY 700
-#  define REPEAT_RATE 16
-#  define STICKY_TIMEOUT 1400
-#endif
+#define REPEAT_DELAY 700
+#define REPEAT_RATE 16
+#define STICKY_TIMEOUT 1400
 
-#undef DEBUG
 #define SPLIT_INPUT_DEVICE
 
 static const struct acpi_device_id fscbtns_ids[] = {
@@ -56,7 +48,7 @@ static const struct acpi_device_id fscbtns_ids[] = {
 	{ .id = "" }
 };
 
-#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
+#if (STICKY_TIMEOUT > 0)
 static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
 		[BIT_WORD(KEY_LEFTSHIFT)]	= BIT_MASK(KEY_LEFTSHIFT),
 		[BIT_WORD(KEY_RIGHTSHIFT)]	= BIT_MASK(KEY_RIGHTSHIFT),
@@ -169,7 +161,7 @@ static struct {						/* fscbtns_t */
 #ifdef SPLIT_INPUT_DEVICE
 	struct input_dev *idev_sw;
 #endif
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
+#if (STICKY_TIMEOUT > 0)
 	struct timer_list timer;
 #endif
 
@@ -180,9 +172,6 @@ static struct {						/* fscbtns_t */
 	int orientation;
 } fscbtns;
 
-static unsigned int user_model;
-module_param_named(model, user_model, uint, 0);
-MODULE_PARM_DESC(model, "model (1 = Stylistic, 2 = Lifebook T- and P-Series, 3 = Stylistic ST5xxx, 4 = Lifebook U800)");
 
 /*** HELPER *******************************************************************/
 
@@ -232,9 +221,7 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->keycodesize = sizeof(fscbtns.config.keymap[0]);
 	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
 
-#ifdef REPEAT_RATE
 	__set_bit(EV_REP, idev->evbit);
-#endif
 	__set_bit(EV_KEY, idev->evbit);
 
 	for(x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
@@ -255,10 +242,8 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		return error;
 	}
 
-#ifdef REPEAT_RATE
 	idev->rep[REP_DELAY]  = REPEAT_DELAY;
 	idev->rep[REP_PERIOD] = 1000 / REPEAT_RATE;
-#endif
 
 	fscbtns.idev = idev;
 	return 0;
@@ -663,22 +648,7 @@ static int __init fscbtns_module_init(void)
 {
 	int error;
 
-	switch(user_model) {
-		case 1:
-			fscbtns_use_config(&config_Stylistic_Tseries);
-			break;
-		case 2:
-			fscbtns_use_config(&config_Lifebook_Tseries);
-			break;
-		case 3:
-			fscbtns_use_config(&config_Stylistic_ST5xxx);
-			break;
-		case 4:
-			fscbtns_use_config(&config_Lifebook_U810);
-			break;
-		default:
-			dmi_check_system(dmi_ids);
-	}
+	dmi_check_system(dmi_ids);
 
 #if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
 	init_timer(&fscbtns.timer);
@@ -712,7 +682,7 @@ err_pdrv:
 err_acpi:
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 err:
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
+#if (STICKY_TIMEOUT > 0)
 	del_timer_sync(&fscbtns.timer);
 #endif
 	return error;
@@ -720,7 +690,7 @@ err:
 
 static void __exit fscbtns_module_exit(void)
 {
-#if (defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0))
+#if (STICKY_TIMEOUT > 0)
 	del_timer_sync(&fscbtns.timer);
 #endif
 	platform_device_unregister(fscbtns.pdev);
