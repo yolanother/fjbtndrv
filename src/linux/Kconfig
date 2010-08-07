@@ -1,0 +1,11 @@
+config INPUT_FSC_BTNS
+	tristate "Fujitsu tablet PCs buttons"
+	depends on X86
+	help
+	 Say Y here for support of the tablet buttons and the display
+	 orientation switch, used on many Fujitsu tablet PCs (like
+	 Stylistic ST5xxx, Lifebook P1xxx and Lifebook T-Series).
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called fsc_btns.
+
