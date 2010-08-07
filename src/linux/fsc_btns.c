@@ -68,7 +68,7 @@ struct fscbtns_config {
 	unsigned short keymap[16];
 };
 
-static struct fscbtns_config config_Lifebook_Tseries __initdata = {
+static struct fscbtns_config config_Lifebook_Tseries __initconst = {
 	.invert_orientation_bit = 1,
 	.keymap = {
 		KEY_RESERVED,
@@ -90,7 +90,7 @@ static struct fscbtns_config config_Lifebook_Tseries __initdata = {
 	}
 };
 
-static struct fscbtns_config config_Lifebook_U810 __initdata = {
+static struct fscbtns_config config_Lifebook_U810 __initconst = {
 	.invert_orientation_bit = 1,
 	.keymap = {
 		KEY_RESERVED,
@@ -112,7 +112,7 @@ static struct fscbtns_config config_Lifebook_U810 __initdata = {
 	}
 };
 
-static struct fscbtns_config config_Stylistic_Tseries __initdata = {
+static struct fscbtns_config config_Stylistic_Tseries __initconst = {
 	.invert_orientation_bit = 0,
 	.keymap = {
 		KEY_RESERVED,
@@ -133,7 +133,7 @@ static struct fscbtns_config config_Stylistic_Tseries __initdata = {
 	}
 };
 
-static struct fscbtns_config config_Stylistic_ST5xxx __initdata = {
+static struct fscbtns_config config_Stylistic_ST5xxx __initconst = {
 	.invert_orientation_bit = 0,
 	.keymap = {
 		KEY_RESERVED,
@@ -189,11 +189,6 @@ static inline u8 fscbtns_read_register(const u8 addr)
 {
 	outb(addr, fscbtns.address);
 	return inb(fscbtns.address+4);
-}
-
-static inline void fscbtns_use_config(struct fscbtns_config *config)
-{
-	memcpy(&fscbtns.config, config, sizeof(struct fscbtns_config));
 }
 
 
@@ -570,7 +565,8 @@ static struct acpi_driver acpi_fscbtns_driver = {
 static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
-	fscbtns_use_config(dmi->driver_data);
+	memcpy(&fscbtns.config, dmi->driver_data,
+			sizeof(struct fscbtns_config));
 	return 1;
 }
 
