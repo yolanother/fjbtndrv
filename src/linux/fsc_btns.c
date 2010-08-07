@@ -167,7 +167,7 @@ static struct {						/* fscbtns_t */
 
 	unsigned int interrupt;
 	unsigned int address;
-	struct fscbtns_config config;
+	struct fscbtns_config *config;
 
 	int orientation;
 } fscbtns;
@@ -212,16 +212,16 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0101;
 
-	idev->keycode = fscbtns.config.keymap;
-	idev->keycodesize = sizeof(fscbtns.config.keymap[0]);
-	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
+	idev->keycode = fscbtns.config->keymap;
+	idev->keycodesize = sizeof(fscbtns.config->keymap[0]);
+	idev->keycodemax = ARRAY_SIZE(fscbtns.config->keymap);
 
 	__set_bit(EV_REP, idev->evbit);
 	__set_bit(EV_KEY, idev->evbit);
 
-	for (x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
-		if (fscbtns.config.keymap[x])
-			__set_bit(fscbtns.config.keymap[x], idev->keybit);
+	for (x = 0; x < ARRAY_SIZE(fscbtns.config->keymap); x++)
+		if (fscbtns.config->keymap[x])
+			__set_bit(fscbtns.config->keymap[x], idev->keybit);
 
 	__set_bit(EV_MSC, idev->evbit);
 	__set_bit(MSC_SCAN, idev->mscbit);
@@ -297,7 +297,7 @@ static void fscbtns_report_orientation(void)
 	int orientation = fscbtns_read_register(0xdd);
 
 	if (orientation & 0x02) {
-		orientation ^= fscbtns.config.invert_orientation_bit;
+		orientation ^= fscbtns.config->invert_orientation_bit;
 		orientation &= 0x01;
 
 		if (orientation != fscbtns.orientation) {
@@ -351,7 +351,7 @@ static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
 
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
-	unsigned int keycode = fscbtns.config.keymap[kmindex];
+	unsigned int keycode = fscbtns.config->keymap[kmindex];
 	if (keycode == KEY_RESERVED)
 		return;
 
@@ -565,8 +565,7 @@ static struct acpi_driver acpi_fscbtns_driver = {
 static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
-	memcpy(&fscbtns.config, dmi->driver_data,
-			sizeof(struct fscbtns_config));
+	fscbtns.config = (struct fscbtns_config*) dmi->driver_data;
 	return 1;
 }
 
