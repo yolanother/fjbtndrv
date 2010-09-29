@@ -434,7 +434,11 @@ static int acpi_fscbtns_add(struct acpi_device *adev)
 	if (!fscbtns.interrupt || !fscbtns.address) {
 		return -ENODEV;
 	}
- 
+
+	printk(KERN_INFO MODULENAME ": found %s at io 0x%04x irq %d\n",
+			acpi_device_hid(adev),
+			fscbtns.address, fscbtns.interrupt);
+
 	error = platform_driver_register(&fscbtns_platform_driver);
 	if (error)
 		return error;
@@ -471,7 +475,7 @@ static struct acpi_driver acpi_fscbtns_driver = {
 
 static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
 {
-	printk(KERN_INFO MODULENAME ": found: %s\n", dmi->ident);
+	printk(KERN_INFO MODULENAME ": %s detected\n", dmi->ident);
 	fscbtns.config = (struct fscbtns_config*) dmi->driver_data;
 	return 1;
 }
