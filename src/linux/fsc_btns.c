@@ -242,25 +242,12 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-static void fscbtns_report_key(unsigned int kmindex, int pressed)
+static void fscbtns_report_key(void)
 {
-	unsigned int keycode = fscbtns.config->keymap[kmindex];
-	if (keycode == KEY_RESERVED)
-		return;
-
-	if (pressed)
-		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, kmindex);
-
-	input_report_key(fscbtns.idev, keycode, pressed);
-}
-
-static void fscbtns_event(void)
-{
-	unsigned long keymask;
-	unsigned long changed;
 	static unsigned long prev_keymask = 0;
 
-	fscbtns_report_orientation();
+	unsigned long keymask;
+	unsigned long changed;
 
 	keymask  = fscbtns_read_register(0xde);
 	keymask |= fscbtns_read_register(0xdf) << 8;
@@ -269,8 +256,8 @@ static void fscbtns_event(void)
 	changed = keymask ^ prev_keymask;
 
 	if (changed) {
+		int keycode, pressed;
 		int x = 0;
-		int pressed = !!(keymask & changed);
 
 		/* save current state and filter not changed bits */
 		prev_keymask = keymask;
@@ -279,9 +266,23 @@ static void fscbtns_event(void)
 		while(!test_bit(x, &changed))
 			x++;
 
-		fscbtns_report_key(x, pressed);
-	}
+		keycode = fscbtns.config->keymap[x];
+		pressed = !!(keymask & changed);
 
+		if (keycode != KEY_RESERVED) {
+			if (pressed)
+				input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
+
+			input_report_key(fscbtns.idev, keycode, pressed);
+		}
+	}
+}
+
+static void fscbtns_event(void)
+{
+
+	fscbtns_report_orientation();
+	fscbtns_report_key();
 	input_sync(fscbtns.idev);
 }
 
