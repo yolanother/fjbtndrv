@@ -39,8 +39,6 @@
 #define REPEAT_DELAY 700
 #define REPEAT_RATE 16
 
-#define SPLIT_INPUT_DEVICE
-
 static const struct acpi_device_id fscbtns_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
@@ -142,9 +140,6 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initconst = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-#ifdef SPLIT_INPUT_DEVICE
-	struct input_dev *idev_sw;
-#endif
 
 	unsigned int interrupt;
 	unsigned int address;
@@ -207,10 +202,8 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	__set_bit(EV_MSC, idev->evbit);
 	__set_bit(MSC_SCAN, idev->mscbit);
 
-#ifndef SPLIT_INPUT_DEVICE
 	__set_bit(EV_SW, idev->evbit);
 	__set_bit(SW_TABLET_MODE, idev->swbit);
-#endif
 
 	error = input_register_device(idev);
 	if (error) {
@@ -225,55 +218,15 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	return 0;
 }
 
-#ifdef SPLIT_INPUT_DEVICE
-static int __devinit input_fscbtns_setup_sw(struct device *dev)
-{
-	struct input_dev *idev;
-	int error;
-
-	idev = input_allocate_device();
-	if (!idev)
-		return -ENOMEM;
-
-	idev->dev.parent = dev;
-	idev->phys = "fsc/input1";
-	idev->name = "fsc tablet switch";
-	idev->id.bustype = BUS_HOST;
-	idev->id.vendor  = 0x1734;	/* "Fujitsu Siemens Computer GmbH" from pci.ids */
-	idev->id.product = 0x0002;
-	idev->id.version = 0x0101;
-
-	__set_bit(EV_SW, idev->evbit);
-	__set_bit(SW_TABLET_MODE, idev->swbit);
-
-	error = input_register_device(idev);
-	if (error) {
-		input_free_device(idev);
-		return error;
-	}
-
-	fscbtns.idev_sw = idev;
-	return 0;
-}
-#endif
-
 static void input_fscbtns_remove(void)
 {
 	if (fscbtns.idev)
 		input_unregister_device(fscbtns.idev);
-#ifdef SPLIT_INPUT_DEVICE
-	if (fscbtns.idev_sw)
-		input_unregister_device(fscbtns.idev_sw);
-#endif
 }
 
 static void fscbtns_report_orientation(void)
 {
-#ifdef SPLIT_INPUT_DEVICE
-	struct input_dev *idev = fscbtns.idev_sw;
-#else
 	struct input_dev *idev = fscbtns.idev;
-#endif
 
 	int orientation = fscbtns_read_register(0xdd);
 
@@ -379,12 +332,6 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 	error = input_fscbtns_setup(&pdev->dev);
 	if (error)
 		goto err_input;
-
-#ifdef SPLIT_INPUT_DEVICE
-	error = input_fscbtns_setup_sw(&pdev->dev);
-	if (error)
-		goto err_input;
-#endif
 
 	if (!request_region(fscbtns.address, 8, MODULENAME)) {
 		printk(KERN_ERR MODULENAME ": region 0x%04x busy\n", fscbtns.address);
