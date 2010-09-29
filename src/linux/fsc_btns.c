@@ -421,6 +421,7 @@ static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
 static int acpi_fscbtns_add(struct acpi_device *adev)
 {
 	acpi_status status;
+	int error;
 
 	if (!adev)
 		return -EINVAL;
@@ -430,6 +431,28 @@ static int acpi_fscbtns_add(struct acpi_device *adev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
+	if (!fscbtns.interrupt || !fscbtns.address) {
+		return -ENODEV;
+	}
+ 
+	error = platform_driver_register(&fscbtns_platform_driver);
+	if (error)
+		return error;
+
+	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
+	if (IS_ERR(fscbtns.pdev)) {
+		error = PTR_ERR(fscbtns.pdev);
+		platform_driver_unregister(&fscbtns_platform_driver);
+		return error;
+	}
+
+	return 0;
+}
+
+static int acpi_fscbtns_remove(struct acpi_device *adev, int type)
+{
+	platform_device_unregister(fscbtns.pdev);
+	platform_driver_unregister(&fscbtns_platform_driver);
 	return 0;
 }
 
@@ -438,7 +461,8 @@ static struct acpi_driver acpi_fscbtns_driver = {
 	.class = "hotkey",
 	.ids   = fscbtns_ids,
 	.ops   = {
-		.add    = acpi_fscbtns_add
+		.add    = acpi_fscbtns_add,
+		.remove = acpi_fscbtns_remove
 	}
 };
 
@@ -530,39 +554,14 @@ static int __init fscbtns_module_init(void)
 
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
 	if (ACPI_FAILURE(error)) {
-		error = -EINVAL;
-		goto err;
-	}
-
-	if (!fscbtns.interrupt || !fscbtns.address) {
-		error = -ENODEV;
-		goto err_acpi;
-	}
-
-	error = platform_driver_register(&fscbtns_platform_driver);
-	if (error)
-		goto err_acpi;
-
-	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
-	if (IS_ERR(fscbtns.pdev)) {
-		error = PTR_ERR(fscbtns.pdev);
-		goto err_pdrv;
+		return error;
 	}
 
 	return 0;
-
-err_pdrv:
-	platform_driver_unregister(&fscbtns_platform_driver);
-err_acpi:
-	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
-err:
-	return error;
 }
 
 static void __exit fscbtns_module_exit(void)
 {
-	platform_device_unregister(fscbtns.pdev);
-	platform_driver_unregister(&fscbtns_platform_driver);
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 }
 
