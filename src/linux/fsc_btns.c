@@ -38,7 +38,6 @@
 
 #define REPEAT_DELAY 700
 #define REPEAT_RATE 16
-#define STICKY_TIMEOUT 1400
 
 #define SPLIT_INPUT_DEVICE
 
@@ -47,21 +46,6 @@ static const struct acpi_device_id fscbtns_ids[] = {
 	{ .id = "FUJ02BF" },
 	{ .id = "" }
 };
-
-#if (STICKY_TIMEOUT > 0)
-static const unsigned long modification_mask[BITS_TO_LONGS(KEY_MAX)] = {
-		[BIT_WORD(KEY_LEFTSHIFT)]	= BIT_MASK(KEY_LEFTSHIFT),
-		[BIT_WORD(KEY_RIGHTSHIFT)]	= BIT_MASK(KEY_RIGHTSHIFT),
-		[BIT_WORD(KEY_LEFTCTRL)]	= BIT_MASK(KEY_LEFTCTRL),
-		[BIT_WORD(KEY_RIGHTCTRL)]	= BIT_MASK(KEY_RIGHTCTRL),
-		[BIT_WORD(KEY_LEFTALT)]		= BIT_MASK(KEY_LEFTALT),
-		[BIT_WORD(KEY_RIGHTALT)]	= BIT_MASK(KEY_RIGHTALT),
-		[BIT_WORD(KEY_LEFTMETA)]	= BIT_MASK(KEY_LEFTMETA),
-		[BIT_WORD(KEY_RIGHTMETA)]	= BIT_MASK(KEY_RIGHTMETA),
-		[BIT_WORD(KEY_COMPOSE)]		= BIT_MASK(KEY_COMPOSE),
-		[BIT_WORD(KEY_LEFTALT)]		= BIT_MASK(KEY_LEFTALT),
-		[BIT_WORD(KEY_FN)]		= BIT_MASK(KEY_FN)};
-#endif
 
 struct fscbtns_config {
 	int invert_orientation_bit;
@@ -160,9 +144,6 @@ static struct {						/* fscbtns_t */
 	struct input_dev *idev;
 #ifdef SPLIT_INPUT_DEVICE
 	struct input_dev *idev_sw;
-#endif
-#if (STICKY_TIMEOUT > 0)
-	struct timer_list timer;
 #endif
 
 	unsigned int interrupt;
@@ -308,47 +289,6 @@ static void fscbtns_report_orientation(void)
 	}
 }
 
-#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-static void fscbtns_sticky_timeout(unsigned long keycode)
-{
-	input_report_key(fscbtns.idev, keycode, 0);
-	fscbtns.timer.data = 0;
-	input_sync(fscbtns.idev);
-}
-
-static inline int fscbtns_sticky_report_key(unsigned int keycode, int pressed)
-{
-	if (pressed) {
-		del_timer(&fscbtns.timer);
-		fscbtns.timer.expires = jiffies + (STICKY_TIMEOUT*HZ)/1000;
-
-		if (fscbtns.timer.data == keycode) {
-			input_report_key(fscbtns.idev, keycode, 0);
-			input_sync(fscbtns.idev);
-		}
-
-		return 0;
-	}
-
-	if ((fscbtns.timer.data) && (fscbtns.timer.data != keycode)) {
-		input_report_key(fscbtns.idev, keycode, 0);
-		input_sync(fscbtns.idev);
-		input_report_key(fscbtns.idev, fscbtns.timer.data, 0);
-		fscbtns.timer.data = 0;
-		return 1;
-	}
-
-	if (test_bit(keycode, modification_mask) && (fscbtns.timer.expires > jiffies)) {
-		fscbtns.timer.data = keycode;
-		fscbtns.timer.function = fscbtns_sticky_timeout;
-		add_timer(&fscbtns.timer);
-		return 1;
-	}
-
-	return 0;
-}
-#endif
-
 static void fscbtns_report_key(unsigned int kmindex, int pressed)
 {
 	unsigned int keycode = fscbtns.config->keymap[kmindex];
@@ -357,11 +297,6 @@ static void fscbtns_report_key(unsigned int kmindex, int pressed)
 
 	if (pressed)
 		input_event(fscbtns.idev, EV_MSC, MSC_SCAN, kmindex);
-
-#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	if (fscbtns_sticky_report_key(keycode, pressed))
-		return;
-#endif
 
 	input_report_key(fscbtns.idev, keycode, pressed);
 }
@@ -645,10 +580,6 @@ static int __init fscbtns_module_init(void)
 
 	dmi_check_system(dmi_ids);
 
-#if defined(STICKY_TIMEOUT) && (STICKY_TIMEOUT > 0)
-	init_timer(&fscbtns.timer);
-#endif
-
 	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
 	if (ACPI_FAILURE(error)) {
 		error = -EINVAL;
@@ -677,17 +608,11 @@ err_pdrv:
 err_acpi:
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
 err:
-#if (STICKY_TIMEOUT > 0)
-	del_timer_sync(&fscbtns.timer);
-#endif
 	return error;
 }
 
 static void __exit fscbtns_module_exit(void)
 {
-#if (STICKY_TIMEOUT > 0)
-	del_timer_sync(&fscbtns.timer);
-#endif
 	platform_device_unregister(fscbtns.pdev);
 	platform_driver_unregister(&fscbtns_platform_driver);
 	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
