@@ -503,6 +503,6 @@ module_exit(fscbtns_module_exit);
 MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
 MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("2.1.2");
+MODULE_VERSION("git");
 
 MODULE_DEVICE_TABLE(acpi, fscbtns_ids);
