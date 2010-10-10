@@ -9,20 +9,20 @@ EXTRA_CFLAGS	+= $(DEFS)
 endif
 
 
-obj-m		+= fsc_btns.o
+obj-m		+= fujitsu-tablet.o
 
-all: fsc_btns.ko
-modules: fsc_btns.ko
+all: fujitsu-tablet.ko
+modules: fujitsu-tablet.ko
 modules_install: install
 
-fsc_btns.ko: fsc_btns.c
+fujitsu-tablet.ko: fujitsu-tablet.c
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules
 
-install: fsc_btns.ko
+install: fujitsu-tablet.ko
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules_install
 
 uninstall:
-	rm -f /lib/modules/$(KERNELRELEASE)/extra/fsc_btns.ko
+	rm -f /lib/modules/$(KERNELRELEASE)/extra/fujitsu-tablet.ko
 
 clean:
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) clean
@@ -30,7 +30,7 @@ clean:
 distclean: clean
 	rm -f Module.symvers
 
-distdir: Makefile fsc_btns.c
+distdir: Makefile fujitsu-tablet.c
 	cp -p $^ $(distdir)
 
 %:

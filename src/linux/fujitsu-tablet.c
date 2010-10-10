@@ -33,7 +33,7 @@
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 
-#define MODULENAME "fsc_btns"
+#define MODULENAME "fujitsu-tablet"
 
 #define INTERRUPT 5
 #define IO_BASE 0xfd70
@@ -41,18 +41,18 @@
 #define REPEAT_DELAY 700
 #define REPEAT_RATE 16
 
-static const struct acpi_device_id fscbtns_ids[] = {
+static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
 	{ .id = "" }
 };
 
-struct fscbtns_config {
+struct fujitsu_config {
 	int invert_orientation_bit;
 	unsigned short keymap[16];
 };
 
-static struct fscbtns_config config_Lifebook_Tseries __initconst = {
+static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 	.invert_orientation_bit = 1,
 	.keymap = {
 		KEY_RESERVED,
@@ -74,7 +74,7 @@ static struct fscbtns_config config_Lifebook_Tseries __initconst = {
 	}
 };
 
-static struct fscbtns_config config_Lifebook_U810 __initconst = {
+static struct fujitsu_config config_Lifebook_U810 __initconst = {
 	.invert_orientation_bit = 1,
 	.keymap = {
 		KEY_RESERVED,
@@ -96,7 +96,7 @@ static struct fscbtns_config config_Lifebook_U810 __initconst = {
 	}
 };
 
-static struct fscbtns_config config_Stylistic_Tseries __initconst = {
+static struct fujitsu_config config_Stylistic_Tseries __initconst = {
 	.invert_orientation_bit = 0,
 	.keymap = {
 		KEY_RESERVED,
@@ -117,7 +117,7 @@ static struct fscbtns_config config_Stylistic_Tseries __initconst = {
 	}
 };
 
-static struct fscbtns_config config_Stylistic_ST5xxx __initconst = {
+static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 	.invert_orientation_bit = 0,
 	.keymap = {
 		KEY_RESERVED,
@@ -139,26 +139,26 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initconst = {
 	}
 };
 
-static struct {						/* fscbtns_t */
+static struct {						/* fujitsu_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-	struct fscbtns_config config;
+	struct fujitsu_config config;
 	int orientation;
-} fscbtns;
+} fujitsu;
 
 /*** HELPER *******************************************************************/
 
-static inline u8 fscbtns_ack(void)
+static inline u8 fujitsu_ack(void)
 {
 	return inb(IO_BASE+2);
 }
 
-static inline u8 fscbtns_status(void)
+static inline u8 fujitsu_status(void)
 {
 	return inb(IO_BASE+6);
 }
 
-static inline u8 fscbtns_read_register(const u8 addr)
+static inline u8 fujitsu_read_register(const u8 addr)
 {
 	outb(addr, IO_BASE);
 	return inb(IO_BASE+4);
@@ -167,7 +167,7 @@ static inline u8 fscbtns_read_register(const u8 addr)
 
 /*** INPUT ********************************************************************/
 
-static int __devinit input_fscbtns_setup(struct device *dev)
+static int __devinit input_fujitsu_setup(struct device *dev)
 {
 	struct input_dev *idev;
 	int error;
@@ -178,23 +178,23 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 		return -ENOMEM;
 
 	idev->dev.parent = dev;
-	idev->phys = "fsc/input0";
-	idev->name = "fsc tablet buttons";
+	idev->phys = KBUILD_MODNAME "/input0";
+	idev->name = "Fujitsu tablet buttons";
 	idev->id.bustype = BUS_HOST;
 	idev->id.vendor  = 0x1734;	/* "Fujitsu Siemens Computer GmbH" from pci.ids */
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0101;
 
-	idev->keycode = fscbtns.config.keymap;
-	idev->keycodesize = sizeof(fscbtns.config.keymap[0]);
-	idev->keycodemax = ARRAY_SIZE(fscbtns.config.keymap);
+	idev->keycode = fujitsu.config.keymap;
+	idev->keycodesize = sizeof(fujitsu.config.keymap[0]);
+	idev->keycodemax = ARRAY_SIZE(fujitsu.config.keymap);
 
 	__set_bit(EV_REP, idev->evbit);
 	__set_bit(EV_KEY, idev->evbit);
 
-	for (x = 0; x < ARRAY_SIZE(fscbtns.config.keymap); x++)
-		if (fscbtns.config.keymap[x])
-			__set_bit(fscbtns.config.keymap[x], idev->keybit);
+	for (x = 0; x < ARRAY_SIZE(fujitsu.config.keymap); x++)
+		if (fujitsu.config.keymap[x])
+			__set_bit(fujitsu.config.keymap[x], idev->keybit);
 
 	__set_bit(EV_MSC, idev->evbit);
 	__set_bit(MSC_SCAN, idev->mscbit);
@@ -211,43 +211,42 @@ static int __devinit input_fscbtns_setup(struct device *dev)
 	idev->rep[REP_DELAY]  = REPEAT_DELAY;
 	idev->rep[REP_PERIOD] = 1000 / REPEAT_RATE;
 
-	fscbtns.idev = idev;
+	fujitsu.idev = idev;
 	return 0;
 }
 
-static void input_fscbtns_remove(void)
+static void input_fujitsu_remove(void)
 {
-	if (fscbtns.idev)
-		input_unregister_device(fscbtns.idev);
+	if (fujitsu.idev)
+		input_unregister_device(fujitsu.idev);
 }
 
-static void fscbtns_report_orientation(void)
+static void fujitsu_report_orientation(void)
 {
-	struct input_dev *idev = fscbtns.idev;
-
-	int orientation = fscbtns_read_register(0xdd);
+	struct input_dev *idev = fujitsu.idev;
+	int orientation = fujitsu_read_register(0xdd);
 
 	if (orientation & 0x02) {
-		orientation ^= fscbtns.config.invert_orientation_bit;
+		orientation ^= fujitsu.config.invert_orientation_bit;
 		orientation &= 0x01;
 
-		if (orientation != fscbtns.orientation) {
+		if (orientation != fujitsu.orientation) {
 			input_report_switch(idev, SW_TABLET_MODE,
-					fscbtns.orientation = orientation);
+					fujitsu.orientation = orientation);
 			input_sync(idev);
 		}
 	}
 }
 
-static void fscbtns_report_key(void)
+static void fujitsu_report_key(void)
 {
 	static unsigned long prev_keymask = 0;
 
 	unsigned long keymask;
 	unsigned long changed;
 
-	keymask  = fscbtns_read_register(0xde);
-	keymask |= fscbtns_read_register(0xdf) << 8;
+	keymask  = fujitsu_read_register(0xde);
+	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
 
 	changed = keymask ^ prev_keymask;
@@ -263,40 +262,39 @@ static void fscbtns_report_key(void)
 		while(!test_bit(x, &changed))
 			x++;
 
-		keycode = fscbtns.config.keymap[x];
+		keycode = fujitsu.config.keymap[x];
 		pressed = !!(keymask & changed);
 
 		if (keycode != KEY_RESERVED) {
 			if (pressed)
-				input_event(fscbtns.idev, EV_MSC, MSC_SCAN, x);
+				input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
 
-			input_report_key(fscbtns.idev, keycode, pressed);
+			input_report_key(fujitsu.idev, keycode, pressed);
 		}
 	}
 }
 
-static void fscbtns_event(void)
+static void fujitsu_event(void)
 {
-
-	fscbtns_report_orientation();
-	fscbtns_report_key();
-	input_sync(fscbtns.idev);
+	fujitsu_report_orientation();
+	fujitsu_report_key();
+	input_sync(fujitsu.idev);
 }
 
 
 /*** INTERRUPT ****************************************************************/
 
-static void fscbtns_isr_do(struct work_struct *work)
+static void fujitsu_isr_do(struct work_struct *work)
 {
-	fscbtns_event();
-	fscbtns_ack();
+	fujitsu_event();
+	fujitsu_ack();
 }
 
-static DECLARE_WORK(isr_wq, fscbtns_isr_do);
+static DECLARE_WORK(isr_wq, fujitsu_isr_do);
 
-static irqreturn_t fscbtns_isr(int irq, void *dev_id)
+static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 {
-	if (!(fscbtns_status() & 0x01))
+	if (!(fujitsu_status() & 0x01))
 		return IRQ_NONE;
 
 	schedule_work(&isr_wq);
@@ -306,28 +304,28 @@ static irqreturn_t fscbtns_isr(int irq, void *dev_id)
 
 /*** DEVICE *******************************************************************/
 
-static int fscbtns_busywait(void)
+static int fujitsu_busywait(void)
 {
 	int timeout_counter = 100;
 
-	while(fscbtns_status() & 0x02 && --timeout_counter)
+	while(fujitsu_status() & 0x02 && --timeout_counter)
 		msleep(10);
 
 	return !timeout_counter;
 }
 
-static void fscbtns_reset(void)
+static void fujitsu_reset(void)
 {
-	fscbtns_ack();
-	if (fscbtns_busywait())
+	fujitsu_ack();
+	if (fujitsu_busywait())
 		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
 }
 
-static int __devinit fscbtns_probe(struct platform_device *pdev)
+static int __devinit fujitsu_probe(struct platform_device *pdev)
 {
 	int error;
 
-	error = input_fscbtns_setup(&pdev->dev);
+	error = input_fujitsu_setup(&pdev->dev);
 	if (error)
 		goto err_input;
 
@@ -337,13 +335,13 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 		goto err_input;
 	}
 
-	fscbtns_reset();
+	fujitsu_reset();
 
-	fscbtns_report_orientation();
-	input_sync(fscbtns.idev);
+	fujitsu_report_orientation();
+	input_sync(fujitsu.idev);
 
-	error = request_irq(INTERRUPT, fscbtns_isr,
-			IRQF_SHARED, MODULENAME, fscbtns_isr);
+	error = request_irq(INTERRUPT, fujitsu_isr,
+			IRQF_SHARED, MODULENAME, fujitsu_isr);
 	if (error) {
 		printk(KERN_ERR MODULENAME ": unable to get irq %d\n", INTERRUPT);
 		goto err_io;
@@ -354,56 +352,56 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 err_io:
 	release_region(IO_BASE, 8);
 err_input:
-	input_fscbtns_remove();
+	input_fujitsu_remove();
 	return error;
 }
 
-static int __devexit fscbtns_remove(struct platform_device *pdev)
+static int __devexit fujitsu_remove(struct platform_device *pdev)
 {
-	free_irq(INTERRUPT, fscbtns_isr);
+	free_irq(INTERRUPT, fujitsu_isr);
 	release_region(IO_BASE, 8);
-	input_fscbtns_remove();
+	input_fujitsu_remove();
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int fscbtns_resume(struct platform_device *pdev)
+static int fujitsu_resume(struct platform_device *pdev)
 {
-	fscbtns_reset();
+	fujitsu_reset();
 #if 0 // because Xorg Bug #9623 (SEGV at resume if display was rotated)
-	fscbtns_report_orientation();
-	input_sync(fscbtns.idev);
+	fujitsu_report_orientation();
+	input_sync(fujitsu.idev);
 #endif
 	return 0;
 }
 #else
-#define fscbtns_resume NULL
+#define fujitsu_resume NULL
 #endif
 
-static struct platform_driver fscbtns_platform_driver = {
+static struct platform_driver fujitsu_platform_driver = {
 	.driver		= {
 		.name	= MODULENAME,
 		.owner	= THIS_MODULE,
 	},
-	.probe		= fscbtns_probe,
-	.remove		= __devexit_p(fscbtns_remove),
-	.resume		= fscbtns_resume,
+	.probe		= fujitsu_probe,
+	.remove		= __devexit_p(fujitsu_remove),
+	.resume		= fujitsu_resume,
 };
 
 
 /*** DMI **********************************************************************/
 
-static int __init fscbtns_dmi_matched(const struct dmi_system_id *dmi)
+static int __init fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": %s detected\n", dmi->ident);
-	memcpy(&fscbtns.config, dmi->driver_data,
-			sizeof(struct fscbtns_config));
+	memcpy(&fujitsu.config, dmi->driver_data,
+			sizeof(struct fujitsu_config));
 	return 1;
 }
 
 static struct dmi_system_id dmi_ids[] __initdata = {
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -412,7 +410,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Lifebook_Tseries
 	},
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Lifebook T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -421,7 +419,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Lifebook_Tseries
 	},
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -430,7 +428,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Stylistic_Tseries
 	},
  	{
- 		.callback = fscbtns_dmi_matched,
+ 		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -439,7 +437,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Lifebook_U810
 	},
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -448,7 +446,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Stylistic_ST5xxx
 	},
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -457,7 +455,7 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = &config_Stylistic_ST5xxx
 	},
 	{
-		.callback = fscbtns_dmi_matched,
+		.callback = fujitsu_dmi_matched,
 		.ident = "Unknown (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
@@ -471,38 +469,38 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 
 /*** MODULE *******************************************************************/
 
-static int __init fscbtns_module_init(void)
+static int __init fujitsu_module_init(void)
 {
 	int error;
 
 	dmi_check_system(dmi_ids);
 
-	error = platform_driver_register(&fscbtns_platform_driver);
+	error = platform_driver_register(&fujitsu_platform_driver);
 	if (error)
 		return error;
 
-	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
-	if (IS_ERR(fscbtns.pdev)) {
-		error = PTR_ERR(fscbtns.pdev);
-		platform_driver_unregister(&fscbtns_platform_driver);
+	fujitsu.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
+	if (IS_ERR(fujitsu.pdev)) {
+		error = PTR_ERR(fujitsu.pdev);
+		platform_driver_unregister(&fujitsu_platform_driver);
 		return error;
 	}
 
 	return 0;
 }
 
-static void __exit fscbtns_module_exit(void)
+static void __exit fujitsu_module_exit(void)
 {
-	platform_device_unregister(fscbtns.pdev);
-	platform_driver_unregister(&fscbtns_platform_driver);
+	platform_device_unregister(fujitsu.pdev);
+	platform_driver_unregister(&fujitsu_platform_driver);
 }
 
-module_init(fscbtns_module_init);
-module_exit(fscbtns_module_exit);
+module_init(fujitsu_module_init);
+module_exit(fujitsu_module_exit);
 
 MODULE_AUTHOR("Robert Gerlach <khnz@users.sourceforge.net>");
 MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("git");
 
-MODULE_DEVICE_TABLE(acpi, fscbtns_ids);
+MODULE_DEVICE_TABLE(acpi, fujitsu_ids);
