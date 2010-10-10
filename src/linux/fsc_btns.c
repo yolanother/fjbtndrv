@@ -24,7 +24,6 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
-#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -35,6 +34,9 @@
 #include <linux/jiffies.h>
 
 #define MODULENAME "fsc_btns"
+
+#define INTERRUPT 5
+#define IO_BASE 0xfd70
 
 #define REPEAT_DELAY 700
 #define REPEAT_RATE 16
@@ -140,31 +142,26 @@ static struct fscbtns_config config_Stylistic_ST5xxx __initconst = {
 static struct {						/* fscbtns_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
-
-	unsigned int interrupt;
-	unsigned int address;
 	struct fscbtns_config config;
-
 	int orientation;
 } fscbtns;
-
 
 /*** HELPER *******************************************************************/
 
 static inline u8 fscbtns_ack(void)
 {
-	return inb(fscbtns.address+2);
+	return inb(IO_BASE+2);
 }
 
 static inline u8 fscbtns_status(void)
 {
-	return inb(fscbtns.address+6);
+	return inb(IO_BASE+6);
 }
 
 static inline u8 fscbtns_read_register(const u8 addr)
 {
-	outb(addr, fscbtns.address);
-	return inb(fscbtns.address+4);
+	outb(addr, IO_BASE);
+	return inb(IO_BASE+4);
 }
 
 
@@ -334,8 +331,8 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 	if (error)
 		goto err_input;
 
-	if (!request_region(fscbtns.address, 8, MODULENAME)) {
-		printk(KERN_ERR MODULENAME ": region 0x%04x busy\n", fscbtns.address);
+	if (!request_region(IO_BASE, 8, MODULENAME)) {
+		printk(KERN_ERR MODULENAME ": region 0x%04x busy\n", IO_BASE);
 		error = -EBUSY;
 		goto err_input;
 	}
@@ -345,17 +342,17 @@ static int __devinit fscbtns_probe(struct platform_device *pdev)
 	fscbtns_report_orientation();
 	input_sync(fscbtns.idev);
 
-	error = request_irq(fscbtns.interrupt, fscbtns_isr,
+	error = request_irq(INTERRUPT, fscbtns_isr,
 			IRQF_SHARED, MODULENAME, fscbtns_isr);
 	if (error) {
-		printk(KERN_ERR MODULENAME ": unable to get irq %d\n", fscbtns.interrupt);
+		printk(KERN_ERR MODULENAME ": unable to get irq %d\n", INTERRUPT);
 		goto err_io;
 	}
 
 	return 0;
 
 err_io:
-	release_region(fscbtns.address, 8);
+	release_region(IO_BASE, 8);
 err_input:
 	input_fscbtns_remove();
 	return error;
@@ -363,8 +360,8 @@ err_input:
 
 static int __devexit fscbtns_remove(struct platform_device *pdev)
 {
-	free_irq(fscbtns.interrupt, fscbtns_isr);
-	release_region(fscbtns.address, 8);
+	free_irq(INTERRUPT, fscbtns_isr);
+	release_region(IO_BASE, 8);
 	input_fscbtns_remove();
 	return 0;
 }
@@ -391,83 +388,6 @@ static struct platform_driver fscbtns_platform_driver = {
 	.probe		= fscbtns_probe,
 	.remove		= __devexit_p(fscbtns_remove),
 	.resume		= fscbtns_resume,
-};
-
-
-/*** ACPI *********************************************************************/
-
-static acpi_status fscbtns_walk_resources(struct acpi_resource *res, void *data)
-{
-	switch(res->type) {
-		case ACPI_RESOURCE_TYPE_IRQ:
-			fscbtns.interrupt = res->data.irq.interrupts[0];
-			return AE_OK;
-
-		case ACPI_RESOURCE_TYPE_IO:
-			fscbtns.address = res->data.io.minimum;
-			return AE_OK;
-
-		case ACPI_RESOURCE_TYPE_END_TAG:
-			if (fscbtns.interrupt && fscbtns.address)
-				return AE_OK;
-			else
-				return AE_NOT_FOUND;
-
-		default:
-			return AE_ERROR;
-	}
-}
-
-static int acpi_fscbtns_add(struct acpi_device *adev)
-{
-	acpi_status status;
-	int error;
-
-	if (!adev)
-		return -EINVAL;
-
-	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
-			fscbtns_walk_resources, NULL);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	if (!fscbtns.interrupt || !fscbtns.address) {
-		return -ENODEV;
-	}
-
-	printk(KERN_INFO MODULENAME ": found %s at io 0x%04x irq %d\n",
-			acpi_device_hid(adev),
-			fscbtns.address, fscbtns.interrupt);
-
-	error = platform_driver_register(&fscbtns_platform_driver);
-	if (error)
-		return error;
-
-	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
-	if (IS_ERR(fscbtns.pdev)) {
-		error = PTR_ERR(fscbtns.pdev);
-		platform_driver_unregister(&fscbtns_platform_driver);
-		return error;
-	}
-
-	return 0;
-}
-
-static int acpi_fscbtns_remove(struct acpi_device *adev, int type)
-{
-	platform_device_unregister(fscbtns.pdev);
-	platform_driver_unregister(&fscbtns_platform_driver);
-	return 0;
-}
-
-static struct acpi_driver acpi_fscbtns_driver = {
-	.name  = MODULENAME,
-	.class = "hotkey",
-	.ids   = fscbtns_ids,
-	.ops   = {
-		.add    = acpi_fscbtns_add,
-		.remove = acpi_fscbtns_remove
-	}
 };
 
 
@@ -557,8 +477,14 @@ static int __init fscbtns_module_init(void)
 
 	dmi_check_system(dmi_ids);
 
-	error = acpi_bus_register_driver(&acpi_fscbtns_driver);
-	if (ACPI_FAILURE(error)) {
+	error = platform_driver_register(&fscbtns_platform_driver);
+	if (error)
+		return error;
+
+	fscbtns.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
+	if (IS_ERR(fscbtns.pdev)) {
+		error = PTR_ERR(fscbtns.pdev);
+		platform_driver_unregister(&fscbtns_platform_driver);
 		return error;
 	}
 
@@ -567,7 +493,8 @@ static int __init fscbtns_module_init(void)
 
 static void __exit fscbtns_module_exit(void)
 {
-	acpi_bus_unregister_driver(&acpi_fscbtns_driver);
+	platform_device_unregister(fscbtns.pdev);
+	platform_driver_unregister(&fscbtns_platform_driver);
 }
 
 module_init(fscbtns_module_init);
