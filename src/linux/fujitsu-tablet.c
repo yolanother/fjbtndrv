@@ -268,6 +268,7 @@ static void fujitsu_report_key(void)
 			input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
 
 		input_report_key(fujitsu.idev, keycode, pressed);
+		input_sync(fujitsu.idev);
 	}
 }
 
@@ -275,7 +276,6 @@ static void fujitsu_event(void)
 {
 	fujitsu_report_orientation();
 	fujitsu_report_key();
-	input_sync(fujitsu.idev);
 }
 
 
