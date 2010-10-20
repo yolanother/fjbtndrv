@@ -272,29 +272,18 @@ static void fujitsu_report_key(void)
 	}
 }
 
-static void fujitsu_event(void)
-{
-	fujitsu_report_orientation();
-	fujitsu_report_key();
-}
-
 
 /*** INTERRUPT ****************************************************************/
-
-static void fujitsu_isr_do(struct work_struct *work)
-{
-	fujitsu_event();
-	fujitsu_ack();
-}
-
-static DECLARE_WORK(isr_wq, fujitsu_isr_do);
 
 static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 {
 	if (!(fujitsu_status() & 0x01))
 		return IRQ_NONE;
 
-	schedule_work(&isr_wq);
+	fujitsu_report_orientation();
+	fujitsu_report_key();
+	fujitsu_ack();
+
 	return IRQ_HANDLED;
 }
 
