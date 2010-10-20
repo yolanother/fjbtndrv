@@ -144,6 +144,7 @@ static struct {						/* fujitsu_t */
 	struct input_dev *idev;
 	struct fujitsu_config config;
 	int orientation;
+	unsigned long prev_keymask;
 } fujitsu;
 
 /*** HELPER *******************************************************************/
@@ -240,8 +241,6 @@ static void fujitsu_report_orientation(void)
 
 static void fujitsu_report_key(void)
 {
-	static unsigned long prev_keymask = 0;
-
 	unsigned long keymask;
 	unsigned long changed;
 
@@ -249,14 +248,14 @@ static void fujitsu_report_key(void)
 	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
 
-	changed = keymask ^ prev_keymask;
+	changed = keymask ^ fujitsu.prev_keymask;
 
 	if (changed) {
 		int keycode, pressed;
 		int x = 0;
 
 		/* save current state and filter not changed bits */
-		prev_keymask = keymask;
+		fujitsu.prev_keymask = keymask;
 
 		/* get number of changed bit */
 		while(!test_bit(x, &changed))
