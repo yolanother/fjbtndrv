@@ -265,12 +265,10 @@ static void fujitsu_report_key(void)
 		keycode = fujitsu.config.keymap[x];
 		pressed = !!(keymask & changed);
 
-		if (keycode != KEY_RESERVED) {
-			if (pressed)
-				input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
+		if (pressed)
+			input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
 
-			input_report_key(fujitsu.idev, keycode, pressed);
-		}
+		input_report_key(fujitsu.idev, keycode, pressed);
 	}
 }
 
