@@ -182,7 +182,7 @@ static int __devinit input_fujitsu_setup(struct device *dev)
 	idev->phys = KBUILD_MODNAME "/input0";
 	idev->name = "Fujitsu tablet buttons";
 	idev->id.bustype = BUS_HOST;
-	idev->id.vendor  = 0x1734;	/* "Fujitsu Siemens Computer GmbH" from pci.ids */
+	idev->id.vendor  = 0x1734;	/* Fujitsu Siemens Computer GmbH */
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0101;
 
@@ -258,7 +258,7 @@ static void fujitsu_report_key(void)
 		fujitsu.prev_keymask = keymask;
 
 		/* get number of changed bit */
-		while(!test_bit(x, &changed))
+		while (!test_bit(x, &changed))
 			x++;
 
 		keycode = fujitsu.config.keymap[x];
@@ -292,10 +292,10 @@ static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 
 static int fujitsu_busywait(void)
 {
-	int timeout_counter = 100;
+	int timeout_counter = 50;
 
-	while(fujitsu_status() & 0x02 && --timeout_counter)
-		msleep(10);
+	while (fujitsu_status() & 0x02 && --timeout_counter)
+		msleep(20);
 
 	return !timeout_counter;
 }
@@ -316,7 +316,7 @@ static int __devinit fujitsu_probe(struct platform_device *pdev)
 		goto err_input;
 
 	if (!request_region(IO_BASE, 8, MODULENAME)) {
-		printk(KERN_ERR MODULENAME ": region 0x%04x busy\n", IO_BASE);
+		dev_err(&pdev->dev, "region 0x%04x busy\n", IO_BASE);
 		error = -EBUSY;
 		goto err_input;
 	}
@@ -329,7 +329,7 @@ static int __devinit fujitsu_probe(struct platform_device *pdev)
 	error = request_irq(INTERRUPT, fujitsu_isr,
 			IRQF_SHARED, MODULENAME, fujitsu_isr);
 	if (error) {
-		printk(KERN_ERR MODULENAME ": unable to get irq %d\n", INTERRUPT);
+		dev_err(&pdev->dev, "unable to get irq %d\n", INTERRUPT);
 		goto err_io;
 	}
 
@@ -354,7 +354,7 @@ static int __devexit fujitsu_remove(struct platform_device *pdev)
 static int fujitsu_resume(struct platform_device *pdev)
 {
 	fujitsu_reset();
-#if 0 // because Xorg Bug #9623 (SEGV at resume if display was rotated)
+#if 0 /* because Xorg Bug #9623 (SEGV at resume if display was rotated) */
 	fujitsu_report_orientation();
 	input_sync(fujitsu.idev);
 #endif
@@ -413,8 +413,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		},
 		.driver_data = &config_Stylistic_Tseries
 	},
- 	{
- 		.callback = fujitsu_dmi_matched,
+	{
+		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
