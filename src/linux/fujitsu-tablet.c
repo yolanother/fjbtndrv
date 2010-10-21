@@ -354,10 +354,7 @@ static int __devexit fujitsu_remove(struct platform_device *pdev)
 static int fujitsu_resume(struct platform_device *pdev)
 {
 	fujitsu_reset();
-#if 0 /* because Xorg Bug #9623 (SEGV at resume if display was rotated) */
 	fujitsu_report_orientation();
-	input_sync(fujitsu.idev);
-#endif
 	return 0;
 }
 #else
