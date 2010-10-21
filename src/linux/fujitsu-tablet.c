@@ -38,9 +38,6 @@
 #define INTERRUPT 5
 #define IO_BASE 0xfd70
 
-#define REPEAT_DELAY 700
-#define REPEAT_RATE 16
-
 static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
@@ -208,9 +205,6 @@ static int __devinit input_fujitsu_setup(struct device *dev)
 		input_free_device(idev);
 		return error;
 	}
-
-	idev->rep[REP_DELAY]  = REPEAT_DELAY;
-	idev->rep[REP_PERIOD] = 1000 / REPEAT_RATE;
 
 	fujitsu.idev = idev;
 	return 0;
