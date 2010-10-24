@@ -251,7 +251,7 @@ static void fujitsu_report_key(void)
 		/* save current state and filter not changed bits */
 		fujitsu.prev_keymask = keymask;
 
-		/* get number of changed bit */
+		/* looking for the location of the first bit which is set */
 		while (!test_bit(x, &changed))
 			x++;
 
