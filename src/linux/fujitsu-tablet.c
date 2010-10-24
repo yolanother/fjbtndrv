@@ -19,8 +19,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/dmi.h>
+#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -28,10 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <linux/time.h>
-#include <linux/timer.h>
-#include <linux/delay.h>
-#include <linux/jiffies.h>
+#include <linux/dmi.h>
 
 #define MODULENAME "fujitsu-tablet"
 
