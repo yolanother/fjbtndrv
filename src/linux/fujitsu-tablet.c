@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/delay.h>
 #include <linux/dmi.h>
 
 #define MODULENAME "fujitsu-tablet"
