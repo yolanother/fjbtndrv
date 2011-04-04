@@ -1,6 +1,6 @@
 /* Kernel driver for FSC Tablet PC buttons
  *
- * Copyright (C) 2006-2011 Robert Gerlach <khnz@gmx.de>
+ * Copyright (C) 2006-2010 Robert Gerlach <khnz@gmx.de>
  * Copyright (C) 2005-2006 Jan Rychter <jan@rychter.com>
  *
  * You can redistribute and/or modify this program under the terms of the
@@ -56,7 +56,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_SCROLLDOWN,
 		KEY_SCROLLUP,
 		KEY_DIRECTION,
-		KEY_LEFTCTRL,
+		KEY_FN,
 		KEY_BRIGHTNESSUP,
 		KEY_BRIGHTNESSDOWN,
 		KEY_BRIGHTNESS_ZERO,
@@ -64,7 +64,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_RESERVED,
-		KEY_LEFTALT
+		KEY_F13
 	}
 };
 
@@ -129,7 +129,7 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 		KEY_SCROLLUP,
 		KEY_SCROLLDOWN,
 		KEY_FN,
-		KEY_LEFTALT
+		KEY_F13
 	}
 };
 
