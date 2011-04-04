@@ -1,6 +1,6 @@
 /* Kernel driver for FSC Tablet PC buttons
  *
- * Copyright (C) 2006-2010 Robert Gerlach <khnz@gmx.de>
+ * Copyright (C) 2006-2011 Robert Gerlach <khnz@gmx.de>
  * Copyright (C) 2005-2006 Jan Rychter <jan@rychter.com>
  *
  * You can redistribute and/or modify this program under the terms of the
