@@ -23,6 +23,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -31,9 +32,6 @@
 #include <linux/dmi.h>
 
 #define MODULENAME "fujitsu-tablet"
-
-#define INTERRUPT 5
-#define IO_BASE 0xfd70
 
 static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
@@ -139,24 +137,28 @@ static struct {						/* fujitsu_t */
 	struct fujitsu_config config;
 	int tablet_mode;
 	unsigned long prev_keymask;
+
+	int irq;
+	int io_base;
+	int io_length;
 } fujitsu;
 
 /*** HELPER *******************************************************************/
 
 static inline u8 fujitsu_ack(void)
 {
-	return inb(IO_BASE+2);
+	return inb(fujitsu.io_base+2);
 }
 
 static inline u8 fujitsu_status(void)
 {
-	return inb(IO_BASE+6);
+	return inb(fujitsu.io_base+6);
 }
 
 static inline u8 fujitsu_read_register(const u8 addr)
 {
-	outb(addr, IO_BASE);
-	return inb(IO_BASE+4);
+	outb(addr, fujitsu.io_base);
+	return inb(fujitsu.io_base+4);
 }
 
 
@@ -307,8 +309,8 @@ static int __devinit fujitsu_probe(struct platform_device *pdev)
 	if (error)
 		goto err_input;
 
-	if (!request_region(IO_BASE, 8, MODULENAME)) {
-		dev_err(&pdev->dev, "region 0x%04x busy\n", IO_BASE);
+	if (!request_region(fujitsu.io_base, fujitsu.io_length, MODULENAME)) {
+		dev_err(&pdev->dev, "region 0x%04x busy\n", fujitsu.io_base);
 		error = -EBUSY;
 		goto err_input;
 	}
@@ -318,17 +320,17 @@ static int __devinit fujitsu_probe(struct platform_device *pdev)
 	fujitsu_report_orientation();
 	input_sync(fujitsu.idev);
 
-	error = request_irq(INTERRUPT, fujitsu_isr,
+	error = request_irq(fujitsu.irq, fujitsu_isr,
 			IRQF_SHARED, MODULENAME, fujitsu_isr);
 	if (error) {
-		dev_err(&pdev->dev, "unable to get irq %d\n", INTERRUPT);
+		dev_err(&pdev->dev, "unable to get irq %d\n", fujitsu.irq);
 		goto err_io;
 	}
 
 	return 0;
 
 err_io:
-	release_region(IO_BASE, 8);
+	release_region(fujitsu.io_base, 8);
 err_input:
 	input_fujitsu_remove();
 	return error;
@@ -336,8 +338,8 @@ err_input:
 
 static int __devexit fujitsu_remove(struct platform_device *pdev)
 {
-	free_irq(INTERRUPT, fujitsu_isr);
-	release_region(IO_BASE, 8);
+	free_irq(fujitsu.irq, fujitsu_isr);
+	release_region(fujitsu.io_base, 8);
 	input_fujitsu_remove();
 	return 0;
 }
@@ -366,7 +368,7 @@ static struct platform_driver fujitsu_platform_driver = {
 
 /*** DMI **********************************************************************/
 
-static int __init fujitsu_dmi_matched(const struct dmi_system_id *dmi)
+static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": %s detected\n", dmi->ident);
 	memcpy(&fujitsu.config, dmi->driver_data,
@@ -442,6 +444,70 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 };
 
 
+/*** ACPI *********************************************************************/
+
+static acpi_status __devinit fujitsu_walk_resources(struct acpi_resource *res, void *data)
+{
+	switch(res->type) {
+		case ACPI_RESOURCE_TYPE_IRQ:
+			fujitsu.irq = res->data.irq.interrupts[0];
+			return AE_OK;
+
+		case ACPI_RESOURCE_TYPE_IO:
+			fujitsu.io_base = res->data.io.minimum;
+			fujitsu.io_length = res->data.io.address_length;
+			return AE_OK;
+
+		case ACPI_RESOURCE_TYPE_END_TAG:
+			if (fujitsu.irq && fujitsu.io_base)
+				return AE_OK;
+			else
+				return AE_NOT_FOUND;
+
+		default:
+			return AE_ERROR;
+	}
+}
+
+static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
+{
+	acpi_status status;
+
+	if (!adev)
+		return -EINVAL;
+
+	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
+			fujitsu_walk_resources, NULL);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	if (!fujitsu.irq || !fujitsu.io_base)
+		return -ENODEV;
+
+	fujitsu.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
+	if (IS_ERR(fujitsu.pdev))
+		return PTR_ERR(fujitsu.pdev);
+
+	return 0;
+}
+
+static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
+{
+	platform_device_unregister(fujitsu.pdev);
+	return 0;
+}
+
+static struct acpi_driver acpi_fujitsu_driver = {
+	.name  = MODULENAME,
+	.class = "hotkey",
+	.ids   = fujitsu_ids,
+	.ops   = {
+		.add    = acpi_fujitsu_add,
+		.remove	= acpi_fujitsu_remove,
+	}
+};
+
+
 /*** MODULE *******************************************************************/
 
 static int __init fujitsu_module_init(void)
@@ -454,9 +520,8 @@ static int __init fujitsu_module_init(void)
 	if (error)
 		return error;
 
-	fujitsu.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
-	if (IS_ERR(fujitsu.pdev)) {
-		error = PTR_ERR(fujitsu.pdev);
+	error = acpi_bus_register_driver(&acpi_fujitsu_driver);
+	if (ACPI_FAILURE(error)) {
 		platform_driver_unregister(&fujitsu_platform_driver);
 		return error;
 	}
@@ -466,7 +531,7 @@ static int __init fujitsu_module_init(void)
 
 static void __exit fujitsu_module_exit(void)
 {
-	platform_device_unregister(fujitsu.pdev);
+	acpi_bus_unregister_driver(&acpi_fujitsu_driver);
 	platform_driver_unregister(&fujitsu_platform_driver);
 }
 
