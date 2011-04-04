@@ -251,8 +251,7 @@ static void fujitsu_report_key(void)
 		fujitsu.prev_keymask = keymask;
 
 		/* looking for the location of the first bit which is set */
-		while (!test_bit(x, &changed))
-			x++;
+		x = find_first_bit(&changed, 16);
 
 		keycode = fujitsu.config.keymap[x];
 		pressed = !!(keymask & changed);
