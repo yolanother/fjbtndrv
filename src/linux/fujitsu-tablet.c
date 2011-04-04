@@ -42,12 +42,12 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
-	int invert_orientation_bit;
+	bool invert_orientation;
 	unsigned short keymap[16];
 };
 
 static struct fujitsu_config config_Lifebook_Tseries __initconst = {
-	.invert_orientation_bit = 1,
+	.invert_orientation = true,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -69,7 +69,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Lifebook_U810 __initconst = {
-	.invert_orientation_bit = 1,
+	.invert_orientation = true,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -91,7 +91,7 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_Tseries __initconst = {
-	.invert_orientation_bit = 0,
+	.invert_orientation = false,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -112,7 +112,7 @@ static struct fujitsu_config config_Stylistic_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
-	.invert_orientation_bit = 0,
+	.invert_orientation = false,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -219,7 +219,9 @@ static void fujitsu_report_orientation(void)
 	int orientation = fujitsu_read_register(0xdd);
 
 	if (orientation & 0x02) {
-		orientation ^= fujitsu.config.invert_orientation_bit;
+		if (fujitsu.config.invert_orientation)
+			orientation ^= 0x01;
+
 		orientation &= 0x01;
 
 		if (orientation != fujitsu.orientation) {
