@@ -42,12 +42,12 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
-	bool invert_orientation;
+	bool invert_tablet_mode_bit;
 	unsigned short keymap[16];
 };
 
 static struct fujitsu_config config_Lifebook_Tseries __initconst = {
-	.invert_orientation = true,
+	.invert_tablet_mode_bit = true,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -69,7 +69,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Lifebook_U810 __initconst = {
-	.invert_orientation = true,
+	.invert_tablet_mode_bit = true,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -91,7 +91,7 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_Tseries __initconst = {
-	.invert_orientation = false,
+	.invert_tablet_mode_bit = false,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -112,7 +112,7 @@ static struct fujitsu_config config_Stylistic_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
-	.invert_orientation = false,
+	.invert_tablet_mode_bit = false,
 	.keymap = {
 		KEY_RESERVED,
 		KEY_RESERVED,
@@ -137,7 +137,7 @@ static struct {						/* fujitsu_t */
 	struct platform_device *pdev;
 	struct input_dev *idev;
 	struct fujitsu_config config;
-	int orientation;
+	int tablet_mode;
 	unsigned long prev_keymask;
 } fujitsu;
 
@@ -216,17 +216,17 @@ static void input_fujitsu_remove(void)
 static void fujitsu_report_orientation(void)
 {
 	struct input_dev *idev = fujitsu.idev;
-	int orientation = fujitsu_read_register(0xdd);
+	int r = fujitsu_read_register(0xdd);
 
-	if (orientation & 0x02) {
-		if (fujitsu.config.invert_orientation)
-			orientation ^= 0x01;
+	if (r & 0x02) {
+		bool tablet_mode = (r & 0x01);
 
-		orientation &= 0x01;
+		if (fujitsu.config.invert_tablet_mode_bit)
+			tablet_mode = !tablet_mode;
 
-		if (orientation != fujitsu.orientation) {
-			input_report_switch(idev, SW_TABLET_MODE,
-					fujitsu.orientation = orientation);
+		if (tablet_mode != fujitsu.tablet_mode) {
+			fujitsu.tablet_mode = tablet_mode;
+			input_report_switch(idev, SW_TABLET_MODE, tablet_mode);
 			input_sync(idev);
 		}
 	}
