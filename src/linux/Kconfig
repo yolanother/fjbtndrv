@@ -2,7 +2,6 @@ config FUJITSU_TABLET
 	tristate "Fujitsu Tablet PC Extras"
 	depends on X86
 	depends on INPUT
-	default n
 	---help---
 	  Say Y here for support of the tablet buttons and the display
 	  orientation switch, used on many Fujitsu tablet PCs (like
