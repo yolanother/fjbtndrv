@@ -342,25 +342,25 @@ static int __devexit fujitsu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int fujitsu_resume(struct platform_device *pdev)
+#ifdef CONFIG_PM_SLEEP
+static int fujitsu_resume(struct device *dev)
 {
 	fujitsu_reset();
 	fujitsu_report_orientation();
 	return 0;
 }
-#else
-#define fujitsu_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(fujitsu_pm_ops, NULL, fujitsu_resume);
 
 static struct platform_driver fujitsu_platform_driver = {
 	.driver		= {
 		.name	= MODULENAME,
 		.owner	= THIS_MODULE,
+		.pm	= &fujitsu_pm_ops,
 	},
 	.probe		= fujitsu_probe,
 	.remove		= __devexit_p(fujitsu_remove),
-	.resume		= fujitsu_resume,
 };
 
 
