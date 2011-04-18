@@ -25,7 +25,6 @@
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/delay.h>
@@ -132,7 +131,6 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 };
 
 static struct {						/* fujitsu_t */
-	struct platform_device *pdev;
 	struct input_dev *idev;
 	struct fujitsu_config config;
 	int tablet_mode;
@@ -301,71 +299,6 @@ static void fujitsu_reset(void)
 		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
 }
 
-static int __devinit fujitsu_probe(struct platform_device *pdev)
-{
-	int error;
-
-	error = input_fujitsu_setup(&pdev->dev);
-	if (error)
-		goto err_input;
-
-	if (!request_region(fujitsu.io_base, fujitsu.io_length, MODULENAME)) {
-		dev_err(&pdev->dev, "region 0x%04x busy\n", fujitsu.io_base);
-		error = -EBUSY;
-		goto err_input;
-	}
-
-	fujitsu_reset();
-
-	fujitsu_report_orientation();
-	input_sync(fujitsu.idev);
-
-	error = request_irq(fujitsu.irq, fujitsu_isr,
-			IRQF_SHARED, MODULENAME, fujitsu_isr);
-	if (error) {
-		dev_err(&pdev->dev, "unable to get irq %d\n", fujitsu.irq);
-		goto err_io;
-	}
-
-	return 0;
-
-err_io:
-	release_region(fujitsu.io_base, 8);
-err_input:
-	input_fujitsu_remove();
-	return error;
-}
-
-static int __devexit fujitsu_remove(struct platform_device *pdev)
-{
-	free_irq(fujitsu.irq, fujitsu_isr);
-	release_region(fujitsu.io_base, 8);
-	input_fujitsu_remove();
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
-static int fujitsu_resume(struct device *dev)
-{
-	fujitsu_reset();
-	fujitsu_report_orientation();
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(fujitsu_pm_ops, NULL, fujitsu_resume);
-
-static struct platform_driver fujitsu_platform_driver = {
-	.driver		= {
-		.name	= MODULENAME,
-		.owner	= THIS_MODULE,
-		.pm	= &fujitsu_pm_ops,
-	},
-	.probe		= fujitsu_probe,
-	.remove		= __devexit_p(fujitsu_remove),
-};
-
-
 /*** DMI **********************************************************************/
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
@@ -472,6 +405,7 @@ static acpi_status __devinit fujitsu_walk_resources(struct acpi_resource *res, v
 static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 {
 	acpi_status status;
+	int error;
 
 	if (!adev)
 		return -EINVAL;
@@ -484,16 +418,45 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	if (!fujitsu.irq || !fujitsu.io_base)
 		return -ENODEV;
 
-	fujitsu.pdev = platform_device_register_simple(MODULENAME, -1, NULL, 0);
-	if (IS_ERR(fujitsu.pdev))
-		return PTR_ERR(fujitsu.pdev);
+	error = input_fujitsu_setup(&adev->dev);
+	if (error)
+		return error;
+
+	if (!request_region(fujitsu.io_base, fujitsu.io_length, MODULENAME)) {
+		dev_err(&adev->dev, "region 0x%04x busy\n", fujitsu.io_base);
+		input_fujitsu_remove();
+		return -EBUSY;
+	}
+
+	fujitsu_reset();
+
+	fujitsu_report_orientation();
+	input_sync(fujitsu.idev);
+
+	error = request_irq(fujitsu.irq, fujitsu_isr,
+			IRQF_SHARED, MODULENAME, fujitsu_isr);
+	if (error) {
+		dev_err(&adev->dev, "unable to get irq %d\n", fujitsu.irq);
+		release_region(fujitsu.io_base, 8);
+		input_fujitsu_remove();
+		return error;
+	}
 
 	return 0;
 }
 
 static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 {
-	platform_device_unregister(fujitsu.pdev);
+	free_irq(fujitsu.irq, fujitsu_isr);
+	release_region(fujitsu.io_base, 8);
+	input_fujitsu_remove();
+	return 0;
+}
+
+static int acpi_fujitsu_resume(struct acpi_device *adev)
+{
+	fujitsu_reset();
+	fujitsu_report_orientation();
 	return 0;
 }
 
@@ -504,6 +467,7 @@ static struct acpi_driver acpi_fujitsu_driver = {
 	.ops   = {
 		.add    = acpi_fujitsu_add,
 		.remove	= acpi_fujitsu_remove,
+		.resume = acpi_fujitsu_resume,
 	}
 };
 
@@ -516,15 +480,9 @@ static int __init fujitsu_module_init(void)
 
 	dmi_check_system(dmi_ids);
 
-	error = platform_driver_register(&fujitsu_platform_driver);
-	if (error)
-		return error;
-
 	error = acpi_bus_register_driver(&acpi_fujitsu_driver);
-	if (ACPI_FAILURE(error)) {
-		platform_driver_unregister(&fujitsu_platform_driver);
+	if (ACPI_FAILURE(error))
 		return error;
-	}
 
 	return 0;
 }
@@ -532,7 +490,6 @@ static int __init fujitsu_module_init(void)
 static void __exit fujitsu_module_exit(void)
 {
 	acpi_bus_unregister_driver(&acpi_fujitsu_driver);
-	platform_driver_unregister(&fujitsu_platform_driver);
 }
 
 module_init(fujitsu_module_init);
