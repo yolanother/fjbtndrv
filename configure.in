@@ -1,32 +1,101 @@
-AC_INIT(fjbtndrv, git, [http://fjbtndrv.sourceforge.net])
-AC_PREREQ([2.57])
+AC_PREREQ([2.63])
+AC_INIT([fjbtndrv], [git], [http://fjbtndrv.sourceforge.net])
 AM_INIT_AUTOMAKE([gnu 1.9])
 
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_SRCDIR([src])
+AM_CONFIG_HEADER([config.h])
+AC_CONFIG_MACRO_DIR([m4])
+
+GOBJECT_INTROSPECTION_CHECK([0.6.7])
+
 AC_SUBST(CFLAGS)
 AC_SUBST(CPPFLAGS)
 
+AC_GNU_SOURCE
 AC_PROG_CC
 AM_PROG_CC_STDC
-AC_PROG_CPP
-AC_PROG_CXX
-AC_GNU_SOURCE
+AC_HEADER_STDC
+AM_PROG_CC_C_O
+
 AC_PROG_INSTALL
 
-AC_HEADER_STDC
+dnl AM_ICONV
+dnl AM_GNU_GETTEXT([external])
+dnl AM_GNU_GETTEXT_VERSION([0.16.1])
 
-AM_ICONV
-AM_GNU_GETTEXT([external])
-AM_GNU_GETTEXT_VERSION([0.16.1])
+# Taken from upower
+dnl ---------------------------------------------------------------------------
+dnl - Extra verbose warning switches
+dnl ---------------------------------------------------------------------------
+CPPFLAGS="$CPPFLAGS -DG_DISABLE_SINGLE_INCLUDES -DGTK_DISABLE_SINGLE_INCLUDES"
+CPPFLAGS="$CPPFLAGS -DG_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED"
+CPPFLAGS="$CPPFLAGS -DGDK_MULTIHEAD_SAFE -DGTK_MULTIHEAD_SAFE"
+CPPFLAGS="$CPPFLAGS -DGSEAL_ENABLE"
 
-PKG_CHECK_MODULES(XRANDR, [x11 xrandr])
-PKG_CHECK_MODULES(XINPUT, [x11 xi xext xtst])
-AC_SUBST(X11_CFLAGS)
-AC_SUBST(X11_LIBS)
+dnl ---------------------------------------------------------------------------
+dnl - Use strict options (default enabled for devs, disabled in releases)
+dnl ---------------------------------------------------------------------------
+dnl if .git directory is present, considering we are working in the repository
+if test -d ".git"; then
+  default_strict=yes
+else
+  default_strict=no
+fi
 
-PKG_CHECK_MODULES(HAL, [hal >= 0.5.8])
-AC_SUBST(HAL_CFLAGS)
-AC_SUBST(HAL_LIBS)
+AC_ARG_ENABLE(strict, AS_HELP_STRING([--enable-strict],[Enable strict compilation options]), enable_strict=$enableval,
+  enable_strict=$default_strict)
+if test x$enable_strict != xno; then
+  if test "$GCC" = "yes"; then
+    WARNINGFLAGS_C="$WARNINGFLAGS_C -Werror"
+  fi
+fi
+
+if test "$GCC" = "yes"; then
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wall"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wcast-align -Wno-uninitialized"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-declarations"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wredundant-decls"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wpointer-arith"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wcast-align"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wwrite-strings"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Winit-self"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wreturn-type"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wformat-nonliteral"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wformat-security"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-include-dirs"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-format-attribute"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wclobbered"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wempty-body"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wignored-qualifiers"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wsign-compare"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wtype-limits"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wuninitialized"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Waggregate-return"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wdeclaration-after-statement"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wshadow"
+  WARNINGFLAGS_C="$WARNINGFLAGS_C -Wno-strict-aliasing"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Winline"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-parameter-type"
+# WARNINGFLAGS_C="$WARNINGFLAGS_C -Woverride-init"
+else
+  WARNINGFLAGS_C=""
+fi
+AC_SUBST(WARNINGFLAGS_C)
+
+
+dnl PKG_CHECK_MODULES(XRANDR, [x11 xrandr])
+dnl PKG_CHECK_MODULES(XINPUT, [x11 xi xext xtst])
+dnl AC_SUBST(X11_CFLAGS)
+dnl AC_SUBST(X11_LIBS)
+
+PKG_CHECK_MODULES(DBUS, [glib-2.0 gio-2.0 dbus-1 dbus-glib-1])
+AC_SUBST(DBUS_CFLAGS)
+AC_SUBST(DBUS_LIBS)
+
+
+# Taken from dbus
+AC_ARG_ENABLE([ansi],             [  --enable-ansi           enable -ansi -pedantic gcc flags],enable_ansi=$enableval,enable_ansi=no)
+AC_ARG_ENABLE([verbose-mode],     [  --enable-verbose-mode   support verbose debug mode],enable_verbose_mode=$enableval,enable_verbose_mode=$USE_MAINTAINER_MODE)
 
 AC_ARG_ENABLE([kernel-module],
   AS_HELP_STRING([--disable-kernel-module],

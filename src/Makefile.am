@@ -2,30 +2,18 @@ if BUILD_KERNEL_MODULE
 SUBDIRS = linux
 endif
 
-DEFS += -DLOCALEDIR=\"$(localedir)\" -DSCRIPTDIR=\"$(scriptdir)\"
-export DEFS
+bin_PROGRAMS = fjbtndrvd
 
-bin_PROGRAMS = fscrotd
+fjbtndrvd_SOURCES  = fjbtndrv-daemon.c
+fjbtndrvd_CPPFLAGS = -ggdb $(DBUS_CFLAGS) $(AM_CPPFLAGS)
+fjbtndrvd_LDADD    = $(DBUS_LIBS)
 
-fscrotd_SOURCES = fscrotd.c rotation.c
-fscrotd_CPPFLAGS = $(HAL_CFLAGS) $(XRANDR_CFLAGS)
-fscrotd_LDADD = $(HAL_LIBS) $(XINPUT_LIBS) $(XRANDR_LIBS)
+checkxml: fjbtndrv-daemon.xml
+	xmllint -valid -noout $<
 
-if BUILD_FSCD
-bin_PROGRAMS += fscd
+fjbtndrv-daemon-glue.h: fjbtndrv-daemon.xml
+	dbus-binding-tool --mode=glib-server --prefix=fjbtndrv_daemon --output=$@ $<
 
-fscd_SOURCES = fscd.c rotation.c
-fscd_CPPFLAGS = $(XINPUT_CFLAGS) $(XRANDR_CFLAGS)
-fscd_LDADD = $(XINPUT_LIBS) $(XRANDR_LIBS)
+clean-local:
+	rm -f fjbtndrv-daemon-glue.h
 
-if HAVE_XOSD
-fscd_SOURCES += gui-xosd.c
-fscd_CPPFLAGS += $(LIBXOSD_CFLAGS)
-fscd_LDADD += $(LIBXOSD_LIBS)
-else
-fscd_SOURCES += gui-nogui.c
-endif
-
-endif # BUILD_FSCD
-
-EXTRA_DIST = fjbtndrv.h rotation.h gui.h
