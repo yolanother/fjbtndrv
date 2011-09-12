@@ -268,26 +268,23 @@ static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int fujitsu_busywait(void)
+static void fujitsu_busywait(void)
 {
 	int timeout_counter = 50;
 
-	while (fujitsu_status() & 0x02 && --timeout_counter)
+	while ((fujitsu_status() & 0x02) && (--timeout_counter))
 		msleep(20);
-
-	return !timeout_counter;
 }
 
 static void fujitsu_reset(void)
 {
 	fujitsu_ack();
-	if (fujitsu_busywait())
-		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
+	fujitsu_busywait();
 }
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
-	printk(KERN_INFO MODULENAME ": %s detected\n", dmi->ident);
+	printk(KERN_DEBUG MODULENAME ": %s detected\n", dmi->ident);
 	memcpy(&fujitsu.config, dmi->driver_data,
 			sizeof(struct fujitsu_config));
 	return 1;
