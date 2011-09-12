@@ -61,7 +61,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_RESERVED,
-		KEY_F13
+		KEY_SCREENLOCK
 	}
 };
 
@@ -83,7 +83,7 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_FN,
-		KEY_SLEEP
+		KEY_SCREENLOCK
 	}
 };
 
@@ -126,7 +126,7 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 		KEY_SCROLLUP,
 		KEY_SCROLLDOWN,
 		KEY_FN,
-		KEY_F13
+		KEY_SCREENLOCK
 	}
 };
 
