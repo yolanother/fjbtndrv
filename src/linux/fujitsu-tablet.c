@@ -141,8 +141,6 @@ static struct {						/* fujitsu_t */
 	int io_length;
 } fujitsu;
 
-/*** HELPER *******************************************************************/
-
 static inline u8 fujitsu_ack(void)
 {
 	return inb(fujitsu.io_base+2);
@@ -158,9 +156,6 @@ static inline u8 fujitsu_read_register(const u8 addr)
 	outb(addr, fujitsu.io_base);
 	return inb(fujitsu.io_base+4);
 }
-
-
-/*** INPUT ********************************************************************/
 
 static int __devinit input_fujitsu_setup(struct device *dev)
 {
@@ -264,9 +259,6 @@ static void fujitsu_report_key(void)
 	}
 }
 
-
-/*** INTERRUPT ****************************************************************/
-
 static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 {
 	if (!(fujitsu_status() & 0x01))
@@ -278,9 +270,6 @@ static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
-
-/*** DEVICE *******************************************************************/
 
 static int fujitsu_busywait(void)
 {
@@ -298,8 +287,6 @@ static void fujitsu_reset(void)
 	if (fujitsu_busywait())
 		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
 }
-
-/*** DMI **********************************************************************/
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
@@ -375,9 +362,6 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	},
 	{ NULL }
 };
-
-
-/*** ACPI *********************************************************************/
 
 static acpi_status __devinit fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
@@ -470,9 +454,6 @@ static struct acpi_driver acpi_fujitsu_driver = {
 		.resume = acpi_fujitsu_resume,
 	}
 };
-
-
-/*** MODULE *******************************************************************/
 
 static int __init fujitsu_module_init(void)
 {
