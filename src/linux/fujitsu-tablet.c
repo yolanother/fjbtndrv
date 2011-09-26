@@ -61,7 +61,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_RESERVED,
-		KEY_F13
+		KEY_SCREENLOCK
 	}
 };
 
@@ -83,7 +83,7 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_FN,
-		KEY_SLEEP
+		KEY_SCREENLOCK
 	}
 };
 
@@ -126,7 +126,7 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 		KEY_SCROLLUP,
 		KEY_SCROLLDOWN,
 		KEY_FN,
-		KEY_F13
+		KEY_SCREENLOCK
 	}
 };
 
@@ -140,8 +140,6 @@ static struct {						/* fujitsu_t */
 	int io_base;
 	int io_length;
 } fujitsu;
-
-/*** HELPER *******************************************************************/
 
 static inline u8 fujitsu_ack(void)
 {
@@ -158,9 +156,6 @@ static inline u8 fujitsu_read_register(const u8 addr)
 	outb(addr, fujitsu.io_base);
 	return inb(fujitsu.io_base+4);
 }
-
-
-/*** INPUT ********************************************************************/
 
 static int __devinit input_fujitsu_setup(struct device *dev)
 {
@@ -247,12 +242,9 @@ static void fujitsu_report_key(void)
 		int keycode, pressed;
 		int x = 0;
 
-		/* save current state and filter not changed bits */
 		fujitsu.prev_keymask = keymask;
 
-		/* looking for the location of the first bit which is set */
 		x = find_first_bit(&changed, 16);
-
 		keycode = fujitsu.config.keymap[x];
 		pressed = !!(keymask & changed);
 
@@ -263,9 +255,6 @@ static void fujitsu_report_key(void)
 		input_sync(fujitsu.idev);
 	}
 }
-
-
-/*** INTERRUPT ****************************************************************/
 
 static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 {
@@ -279,31 +268,23 @@ static irqreturn_t fujitsu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
-/*** DEVICE *******************************************************************/
-
-static int fujitsu_busywait(void)
+static void fujitsu_busywait(void)
 {
 	int timeout_counter = 50;
 
-	while (fujitsu_status() & 0x02 && --timeout_counter)
+	while ((fujitsu_status() & 0x02) && (--timeout_counter))
 		msleep(20);
-
-	return !timeout_counter;
 }
 
 static void fujitsu_reset(void)
 {
 	fujitsu_ack();
-	if (fujitsu_busywait())
-		printk(KERN_WARNING MODULENAME ": timeout, real reset needed!\n");
+	fujitsu_busywait();
 }
-
-/*** DMI **********************************************************************/
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
-	printk(KERN_INFO MODULENAME ": %s detected\n", dmi->ident);
+	printk(KERN_DEBUG MODULENAME ": %s detected\n", dmi->ident);
 	memcpy(&fujitsu.config, dmi->driver_data,
 			sizeof(struct fujitsu_config));
 	return 1;
@@ -375,9 +356,6 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	},
 	{ NULL }
 };
-
-
-/*** ACPI *********************************************************************/
 
 static acpi_status __devinit fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
@@ -470,9 +448,6 @@ static struct acpi_driver acpi_fujitsu_driver = {
 		.resume = acpi_fujitsu_resume,
 	}
 };
-
-
-/*** MODULE *******************************************************************/
 
 static int __init fujitsu_module_init(void)
 {
