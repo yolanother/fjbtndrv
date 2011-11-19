@@ -2,7 +2,7 @@
 # Sample script for fscd.
 # Copy or link this script to rotate-normal and rotate-tablet.
 #
-# Copyright (C) 2008-2010 Robert Gerlach <khnz@users.sourceforge.net>
+# Copyright (C) 2008-2011 Robert Gerlach <khnz@users.sourceforge.net>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2.
