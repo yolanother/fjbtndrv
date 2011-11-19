@@ -401,7 +401,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 		return error;
 
 	if (!request_region(fujitsu.io_base, fujitsu.io_length, MODULENAME)) {
-		dev_err(&adev->dev, "region 0x%04x busy\n", fujitsu.io_base);
+		dev_err(&adev->dev, "region 0x%04x-0x%04x busy\n", fujitsu.io_base, fujitsu.io_base+fujitsu.io_length);
 		input_fujitsu_remove();
 		return -EBUSY;
 	}
