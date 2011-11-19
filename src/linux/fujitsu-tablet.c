@@ -415,7 +415,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 			IRQF_SHARED, MODULENAME, fujitsu_isr);
 	if (error) {
 		dev_err(&adev->dev, "unable to get irq %d\n", fujitsu.irq);
-		release_region(fujitsu.io_base, 8);
+		release_region(fujitsu.io_base, fujitsu.io_length);
 		input_fujitsu_remove();
 		return error;
 	}
@@ -426,7 +426,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 {
 	free_irq(fujitsu.irq, fujitsu_isr);
-	release_region(fujitsu.io_base, 8);
+	release_region(fujitsu.io_base, fujitsu.io_length);
 	input_fujitsu_remove();
 	return 0;
 }
