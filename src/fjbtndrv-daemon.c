@@ -176,30 +176,6 @@ fjbtndrv_daemon_input_open_device(GError **error)
 }
 
 static void
-fjbtndrv_daemon_input_handle_key(FjbtndrvDaemon *daemon, InputEvent *event)
-{
-	GError *error = NULL;
-
-	g_assert(daemon);
-	g_assert(event);
-
-	if (!daemon->dbus) return;
-
-	switch (event->code) {
-	case KEY_FN:
-	case KEY_LEFTCTRL:
-		return;
-
-	case KEY_LEFTALT:
-	case KEY_RIGHTALT:
-		return;
-	
-	default:
-		return;
-	}
-}
-
-static void
 fjbtndrv_daemon_input_handle_switch(FjbtndrvDaemon *daemon, InputEvent *event)
 {
 	GError *error = NULL;
@@ -247,10 +223,6 @@ fjbtndrv_daemon_input_event_dispatcher(GIOChannel *source, GIOCondition conditio
 	switch (event.type) {
 	case EV_SW:
 		fjbtndrv_daemon_input_handle_switch(daemon, &event);
-		break;
-
-	case EV_KEY:
-		fjbtndrv_daemon_input_handle_key(daemon, &event);
 		break;
 	}
 
