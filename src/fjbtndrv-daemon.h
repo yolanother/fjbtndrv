@@ -20,12 +20,11 @@
 #ifndef __FJBTNDRV_DAEMON_H
 #define __FJBTNDRV_DAEMON_H
 
-#include <glib-object.h>
-#include <dbus/dbus-glib.h>
+#include <gio/gio.h>
 
-#define FJBTNDRV_DAEMON_SERVICE_PATH      "/de/khnz/fjbtndrv"
-#define FJBTNDRV_DAEMON_SERVICE_NAME      "de.khnz.fjbtndrv"
-#define FJBTNDRV_DAEMON_SERVICE_INTERFACE "de.khnz.fjbtndrv"
+#define FJBTNDRV_DAEMON_SERVICE_PATH      "/de/khnz/FjBtnDrv"
+#define FJBTNDRV_DAEMON_SERVICE_NAME      "de.khnz.FjBtnDrv"
+#define FJBTNDRV_DAEMON_SERVICE_INTERFACE FJBTNDRV_DAEMON_SERVICE_NAME
 
 G_BEGIN_DECLS
 
@@ -43,72 +42,14 @@ G_BEGIN_DECLS
 	(G_TYPE_INSTANCE_GET_CLASS((object), FJBTNDRV_TYPE_DAEMON, FjbtndrvDaemonClass))
 
 typedef struct {
-	__u16 normal;
-	__u16 fn;
-	__u16 alt;
-	__u16 lp;
-} KeymapEntry;
-
-typedef struct {
 	GObject parent;
-
-	gchar *product;
-
+	GDBusConnection *dbus;
 	GIOChannel *input;
-	GIOChannel *uinput;
-
-	DBusGProxy *proxy;
-
-	KeymapEntry *keymap;
-	guint sticky_timeout;
-
-	/* private */
-	guint skey;
-	guint stime;
-	GSource *sinterval;
 } FjbtndrvDaemon;
 
 typedef struct {
 	GObjectClass parent;
-
-//	DBusGConnection *connection;
 } FjbtndrvDaemonClass;
-
-#define FJBTNDRV_DAEMON_ERROR 1
-
-/* G_DEFINE_TYPE(FjbtndrvDaemon, fjbtndrv_daemon, G_TYPE_OBJECT); */
-
-GType fjbtndrv_daemon_get_type(void);
-FjbtndrvDaemon* fjbtndrv_daemon_new(void);
-
-gboolean
-fjbtndrv_daemon_bind_dbus(
-		FjbtndrvDaemon*,
-		DBusGConnection *dbus,
-		GError **error);
-
-gboolean
-fjbtndrv_daemon_register_callbacks(
-		FjbtndrvDaemon*,
-		GMainLoop *mainloop);
-
-gboolean
-fjbtndrv_daemon_input_event_dispatcher(
-		GIOChannel *source,
-		GIOCondition condition,
-		gpointer); /* FjbtndrvDaemon* */
-
-gboolean
-fjbtndrv_daemon_get_sticky_timeout(
-		FjbtndrvDaemon*,
-		gint *msec,
-		DBusGMethodInvocation *error);
-
-gboolean
-fjbtndrv_daemon_set_sticky_timeout(
-		FjbtndrvDaemon*,
-		gint msec,
-	       	DBusGMethodInvocation *error);
 
 G_END_DECLS
 
