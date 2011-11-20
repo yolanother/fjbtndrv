@@ -284,7 +284,7 @@ static void fujitsu_reset(void)
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 {
-	printk(KERN_DEBUG MODULENAME ": %s detected\n", dmi->ident);
+	printk(KERN_DEBUG MODULENAME ": %s\n", dmi->ident);
 	memcpy(&fujitsu.config, dmi->driver_data,
 			sizeof(struct fujitsu_config));
 	return 1;
