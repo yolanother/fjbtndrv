@@ -88,7 +88,7 @@ dnl PKG_CHECK_MODULES(XINPUT, [x11 xi xext xtst])
 dnl AC_SUBST(X11_CFLAGS)
 dnl AC_SUBST(X11_LIBS)
 
-PKG_CHECK_MODULES(DBUS, [glib-2.0 gio-2.0 dbus-1 dbus-glib-1])
+PKG_CHECK_MODULES(DBUS, [glib-2.0 >= 2.26 gio-2.0 dbus-1])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
