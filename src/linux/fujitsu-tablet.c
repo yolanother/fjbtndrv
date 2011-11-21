@@ -220,18 +220,15 @@ static int __devinit input_fujitsu_setup(struct device *dev)
 	idev->keycodemax = ARRAY_SIZE(fujitsu.config.keymap);
 
 	__set_bit(EV_REP, idev->evbit);
-	__set_bit(EV_KEY, idev->evbit);
 
 	for (x = 0; x < ARRAY_SIZE(fujitsu.config.keymap); x++)
 		if (fujitsu.config.keymap[x])
-			__set_bit(fujitsu.config.keymap[x], idev->keybit);
+			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[x]);
 
-	__set_bit(EV_MSC, idev->evbit);
-	__set_bit(MSC_SCAN, idev->mscbit);
+	input_set_capability(idev, EV_MSC, MSC_SCAN);
 
-	__set_bit(EV_SW, idev->evbit);
-	__set_bit(SW_DOCK, idev->swbit);
-	__set_bit(SW_TABLET_MODE, idev->swbit);
+	input_set_capability(idev, EV_SW, SW_DOCK);
+	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 
 	error = input_register_device(idev);
 	if (error) {
