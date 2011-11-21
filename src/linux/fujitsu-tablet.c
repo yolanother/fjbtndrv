@@ -39,11 +39,13 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
+	bool ignore_tablet_mode_if_undocked;
 	bool invert_tablet_mode_bit;
 	unsigned short keymap[16];
 };
 
 static struct fujitsu_config config_Lifebook_Tseries __initconst = {
+	.ignore_tablet_mode_if_undocked = false,
 	.invert_tablet_mode_bit = true,
 	.keymap = {
 		KEY_RESERVED,
@@ -66,6 +68,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Lifebook_U810 __initconst = {
+	.ignore_tablet_mode_if_undocked = false,
 	.invert_tablet_mode_bit = true,
 	.keymap = {
 		KEY_RESERVED,
@@ -88,6 +91,7 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_Tseries __initconst = {
+	.ignore_tablet_mode_if_undocked = true,
 	.invert_tablet_mode_bit = false,
 	.keymap = {
 		KEY_RESERVED,
@@ -109,6 +113,7 @@ static struct fujitsu_config config_Stylistic_Tseries __initconst = {
 };
 
 static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
+	.ignore_tablet_mode_if_undocked = true,
 	.invert_tablet_mode_bit = false,
 	.keymap = {
 		KEY_RESERVED,
@@ -158,9 +163,15 @@ static inline u8 fujitsu_read_register(const u8 addr)
 
 static void fujitsu_send_state(void)
 {
-	int state = fujitsu_read_register(0xdd);
+	int state;
+	int dock;
 
-	if (state & 0x02) {
+	state = fujitsu_read_register(0xdd);
+
+	dock = !!(state & 0x02);
+	input_report_switch(fujitsu.idev, SW_DOCK, dock);
+
+	if (!fujitsu.config.ignore_tablet_mode_if_undocked || dock) {
 		int tablet_mode = state & 0x01;
 
 		if (fujitsu.config.invert_tablet_mode_bit)
@@ -217,6 +228,7 @@ static int __devinit input_fujitsu_setup(struct device *dev)
 	__set_bit(MSC_SCAN, idev->mscbit);
 
 	__set_bit(EV_SW, idev->evbit);
+	__set_bit(SW_DOCK, idev->swbit);
 	__set_bit(SW_TABLET_MODE, idev->swbit);
 
 	error = input_register_device(idev);
@@ -248,6 +260,9 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	keymask  = fujitsu_read_register(0xde);
 	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
+
+	printk(KERN_DEBUG MODULENAME ": state=0x%02x keymask=0x%04lx\n",
+			fujitsu_read_register(0xdd), keymask);
 
 	changed = keymask ^ fujitsu.prev_keymask;
 	if (changed) {
