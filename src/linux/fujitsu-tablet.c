@@ -133,7 +133,6 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 static struct {						/* fujitsu_t */
 	struct input_dev *idev;
 	struct fujitsu_config config;
-	int tablet_mode;
 	unsigned long prev_keymask;
 
 	int irq;
@@ -143,18 +142,46 @@ static struct {						/* fujitsu_t */
 
 static inline u8 fujitsu_ack(void)
 {
-	return inb(fujitsu.io_base+2);
+	return inb(fujitsu.io_base + 2);
 }
 
 static inline u8 fujitsu_status(void)
 {
-	return inb(fujitsu.io_base+6);
+	return inb(fujitsu.io_base + 6);
 }
 
 static inline u8 fujitsu_read_register(const u8 addr)
 {
 	outb(addr, fujitsu.io_base);
-	return inb(fujitsu.io_base+4);
+	return inb(fujitsu.io_base + 4);
+}
+
+static void fujitsu_send_state(void)
+{
+	int state = fujitsu_read_register(0xdd);
+
+	if (state & 0x02) {
+		int tablet_mode = state & 0x01;
+
+		if (fujitsu.config.invert_tablet_mode_bit)
+			tablet_mode = !tablet_mode;
+
+		input_report_switch(fujitsu.idev, SW_TABLET_MODE, tablet_mode);
+	}
+
+	input_sync(fujitsu.idev);
+}
+
+static void fujitsu_reset(void)
+{
+	int timeout = 50;
+
+	fujitsu_ack();
+
+	while ((fujitsu_status() & 0x02) && (--timeout))
+		msleep(20);
+
+	fujitsu_send_state();
 }
 
 static int __devinit input_fujitsu_setup(struct device *dev)
@@ -208,38 +235,24 @@ static void input_fujitsu_remove(void)
 		input_unregister_device(fujitsu.idev);
 }
 
-static void fujitsu_report_orientation(void)
-{
-	struct input_dev *idev = fujitsu.idev;
-	int r = fujitsu_read_register(0xdd);
-
-	if (r & 0x02) {
-		bool tablet_mode = (r & 0x01);
-
-		if (fujitsu.config.invert_tablet_mode_bit)
-			tablet_mode = !tablet_mode;
-
-		if (tablet_mode != fujitsu.tablet_mode) {
-			fujitsu.tablet_mode = tablet_mode;
-			input_report_switch(idev, SW_TABLET_MODE, tablet_mode);
-			input_sync(idev);
-		}
-	}
-}
-
-static void fujitsu_report_key(void)
+static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 {
 	unsigned long keymask;
 	unsigned long changed;
+
+	if (unlikely(!(fujitsu_status() & 0x01)))
+		return IRQ_NONE;
+
+	fujitsu_send_state();
 
 	keymask  = fujitsu_read_register(0xde);
 	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
 
 	changed = keymask ^ fujitsu.prev_keymask;
-
 	if (changed) {
-		int keycode, pressed;
+		unsigned int keycode;
+		int pressed;
 		int x = 0;
 
 		fujitsu.prev_keymask = keymask;
@@ -254,32 +267,9 @@ static void fujitsu_report_key(void)
 		input_report_key(fujitsu.idev, keycode, pressed);
 		input_sync(fujitsu.idev);
 	}
-}
 
-static irqreturn_t fujitsu_isr(int irq, void *dev_id)
-{
-	if (!(fujitsu_status() & 0x01))
-		return IRQ_NONE;
-
-	fujitsu_report_orientation();
-	fujitsu_report_key();
 	fujitsu_ack();
-
 	return IRQ_HANDLED;
-}
-
-static void fujitsu_busywait(void)
-{
-	int timeout_counter = 50;
-
-	while ((fujitsu_status() & 0x02) && (--timeout_counter))
-		msleep(20);
-}
-
-static void fujitsu_reset(void)
-{
-	fujitsu_ack();
-	fujitsu_busywait();
 }
 
 static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
@@ -390,10 +380,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 
 	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
 			fujitsu_walk_resources, NULL);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	if (!fujitsu.irq || !fujitsu.io_base)
+	if (ACPI_FAILURE(status) || !fujitsu.irq || !fujitsu.io_base)
 		return -ENODEV;
 
 	error = input_fujitsu_setup(&adev->dev);
@@ -408,11 +395,8 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 
 	fujitsu_reset();
 
-	fujitsu_report_orientation();
-	input_sync(fujitsu.idev);
-
-	error = request_irq(fujitsu.irq, fujitsu_isr,
-			IRQF_SHARED, MODULENAME, fujitsu_isr);
+	error = request_irq(fujitsu.irq, fujitsu_interrupt,
+			IRQF_SHARED, MODULENAME, fujitsu_interrupt);
 	if (error) {
 		dev_err(&adev->dev, "unable to get irq %d\n", fujitsu.irq);
 		release_region(fujitsu.io_base, fujitsu.io_length);
@@ -425,7 +409,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 
 static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 {
-	free_irq(fujitsu.irq, fujitsu_isr);
+	free_irq(fujitsu.irq, fujitsu_interrupt);
 	release_region(fujitsu.io_base, fujitsu.io_length);
 	input_fujitsu_remove();
 	return 0;
@@ -434,7 +418,6 @@ static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 static int acpi_fujitsu_resume(struct acpi_device *adev)
 {
 	fujitsu_reset();
-	fujitsu_report_orientation();
 	return 0;
 }
 
