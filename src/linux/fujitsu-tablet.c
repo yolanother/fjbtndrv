@@ -192,6 +192,8 @@ static void fujitsu_reset(void)
 	while ((fujitsu_status() & 0x02) && (--timeout))
 		msleep(20);
 
+	printk(KERN_DEBUG MODULENAME ": fujitsu_reset: time left: %d * 20ms", timeout);
+
 	fujitsu_send_state();
 }
 
