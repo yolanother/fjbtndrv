@@ -1,8 +1,9 @@
-PACKAGE_NAME="fsc_btns"
+PACKAGE_NAME="fjbtndrv"
 PACKAGE_VERSION="@VERSION@"
+
+BUILT_MODULE_NAME[0]="fujitsu-tablet"
+DEST_MODULE_LOCATION[0]="/updates/dkms/"
+
 AUTOINSTALL="yes"
 REMAKE_INITRD="no"
-DEST_MODULE_LOCATION="/kernel/driver/input/misc"
-MAKE="make"
-CLEAN="make clean"
 
