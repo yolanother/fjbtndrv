@@ -55,7 +55,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_SCROLLDOWN,
 		KEY_SCROLLUP,
 		KEY_DIRECTION,
-		KEY_FN,
+		KEY_LEFTCTRL,
 		KEY_BRIGHTNESSUP,
 		KEY_BRIGHTNESSDOWN,
 		KEY_BRIGHTNESS_ZERO,
@@ -63,7 +63,7 @@ static struct fujitsu_config config_Lifebook_Tseries __initconst = {
 		KEY_RESERVED,
 		KEY_RESERVED,
 		KEY_RESERVED,
-		KEY_SCREENLOCK
+		KEY_LEFTALT
 	}
 };
 
@@ -85,8 +85,8 @@ static struct fujitsu_config config_Lifebook_U810 __initconst = {
 		KEY_DOWN,
 		KEY_RESERVED,
 		KEY_RESERVED,
-		KEY_FN,
-		KEY_SCREENLOCK
+		KEY_LEFTCTRL,
+		KEY_LEFTALT
 	}
 };
 
@@ -108,7 +108,7 @@ static struct fujitsu_config config_Stylistic_Tseries __initconst = {
 		KEY_UP,
 		KEY_SCROLLUP,
 		KEY_SCROLLDOWN,
-		KEY_FN
+		KEY_LEFTCTRL
 	}
 };
 
@@ -130,8 +130,8 @@ static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
 		KEY_UP,
 		KEY_SCROLLUP,
 		KEY_SCROLLDOWN,
-		KEY_FN,
-		KEY_SCREENLOCK
+		KEY_LEFTCTRL,
+		KEY_LEFTALT
 	}
 };
 
