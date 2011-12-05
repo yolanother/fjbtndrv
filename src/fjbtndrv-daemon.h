@@ -1,5 +1,5 @@
 /*******************************************************************************
- * fjbtndrv uinput daemon
+ * fjbtndrv dbus proxy daemon
  * Copyright (C) 2011 Robert Gerlach <khnz@users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ G_BEGIN_DECLS
 #define FJBTNDRV_DAEMON_CLASS(klass) \
 	(G_TYPE_CHECK_CLASS_CAST((klass), FJBTNDRV_TYPE_DAEMON, FjbtndrvDaemonClass))
 #define FJBTNDRV_IS_DAEMON(object) \
-	(G_TYPE_CHECK_INSTANCE_TYPE((onject), FJBTNDRV_TYPE_DAEMON))
+	(G_TYPE_CHECK_INSTANCE_TYPE((object), FJBTNDRV_TYPE_DAEMON))
 #define FJBTNDRV_IS_DAEMON_CLASS(klass) \
 	(G_TYPE_CHECK_CLASS_TYPE((klass), FJBTNDRV_TYPE_DAEMON))
 #define FJBTNDRV_DAEMON_GET_CLASS(object) \

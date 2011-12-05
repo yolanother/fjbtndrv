@@ -21,6 +21,7 @@
 #  include "../config.h"
 #endif
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <glib.h>
 #include <gio/gio.h>
@@ -41,6 +42,10 @@ static const gchar introspection_xml[] =
 	"    <signal name='TabletModeChanged'>"
 	"      <arg direction='out' name='value' type='b' />"
 	"    </signal>"
+	"    <property type='b' name='DockState' access='read' />"
+	"    <signal name='DockStateChanged'>"
+	"      <arg direction='out' name='value' type='b' />"
+	"    </signal>"
 	"  </interface>"
 	"</node>";
 
@@ -59,6 +64,7 @@ static GMainLoop *mainloop;
 // TODO:
 static struct {
 	gboolean tablet_mode;
+	gboolean dock_state;
 } FjbtndrvState;
 
 
@@ -96,6 +102,9 @@ fjbtndrv_daemon_handle_get_property(GDBusConnection *connection, const gchar *se
 
 	if (g_strcmp0 (property_name, "TabletMode") == 0) {
 		value = g_variant_new_boolean(FjbtndrvState.tablet_mode);
+	}
+	else if (g_strcmp0 (property_name, "DockState") == 0) {
+		value = g_variant_new_boolean(FjbtndrvState.dock_state);
 	}
 
 	return value;
@@ -179,25 +188,39 @@ static void
 fjbtndrv_daemon_input_handle_switch(FjbtndrvDaemon *daemon, InputEvent *event)
 {
 	GError *error = NULL;
+	char *event_name = NULL;
 
 	g_assert(daemon);
 	g_assert(event);
 
-	FjbtndrvState.tablet_mode = event->value;
+	switch (event->code) {
+	case SW_TABLET_MODE:
+		FjbtndrvState.tablet_mode = event->value;
+		event_name = "TabletModeChanged";
+		break;
 
-	if (!daemon->dbus) return;
+	case SW_DOCK:
+		FjbtndrvState.dock_state = event->value;
+		event_name = "DockStateChanged";
+		break;
+	}
 
-	g_dbus_connection_emit_signal(
-			daemon->dbus,
-			NULL,
-			FJBTNDRV_DAEMON_SERVICE_PATH,
-			FJBTNDRV_DAEMON_SERVICE_INTERFACE,
-			"TabletModeChanged",
-			g_variant_new("(b)", event->value),
-			&error);
-	if (error) {
-		g_warning("%s", error->message);
-		g_error_free(error);
+	if ((daemon->dbus) && (event_name)) {
+		debug("fjbtndrv_daemon_input_handle_switch: signal=%s value=%s",
+				event_name, (event->value ? "true" : "false"));
+
+		g_dbus_connection_emit_signal(
+				daemon->dbus,
+				NULL,
+				FJBTNDRV_DAEMON_SERVICE_PATH,
+				FJBTNDRV_DAEMON_SERVICE_INTERFACE,
+				event_name,
+				g_variant_new("(b)", event->value),
+				&error);
+		if (error) {
+			g_warning("%s", error->message);
+			g_error_free(error);
+		}
 	}
 }
 
