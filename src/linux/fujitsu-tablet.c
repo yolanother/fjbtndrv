@@ -32,6 +32,8 @@
 
 #define MODULENAME "fujitsu-tablet"
 
+#define ACPI_FUJITSU_CLASS "fujitsu"
+
 static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
@@ -140,6 +142,8 @@ static struct {						/* fujitsu_t */
 	struct fujitsu_config config;
 	unsigned long prev_keymask;
 
+	char phys[21];
+
 	int irq;
 	int io_base;
 	int io_length;
@@ -197,7 +201,7 @@ static void fujitsu_reset(void)
 	fujitsu_send_state();
 }
 
-static int __devinit input_fujitsu_setup(struct device *dev)
+static int __devinit input_fujitsu_setup(struct device *parent, const char *name, const char *phys)
 {
 	struct input_dev *idev;
 	int error;
@@ -207,9 +211,9 @@ static int __devinit input_fujitsu_setup(struct device *dev)
 	if (!idev)
 		return -ENOMEM;
 
-	idev->dev.parent = dev;
-	idev->phys = KBUILD_MODNAME "/input0";
-	idev->name = "Fujitsu tablet buttons";
+	idev->dev.parent = parent;
+	idev->phys = phys;
+	idev->name = name;
 	idev->id.bustype = BUS_HOST;
 	idev->id.vendor  = 0x1734;	/* Fujitsu Siemens Computer GmbH */
 	idev->id.product = 0x0001;
@@ -397,7 +401,14 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	if (ACPI_FAILURE(status) || !fujitsu.irq || !fujitsu.io_base)
 		return -ENODEV;
 
-	error = input_fujitsu_setup(&adev->dev);
+	sprintf(acpi_device_name(adev), "Fujitsu %s", acpi_device_hid(adev));
+	sprintf(acpi_device_class(adev), "%s", ACPI_FUJITSU_CLASS);
+
+	snprintf(fujitsu.phys, sizeof(fujitsu.phys),
+			"%s/video/input0", acpi_device_hid(adev));
+
+	error = input_fujitsu_setup(&adev->dev,
+		acpi_device_name(adev), fujitsu.phys);
 	if (error)
 		return error;
 
