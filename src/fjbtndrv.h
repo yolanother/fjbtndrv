@@ -29,8 +29,15 @@
 #  define debug(msg, a...) do {} while(0)
 #endif
 
-#define FJBTNDRV_PROXY_SERVICE_PATH      "/de/khnz/fjbtndrv"
-#define FJBTNDRV_PROXY_SERVICE_NAME      "de.khnz.fjbtndrv"
-#define FJBTNDRV_PROXY_SERVICE_INTERFACE FJBTNDRV_PROXY_SERVICE_NAME
+#define FJBTNDRV_DBUS_SERVICE_PATH      "/de/khnz/fjbtndrv"
+#define FJBTNDRV_DBUS_SERVICE_NAME      "de.khnz.fjbtndrv"
+#define FJBTNDRV_DBUS_SERVICE_INTERFACE FJBTNDRV_DBUS_SERVICE_NAME
+
+/*
+typedef struct {
+	unsigned int keycode;
+	unsigned int value;
+} key_event;
+*/
 
 #endif

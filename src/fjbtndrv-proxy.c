@@ -24,11 +24,9 @@
 #include "fjbtndrv.h"
 #include "fjbtndrv-proxy.h"
 
-//#define FJBTNDRV_PROXY_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), FJBTNDRV_TYPE_PRIVATE, FjbtndrvProxyPrivate))
-
 static const gchar introspection_xml[] =
 	"<node>"
-	"  <interface name='" FJBTNDRV_PROXY_SERVICE_INTERFACE "'>"
+	"  <interface name='" FJBTNDRV_DBUS_SERVICE_INTERFACE "'>"
 	"    <property type='b' name='TabletMode' access='read' />"
 	"    <signal name='TabletModeChanged'>"
 	"      <arg direction='out' name='value' type='b' />"
@@ -88,7 +86,7 @@ on_bus_acquired (GDBusConnection *connection, const gchar *name, gpointer user_d
 
 	guint id = g_dbus_connection_register_object(
 			connection, 
-			FJBTNDRV_PROXY_SERVICE_PATH,
+			FJBTNDRV_DBUS_SERVICE_PATH,
 			introspection_data->interfaces[0],
 			&fjbtndrv_proxy_vtable,
 			this, NULL, &error);
@@ -138,8 +136,8 @@ fjbtndrv_proxy_emit_signal(FjbtndrvProxy *this, const char *name, GVariant *para
 	g_dbus_connection_emit_signal(
 			this->dbus,
 			NULL,
-			FJBTNDRV_PROXY_SERVICE_PATH,
-			FJBTNDRV_PROXY_SERVICE_INTERFACE,
+			FJBTNDRV_DBUS_SERVICE_PATH,
+			FJBTNDRV_DBUS_SERVICE_INTERFACE,
 			name,
 			parameters,
 			&error);
@@ -234,12 +232,6 @@ fjbtndrv_proxy_set_property(GObject *object, guint prop_id, const GValue *value,
 */
 
 static void
-fjbtndrv_proxy_finalize (GObject *object)
-{
-	G_OBJECT_CLASS (fjbtndrv_proxy_parent_class)->finalize (object);
-}
-
-static void
 fjbtndrv_proxy_init (FjbtndrvProxy *this)
 {
 	guint dbus_owner_id;
@@ -248,7 +240,7 @@ fjbtndrv_proxy_init (FjbtndrvProxy *this)
 
 	dbus_owner_id = g_bus_own_name (
 			G_BUS_TYPE_SYSTEM,
-			FJBTNDRV_PROXY_SERVICE_NAME,
+			FJBTNDRV_DBUS_SERVICE_NAME,
 			G_BUS_NAME_OWNER_FLAGS_NONE,
 			on_bus_acquired,
 			on_name_acquired,
@@ -257,6 +249,12 @@ fjbtndrv_proxy_init (FjbtndrvProxy *this)
 			NULL);
 
 	g_assert(dbus_owner_id > 0);
+}
+
+static void
+fjbtndrv_proxy_finalize (GObject *object)
+{
+	G_OBJECT_CLASS (fjbtndrv_proxy_parent_class)->finalize (object);
 }
 
 static void

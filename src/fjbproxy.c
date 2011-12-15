@@ -48,12 +48,14 @@ switch_event(InputEvent *event, FjbtndrvProxy *proxy)
 }
 
 
+/*
 static void
 on_device_lost(void)
 {
 	debug("device lost");
 	g_main_loop_quit(mainloop);
 }
+*/
 
 static gboolean
 on_device_event(GIOChannel *source, GIOCondition condition, gpointer data)
@@ -82,7 +84,7 @@ on_device_event(GIOChannel *source, GIOCondition condition, gpointer data)
 		return TRUE;
 
 	case G_IO_STATUS_ERROR:
-		g_warning("%s", error->message);
+		g_error("%s", error->message);
 		g_error_free(error);
 	
 	default:
@@ -118,8 +120,8 @@ open_device(GError **error)
 int
 main(int argc, char *argv[])
 {
-	FjbtndrvProxy *daemon;
-	GIOChannel *device;
+	FjbtndrvProxy *proxy = NULL;
+	GIOChannel *device = NULL;
 	GError *error = NULL;
 
 	g_type_init();
@@ -136,14 +138,14 @@ main(int argc, char *argv[])
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 
-	daemon = fjbtndrv_proxy_new();
-	g_assert(daemon);
+	proxy = fjbtndrv_proxy_new();
+	g_assert(proxy);
 
 	device = open_device(&error);
 	if (error) {
-		g_error("%s", error->message);
 		debug("open_device failed");
-		return error->code;
+		g_error("%s", error->message);
+		goto out;
 	}
 
 	/* get and set initial switch states */
@@ -152,31 +154,30 @@ main(int argc, char *argv[])
 		gint fd = g_io_channel_unix_get_fd(device);
 
 		if (ioctl(fd, EVIOCGSW(sizeof(switches)), &switches) >= 0) {
-			fjbtndrv_proxy_set_tablet_mode(daemon,
+			fjbtndrv_proxy_set_tablet_mode(proxy,
 					(switches & BIT(SW_TABLET_MODE)) >> SW_TABLET_MODE);
-			fjbtndrv_proxy_set_dock_state(daemon,
+			fjbtndrv_proxy_set_dock_state(proxy,
 					(switches & BIT(SW_DOCK)) >> SW_DOCK);
 		}
 	}
 
-	g_io_add_watch_full(device, 0, G_IO_IN|G_IO_ERR|G_IO_HUP,
-			(GIOFunc) on_device_event, daemon,
-			(GDestroyNotify) on_device_lost);
-
+	g_io_add_watch(device, G_IO_IN|G_IO_ERR|G_IO_HUP,
+			(GIOFunc) on_device_event, proxy);
 
 	debug(" * start");
 
 	g_main_loop_run(mainloop);
 	
 
+out:
 	debug(" * shutdown");
 
 	if (mainloop)
 		g_main_loop_unref(mainloop);
+	if (proxy)
+		g_object_unref(proxy);
 	if (device)
 		g_io_channel_unref(device);
-	if (daemon)
-		g_object_unref(daemon);
 
 	return 0;
 }
