@@ -1,7 +1,3 @@
-fdidir = /usr/share/hal/fdi/information/20thirdparty
-dist_fdi_DATA = 30-orientations-fjbtndrv.fdi
-dist_fdi_DATA += 30-keymap-fjbtndrv.fdi
-
 XDG_CONFIG_HOME ?= /etc/xdg
 xdgautostartdir = $(XDG_CONFIG_HOME)/autostart
 dist_xdgautostart_DATA = fscrotd.desktop
