@@ -21,8 +21,8 @@ AM_CFLAGS = \
 	 -g
 endif
 
-bin_PROGRAMS = fjbproxy \
-	fjbdaemon
+bin_PROGRAMS = fjbdaemon
+sbin_PROGRAMS = fjbproxy
 
 fjbproxy_SOURCES = \
 	fjbtndrv.h \
