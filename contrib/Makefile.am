@@ -1,17 +1,13 @@
-XDG_CONFIG_HOME ?= /etc/xdg
-xdgautostartdir = $(XDG_CONFIG_HOME)/autostart
-dist_xdgautostart_DATA = fscrotd.desktop
-if BUILD_FSCD
-dist_xdgautostart_DATA += fscd.desktop
-endif
+EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in dkms.conf.in
 
 fscdscriptsdir = @scriptdir@
 dist_fscdscripts_SCRIPTS = rotate-wacom.sh switch-vkeyboard.sh
 
-EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in dkms.conf.in
+all: dkms.conf udev.rules
 
 edit = sed \
 	-e 's|@bindir[@]|$(bindir)|g' \
+	-e 's|@sbindir[@]|$(sbindir)|g' \
 	-e 's|@scriptdir[@]|$(scriptdir)|g' \
 	-e 's|@VERSION[@]|$(VERSION)|g'
 
@@ -19,5 +15,4 @@ edit = sed \
 	$(edit) $< >$@
 
 clean:
-	rm -f fscrotd.desktop fscd.desktop dkms.conf
-
+	rm -f dkms.conf udev.rules
