@@ -18,6 +18,7 @@
 #include <unistd.h> // sleep()
 
 #include <glib.h>
+#include <glib/gutils.h>
 
 #include <X11/Xlib.h>
 #include <xosd.h>
@@ -95,7 +96,7 @@ fjbtndrv_osd_vinfo(FjbtndrvOSD *this, gchar *format, ...)
 	char buffer[256];
 
 	va_start(a, format);
-	vsnprintf(buffer, 255, format, a);
+	g_vsnprintf(buffer, 255, format, a);
 	va_end(a);
 
 	//debug("fjbtndrv_osd_info: test=%s", buffer);

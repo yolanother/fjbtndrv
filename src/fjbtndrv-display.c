@@ -18,6 +18,7 @@
 #include <stdlib.h>  // exit() only
 
 #include <glib.h>
+#include <glib/gutils.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -121,7 +122,7 @@ fjbtndrv_display_show_info(FjbtndrvDisplay *this, gchar *format, ...)
 	va_list a;
 
 	va_start(a, format);
-	vsnprintf(buffer, 255, format, a);
+	g_vsnprintf(buffer, 255, format, a);
 	va_end(a);
 
 	fjbtndrv_osd_info(priv->osd, buffer);
