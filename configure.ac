@@ -90,6 +90,7 @@ AM_CONDITIONAL(HAVE_XOSD, [test x$enable_xosd = xyes])
 AC_OUTPUT([
 Makefile
 src/Makefile
+contrib/Makefile
 po/Makefile.in
 ])
 
