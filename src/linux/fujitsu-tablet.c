@@ -35,6 +35,9 @@
 
 #define ACPI_FUJITSU_CLASS "fujitsu"
 
+#define INVERT_TABLET_MODE_BIT      0x01
+#define FORCE_TABLET_MODE_IF_UNDOCK 0x02
+
 static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
@@ -42,9 +45,8 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
-	bool ignore_tablet_mode_if_undocked;
-	bool invert_tablet_mode_bit;
 	struct key_entry *keymap;
+	unsigned int quirks;
 };
 
 static struct key_entry keymap_Lifebook_Tseries[] __initconst = {
@@ -103,30 +105,6 @@ static struct key_entry keymap_Stylistic_ST5xxx[] __initconst = {
 	{ KE_END }
 };
 
-static struct fujitsu_config config_Lifebook_Tseries __initconst = {
-	.ignore_tablet_mode_if_undocked = false,
-	.invert_tablet_mode_bit = true,
-	.keymap = keymap_Lifebook_Tseries,
-};
-
-static struct fujitsu_config config_Lifebook_U810 __initconst = {
-	.ignore_tablet_mode_if_undocked = false,
-	.invert_tablet_mode_bit = true,
-	.keymap = keymap_Lifebook_U810,
-};
-
-static struct fujitsu_config config_Stylistic_Tseries __initconst = {
-	.ignore_tablet_mode_if_undocked = true,
-	.invert_tablet_mode_bit = false,
-	.keymap = keymap_Stylistic_Tseries,
-};
-
-static struct fujitsu_config config_Stylistic_ST5xxx __initconst = {
-	.ignore_tablet_mode_if_undocked = true,
-	.invert_tablet_mode_bit = false,
-	.keymap = keymap_Stylistic_ST5xxx,
-};
-
 static struct {						/* fujitsu_t */
 	struct input_dev *idev;
 	struct fujitsu_config config;
@@ -158,22 +136,22 @@ static inline u8 fujitsu_read_register(const u8 addr)
 static void fujitsu_send_state(void)
 {
 	int state;
-	int dock;
+	int dock, tablet_mode;
 
 	state = fujitsu_read_register(0xdd);
 
 	dock = !!(state & 0x02);
-	input_report_switch(fujitsu.idev, SW_DOCK, dock);
 
-	if (!fujitsu.config.ignore_tablet_mode_if_undocked || dock) {
-		int tablet_mode = state & 0x01;
-
-		if (fujitsu.config.invert_tablet_mode_bit)
+	if ((fujitsu.config.quirks & FORCE_TABLET_MODE_IF_UNDOCK) && (!dock)) {
+		tablet_mode = 1;
+	} else{
+		tablet_mode = state & 0x01;
+		if (fujitsu.config.quirks & INVERT_TABLET_MODE_BIT)
 			tablet_mode = !tablet_mode;
-
-		input_report_switch(fujitsu.idev, SW_TABLET_MODE, tablet_mode);
 	}
 
+	input_report_switch(fujitsu.idev, SW_DOCK, dock);
+	input_report_switch(fujitsu.idev, SW_TABLET_MODE, tablet_mode);
 	input_sync(fujitsu.idev);
 }
 
@@ -186,7 +164,7 @@ static void fujitsu_reset(void)
 	while ((fujitsu_status() & 0x02) && (--timeout))
 		msleep(20);
 
-	printk(KERN_DEBUG MODULENAME ": fujitsu_reset: time left: %d * 20ms", timeout);
+	printk(KERN_DEBUG MODULENAME ": fujitsu_reset: time left: %dx 20ms", timeout);
 
 	fujitsu_send_state();
 }
@@ -214,9 +192,14 @@ static int __devinit input_fujitsu_setup(struct device *parent, const char *name
 	if (error)
 		goto err_free_dev;
 
+	input_set_capability(idev, EV_SW, SW_DOCK);
+	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
+
 	error = input_register_device(idev);
 	if (error)
 		goto err_free_keymap;
+
+	fujitsu.config.keymap = NULL;
 
 	fujitsu.idev = idev;
 	return 0;
@@ -267,77 +250,84 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
+static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
 {
 	printk(KERN_DEBUG MODULENAME ": %s\n", dmi->ident);
-	memcpy(&fujitsu.config, dmi->driver_data,
-			sizeof(struct fujitsu_config));
+	fujitsu.config.keymap = dmi->driver_data;
+	return 1;
+}
+
+static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
+{
+	fujitsu_dmi_default(dmi);
+	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
+	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
 }
 
 static struct dmi_system_id dmi_ids[] __initconst = {
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_default,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK")
 		},
-		.driver_data = &config_Lifebook_Tseries
+		.driver_data = &keymap_Lifebook_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_default,
 		.ident = "Fujitsu Lifebook T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook T")
 		},
-		.driver_data = &config_Lifebook_Tseries
+		.driver_data = &keymap_Lifebook_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_stylistic,
 		.ident = "Fujitsu Siemens Stylistic T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic T")
 		},
-		.driver_data = &config_Stylistic_Tseries
+		.driver_data = &keymap_Stylistic_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_default,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook U810")
 		},
-		.driver_data = &config_Lifebook_U810
+		.driver_data = &keymap_Lifebook_U810
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_stylistic,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STYLISTIC ST5")
 		},
-		.driver_data = &config_Stylistic_ST5xxx
+		.driver_data = &keymap_Stylistic_ST5xxx
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_stylistic,
 		.ident = "Fujitsu Siemens Stylistic ST5xxx Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic ST5")
 		},
-		.driver_data = &config_Stylistic_ST5xxx
+		.driver_data = &keymap_Stylistic_ST5xxx
 	},
 	{
-		.callback = fujitsu_dmi_matched,
+		.callback = fujitsu_dmi_default,
 		.ident = "Unknown (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
 			DMI_MATCH(DMI_PRODUCT_NAME, "")
 		},
-		.driver_data = &config_Lifebook_Tseries
+		.driver_data = &keymap_Lifebook_Tseries
 	},
 	{ NULL }
 };
