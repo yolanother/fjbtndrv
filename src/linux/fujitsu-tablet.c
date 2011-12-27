@@ -47,7 +47,7 @@ struct fujitsu_config {
 	struct key_entry *keymap;
 };
 
-static struct key_entry keymap_Lifebook_Tseries[] = {
+static struct key_entry keymap_Lifebook_Tseries[] __initconst = {
 	{ KE_KEY, 0x0010, { KEY_SCROLLDOWN } },
 	{ KE_KEY, 0x0020, { KEY_SCROLLUP } },
 	{ KE_KEY, 0x0040, { KEY_DIRECTION } },
@@ -58,7 +58,7 @@ static struct key_entry keymap_Lifebook_Tseries[] = {
 	{ KE_END }
 };
 
-static struct key_entry keymap_Lifebook_U810[] = {
+static struct key_entry keymap_Lifebook_U810[] __initconst = {
 	{ KE_KEY, 0x0010, { KEY_PROG1 } },
 	{ KE_KEY, 0x0020, { KEY_PROG2 } },
 	{ KE_KEY, 0x0040, { KEY_DIRECTION } },
@@ -71,7 +71,7 @@ static struct key_entry keymap_Lifebook_U810[] = {
 	{ KE_END }
 };
 
-static struct key_entry keymap_Stylistic_Tseries[] = {
+static struct key_entry keymap_Stylistic_Tseries[] __initconst = {
 	{ KE_KEY, 0x0010, { KEY_PRINT } },
 	{ KE_KEY, 0x0020, { KEY_BACKSPACE } },
 	{ KE_KEY, 0x0040, { KEY_SPACE } },
@@ -87,7 +87,7 @@ static struct key_entry keymap_Stylistic_Tseries[] = {
 	{ KE_END }
 };
 
-static struct key_entry keymap_Stylistic_ST5xxx[] = {
+static struct key_entry keymap_Stylistic_ST5xxx[] __initconst = {
 	{ KE_KEY, 0x0010, { KEY_MAIL } },
 	{ KE_KEY, 0x0020, { KEY_DIRECTION } },
 	{ KE_KEY, 0x0040, { KEY_ESC } },
@@ -275,7 +275,7 @@ static int __devinit fujitsu_dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct dmi_system_id dmi_ids[] __initdata = {
+static struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		.callback = fujitsu_dmi_matched,
 		.ident = "Fujitsu Siemens P/T Series",
