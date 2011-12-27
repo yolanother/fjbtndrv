@@ -17,8 +17,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <syslog.h>
 #include <linux/input.h>
 
 #include "fjbtndrv.h"
@@ -93,20 +95,23 @@ on_device_event(GIOChannel *source, GIOCondition condition, gpointer data)
 }
 
 static GIOChannel*
-open_device(GError **error)
+open_device(const char* devname, GError **error)
 {
-	char *devname;
 	GIOChannel *gioc;
 
 	*error = NULL;
+
+#if 0
+	char *devname;
 
 	devname = getenv("DEVNAME");
 	if (devname == NULL) {
 		g_set_error(error, 0, 1, "DEVNAME not set.");
 		return NULL;
 	}
+#endif
 
-	debug("device file: %s", devname);
+	syslog(LOG_DEBUG, "device file: %s", devname);
 
 	gioc = g_io_channel_new_file(devname, "r", error);
 	if (*error)
@@ -133,6 +138,12 @@ main(int argc, char *argv[])
 		g_log_set_always_fatal(mask);
 	} */
 
+	openlog("fjbproxy", LOG_PID | LOG_CONS, LOG_DAEMON);
+
+	if (argc != 2) {
+		fprintf(stderr, "Syntax: %s <DEVICE>\n", argv[0]);
+		return 1;
+	}
 
 	debug(" * initialization");
 
@@ -141,10 +152,9 @@ main(int argc, char *argv[])
 	proxy = fjbtndrv_proxy_new();
 	g_assert(proxy);
 
-	device = open_device(&error);
+	device = open_device(argv[1], &error);
 	if (error) {
-		debug("open_device failed");
-		g_error("%s", error->message);
+		syslog(LOG_ERR, "failed to open device - %s", error->message);
 		goto out;
 	}
 
@@ -178,6 +188,8 @@ out:
 		g_object_unref(proxy);
 	if (device)
 		g_io_channel_unref(device);
+
+	closelog();
 
 	return 0;
 }
