@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Robert Gerlach 2011 <khnz@users.sourceforge.net>
+ * Copyright (C) 2012 Robert Gerlach <khnz@users.sourceforge.net>
  * 
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or

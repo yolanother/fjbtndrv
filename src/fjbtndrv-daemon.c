@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Robert Gerlach 2011 <khnz@users.sourceforge.net>
+ * Copyright (C) 2012 Robert Gerlach <khnz@users.sourceforge.net>
  * 
  * fjbtndrv is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
