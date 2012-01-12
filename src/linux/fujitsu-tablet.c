@@ -333,7 +333,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 static acpi_status __devinit
 fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
-	switch(res->type) {
+	switch (res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
 			fujitsu.irq = res->data.irq.interrupts[0];
 			return AE_OK;
