@@ -68,8 +68,6 @@ static struct key_entry keymap_Lifebook_U810[] __initconst = {
 	{ KE_KEY, 0x0800, { KEY_DOWN } },
 	{ KE_KEY, 0x4000, { KEY_LEFTCTRL } },
 	{ KE_KEY, 0x8000, { KEY_LEFTALT } },
-	{ KE_VSW, 0x10000, { SW_TABLET_MODE } },
-	{ KE_VSW, 0x20000, { SW_DOCK } },
 	{ KE_END }
 };
 
