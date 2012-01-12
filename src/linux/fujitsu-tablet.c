@@ -166,7 +166,8 @@ static void fujitsu_reset(void)
 	fujitsu_send_state();
 }
 
-static int __devinit input_fujitsu_setup(struct device *parent, const char *name, const char *phys)
+static int __devinit input_fujitsu_setup(struct device *parent,
+					 const char *name, const char *phys)
 {
 	struct input_dev *idev;
 	int error;
@@ -329,7 +330,8 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 	{ NULL }
 };
 
-static acpi_status __devinit fujitsu_walk_resources(struct acpi_resource *res, void *data)
+static acpi_status __devinit
+fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
 	switch(res->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
