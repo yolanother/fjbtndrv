@@ -1,5 +1,4 @@
-/* Kernel driver for FSC Tablet PC buttons
- *
+/*
  * Copyright (C) 2006-2012 Robert Gerlach <khnz@gmx.de>
  * Copyright (C) 2005-2006 Jan Rychter <jan@rychter.com>
  *
@@ -444,7 +443,7 @@ module_init(fujitsu_module_init);
 module_exit(fujitsu_module_exit);
 
 MODULE_AUTHOR("Robert Gerlach <khnz@gmx.de>");
-MODULE_DESCRIPTION("Fujitsu Siemens tablet button driver");
+MODULE_DESCRIPTION("Fujitsu tablet pc extras driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("git");
 
