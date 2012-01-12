@@ -334,23 +334,23 @@ static acpi_status __devinit
 fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
 	switch (res->type) {
-		case ACPI_RESOURCE_TYPE_IRQ:
-			fujitsu.irq = res->data.irq.interrupts[0];
+	case ACPI_RESOURCE_TYPE_IRQ:
+		fujitsu.irq = res->data.irq.interrupts[0];
+		return AE_OK;
+
+	case ACPI_RESOURCE_TYPE_IO:
+		fujitsu.io_base = res->data.io.minimum;
+		fujitsu.io_length = res->data.io.address_length;
+		return AE_OK;
+
+	case ACPI_RESOURCE_TYPE_END_TAG:
+		if (fujitsu.irq && fujitsu.io_base)
 			return AE_OK;
+		else
+			return AE_NOT_FOUND;
 
-		case ACPI_RESOURCE_TYPE_IO:
-			fujitsu.io_base = res->data.io.minimum;
-			fujitsu.io_length = res->data.io.address_length;
-			return AE_OK;
-
-		case ACPI_RESOURCE_TYPE_END_TAG:
-			if (fujitsu.irq && fujitsu.io_base)
-				return AE_OK;
-			else
-				return AE_NOT_FOUND;
-
-		default:
-			return AE_ERROR;
+	default:
+		return AE_ERROR;
 	}
 }
 
