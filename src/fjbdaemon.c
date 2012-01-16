@@ -197,7 +197,7 @@ toggle_lock_rotate(FjbtndrvDisplay *display)
 	}
 }
 
-static void
+static inline void
 button_pressed(FjbtndrvDeviceButtonEvent *event)
 {
 	state.key_code = event->code;
@@ -239,7 +239,9 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 				fjbtndrv_display_show_info(display, _("configuration..."));
 			}
 			else {
+				state.mode = NORMAL;
 				fjbtndrv_display_fake_key(display, XF86XK_Launch4);
+				fjbtndrv_display_hide_osd(display);
 			}
 			break;
 		case CONFIGURE:
@@ -300,10 +302,12 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 			scroll_up(display);
 			break;
 		case STICKY_FN:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_LaunchB);
 			fjbtndrv_display_hide_osd(display);
 			break;
 		case STICKY_ALT:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_Launch2);
 			fjbtndrv_display_hide_osd(display);
 			break;
@@ -330,10 +334,12 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 			scroll_down(display);
 			break;
 		case STICKY_FN:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_LaunchA);
 			fjbtndrv_display_hide_osd(display);
 			break;
 		case STICKY_ALT:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_Launch1);
 			fjbtndrv_display_hide_osd(display);
 			break;
@@ -360,10 +366,12 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 			rotate_display(display);
 			break;
 		case STICKY_FN:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_LaunchC);
 			fjbtndrv_display_hide_osd(display);
 			break;
 		case STICKY_ALT:
+			state.mode = NORMAL;
 			fjbtndrv_display_fake_key(display, XF86XK_Launch3);
 			fjbtndrv_display_hide_osd(display);
 			break;
