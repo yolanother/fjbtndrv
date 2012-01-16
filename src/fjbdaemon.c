@@ -264,9 +264,16 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 
 		switch (state.mode) {
 		case NORMAL:
-			state.mode = STICKY_ALT;
-			state.mode_timeout = current_time + 1400;
-			fjbtndrv_display_show_info(display, "ALT...");
+			if ((state.key_code == 64) && (state.key_time + 1000 < current_time)) {
+				state.mode = NORMAL;
+				fjbtndrv_display_fake_key(display, XF86XK_Sleep);
+				fjbtndrv_display_hide_osd(display);
+			}
+			else {
+				state.mode = STICKY_ALT;
+				state.mode_timeout = current_time + 1400;
+				fjbtndrv_display_show_info(display, "ALT...");
+			}
 			break;
 		case STICKY_FN:
 			state.mode = BRIGHTNESS;
