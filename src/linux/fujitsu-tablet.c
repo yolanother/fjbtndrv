@@ -303,7 +303,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK")
 		},
-		.driver_data = &keymap_Lifebook_Tseries
+		.driver_data = keymap_Lifebook_Tseries
 	},
 	{
 		.callback = fujitsu_dmi_default,
@@ -312,7 +312,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook T")
 		},
-		.driver_data = &keymap_Lifebook_Tseries
+		.driver_data = keymap_Lifebook_Tseries
 	},
 	{
 		.callback = fujitsu_dmi_stylistic,
@@ -321,7 +321,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic T")
 		},
-		.driver_data = &keymap_Stylistic_Tseries
+		.driver_data = keymap_Stylistic_Tseries
 	},
 	{
 		.callback = fujitsu_dmi_default,
@@ -330,7 +330,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook U810")
 		},
-		.driver_data = &keymap_Lifebook_U810
+		.driver_data = keymap_Lifebook_U810
 	},
 	{
 		.callback = fujitsu_dmi_stylistic,
@@ -339,7 +339,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STYLISTIC ST5")
 		},
-		.driver_data = &keymap_Stylistic_ST5xxx
+		.driver_data = keymap_Stylistic_ST5xxx
 	},
 	{
 		.callback = fujitsu_dmi_stylistic,
@@ -348,7 +348,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Stylistic ST5")
 		},
-		.driver_data = &keymap_Stylistic_ST5xxx
+		.driver_data = keymap_Stylistic_ST5xxx
 	},
 	{
 		.callback = fujitsu_dmi_default,
@@ -357,7 +357,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
 			DMI_MATCH(DMI_PRODUCT_NAME, "")
 		},
-		.driver_data = &keymap_Lifebook_Tseries
+		.driver_data = keymap_Lifebook_Tseries
 	},
 	{ NULL }
 };
