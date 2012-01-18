@@ -194,7 +194,7 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 {
 	struct input_dev *idev;
 	int error;
-	int x;
+	int i;
 
 	idev = input_allocate_device();
 	if (!idev)
@@ -214,9 +214,9 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 
 	__set_bit(EV_REP, idev->evbit);
 
-	for (x = 0; x < ARRAY_SIZE(fujitsu.config.keymap); x++)
-		if (fujitsu.config.keymap[x])
-			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[x]);
+	for (i = 0; i < ARRAY_SIZE(fujitsu.config.keymap); i++)
+		if (fujitsu.config.keymap[i])
+			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i]);
 
 	input_set_capability(idev, EV_MSC, MSC_SCAN);
 
