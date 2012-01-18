@@ -265,7 +265,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 
 		for_each_set_bit(i, &changed, 16) {
 			keycode = fujitsu.config.keymap[i];
-			pressed = keymask & changed;
+			pressed = keymask & changed & BIT(i);
 
 			if (pressed)
 				input_event(fujitsu.idev, EV_MSC, MSC_SCAN, i);
