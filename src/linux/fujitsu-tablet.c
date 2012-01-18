@@ -26,7 +26,6 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <linux/input/sparse-keymap.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 
@@ -44,62 +43,84 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
-	struct key_entry *keymap;
+	unsigned short keymap[16];
 	unsigned int quirks;
 };
 
-static struct key_entry keymap_Lifebook_Tseries[] __initconst = {
-	{ KE_KEY, 0x0010, { KEY_SCROLLDOWN } },
-	{ KE_KEY, 0x0020, { KEY_SCROLLUP } },
-	{ KE_KEY, 0x0040, { KEY_DIRECTION } },
-	{ KE_KEY, 0x0080, { KEY_LEFTCTRL } },
-	{ KE_KEY, 0x0100, { KEY_BRIGHTNESSUP } },
-	{ KE_KEY, 0x0200, { KEY_BRIGHTNESSDOWN } },
-	{ KE_KEY, 0x8000, { KEY_LEFTALT } },
-	{ KE_END }
+static unsigned short keymap_Lifebook_Tseries[16] __initconst = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_SCROLLDOWN,
+	KEY_SCROLLUP,
+	KEY_DIRECTION,
+	KEY_LEFTCTRL,
+	KEY_BRIGHTNESSUP,
+	KEY_BRIGHTNESSDOWN,
+	KEY_BRIGHTNESS_ZERO,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_LEFTALT
 };
 
-static struct key_entry keymap_Lifebook_U810[] __initconst = {
-	{ KE_KEY, 0x0010, { KEY_PROG1 } },
-	{ KE_KEY, 0x0020, { KEY_PROG2 } },
-	{ KE_KEY, 0x0040, { KEY_DIRECTION } },
-	{ KE_KEY, 0x0400, { KEY_UP } },
-	{ KE_KEY, 0x0800, { KEY_DOWN } },
-	{ KE_KEY, 0x4000, { KEY_LEFTCTRL } },
-	{ KE_KEY, 0x8000, { KEY_LEFTALT } },
-	{ KE_END }
+static unsigned short keymap_Lifebook_U810[] __initconst = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_PROG1,
+	KEY_PROG2,
+	KEY_DIRECTION,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_UP,
+	KEY_DOWN,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_LEFTCTRL,
+	KEY_LEFTALT
 };
 
-static struct key_entry keymap_Stylistic_Tseries[] __initconst = {
-	{ KE_KEY, 0x0010, { KEY_PRINT } },
-	{ KE_KEY, 0x0020, { KEY_BACKSPACE } },
-	{ KE_KEY, 0x0040, { KEY_SPACE } },
-	{ KE_KEY, 0x0080, { KEY_ENTER } },
-	{ KE_KEY, 0x0100, { KEY_BRIGHTNESSUP } },
-	{ KE_KEY, 0x0200, { KEY_BRIGHTNESSDOWN } },
-	{ KE_KEY, 0x0400, { KEY_DOWN } },
-	{ KE_KEY, 0x0800, { KEY_UP } },
-	{ KE_KEY, 0x1000, { KEY_SCROLLUP } },
-	{ KE_KEY, 0x2000, { KEY_SCROLLDOWN } },
-	{ KE_KEY, 0x4000, { KEY_LEFTCTRL } },
-	{ KE_KEY, 0x8000, { KEY_LEFTALT } },
-	{ KE_END }
+static unsigned short keymap_Stylistic_Tseries[] __initconst = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_PRINT,
+	KEY_BACKSPACE,
+	KEY_SPACE,
+	KEY_ENTER,
+	KEY_BRIGHTNESSUP,
+	KEY_BRIGHTNESSDOWN,
+	KEY_DOWN,
+	KEY_UP,
+	KEY_SCROLLUP,
+	KEY_SCROLLDOWN,
+	KEY_LEFTCTRL,
+	KEY_LEFTALT
 };
 
-static struct key_entry keymap_Stylistic_ST5xxx[] __initconst = {
-	{ KE_KEY, 0x0010, { KEY_MAIL } },
-	{ KE_KEY, 0x0020, { KEY_DIRECTION } },
-	{ KE_KEY, 0x0040, { KEY_ESC } },
-	{ KE_KEY, 0x0080, { KEY_ENTER } },
-	{ KE_KEY, 0x0100, { KEY_BRIGHTNESSUP } },
-	{ KE_KEY, 0x0200, { KEY_BRIGHTNESSDOWN } },
-	{ KE_KEY, 0x0400, { KEY_DOWN } },
-	{ KE_KEY, 0x0800, { KEY_UP } },
-	{ KE_KEY, 0x1000, { KEY_SCROLLUP } },
-	{ KE_KEY, 0x2000, { KEY_SCROLLDOWN } },
-	{ KE_KEY, 0x4000, { KEY_LEFTCTRL } },
-	{ KE_KEY, 0x8000, { KEY_LEFTALT } },
-	{ KE_END }
+static unsigned short keymap_Stylistic_ST5xxx[] __initconst = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_MAIL,
+	KEY_DIRECTION,
+	KEY_ESC,
+	KEY_ENTER,
+	KEY_BRIGHTNESSUP,
+	KEY_BRIGHTNESSDOWN,
+	KEY_DOWN,
+	KEY_UP,
+	KEY_SCROLLUP,
+	KEY_SCROLLDOWN,
+	KEY_LEFTCTRL,
+	KEY_LEFTALT
 };
 
 static struct {						/* fujitsu_t */
@@ -171,6 +192,7 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 {
 	struct input_dev *idev;
 	int error;
+	int x;
 
 	idev = input_allocate_device();
 	if (!idev)
@@ -184,41 +206,44 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0101;
 
+	idev->keycode = fujitsu.config.keymap;
+	idev->keycodesize = sizeof(fujitsu.config.keymap[0]);
+	idev->keycodemax = ARRAY_SIZE(fujitsu.config.keymap);
+
 	__set_bit(EV_REP, idev->evbit);
 
-	error = sparse_keymap_setup(idev, fujitsu.config.keymap, NULL);
-	if (error)
-		goto err_free_dev;
+	for (x = 0; x < ARRAY_SIZE(fujitsu.config.keymap); x++)
+		if (fujitsu.config.keymap[x])
+			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[x]);
+
+	input_set_capability(idev, EV_MSC, MSC_SCAN);
+
+	input_set_capability(idev, EV_SW, SW_DOCK);
+	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 
 	input_set_capability(idev, EV_SW, SW_DOCK);
 	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 
 	error = input_register_device(idev);
-	if (error)
-		goto err_free_keymap;
-
-	fujitsu.config.keymap = NULL;
+	if (error) {
+		input_free_device(idev);
+		return error;
+	}
 
 	fujitsu.idev = idev;
 	return 0;
-
-err_free_keymap:
-	sparse_keymap_free(idev);
-err_free_dev:
-	input_free_device(idev);
-	return error;
 }
 
 static void input_fujitsu_remove(void)
 {
-	sparse_keymap_free(fujitsu.idev);
-	input_unregister_device(fujitsu.idev);
+	if (fujitsu.idev)
+		input_unregister_device(fujitsu.idev);
 }
 
 static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 {
-	unsigned int keymask;
-	unsigned int changed;
+	unsigned long keymask;
+	unsigned long changed;
 
 	if (unlikely(!(fujitsu_status() & 0x01)))
 		return IRQ_NONE;
@@ -229,19 +254,26 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
 
-	printk(KERN_DEBUG MODULENAME ": state=0x%02x keymask=0x%04x\n",
+	printk(KERN_DEBUG MODULENAME ": state=0x%02x keymask=0x%04lx\n",
 			fujitsu_read_register(0xdd), keymask);
 
 	changed = keymask ^ fujitsu.prev_keymask;
 	if (changed) {
-		unsigned int value = !!(keymask & changed);
+		unsigned int keycode;
+		int pressed;
+		int x = 0;
 
 		fujitsu.prev_keymask = keymask;
 
-		printk(KERN_DEBUG MODULENAME ": code=0x%02x value=0x%02x\n",
-				changed, value);
+		x = find_first_bit(&changed, 16);
+		keycode = fujitsu.config.keymap[x];
+		pressed = !!(keymask & changed);
 
-		sparse_keymap_report_event(fujitsu.idev, changed, value, 0);
+		if (pressed)
+			input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
+
+		input_report_key(fujitsu.idev, keycode, pressed);
+		input_sync(fujitsu.idev);
 	}
 
 	fujitsu_ack();
@@ -251,7 +283,8 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
 {
 	printk(KERN_DEBUG MODULENAME ": %s\n", dmi->ident);
-	fujitsu.config.keymap = dmi->driver_data;
+	memcpy(&fujitsu.config.keymap, dmi->driver_data,
+			sizeof(fujitsu.config.keymap));
 	return 1;
 }
 
