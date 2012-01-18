@@ -158,7 +158,7 @@ static void fujitsu_send_state(void)
 
 	state = fujitsu_read_register(0xdd);
 
-	dock = !!(state & 0x02);
+	dock = state & 0x02;
 
 	if ((fujitsu.config.quirks & FORCE_TABLET_MODE_IF_UNDOCK) && (!dock)) {
 		tablet_mode = 1;
@@ -267,7 +267,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 
 		x = find_first_bit(&changed, 16);
 		keycode = fujitsu.config.keymap[x];
-		pressed = !!(keymask & changed);
+		pressed = keymask & changed;
 
 		if (pressed)
 			input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
