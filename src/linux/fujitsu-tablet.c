@@ -125,7 +125,7 @@ static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static struct {						/* fujitsu_t */
+static struct {
 	struct input_dev *idev;
 	struct fujitsu_config config;
 	unsigned long prev_keymask;
