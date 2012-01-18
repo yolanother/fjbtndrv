@@ -430,7 +430,7 @@ static int __init fujitsu_module_init(void)
 	dmi_check_system(dmi_ids);
 
 	error = acpi_bus_register_driver(&acpi_fujitsu_driver);
-	if (ACPI_FAILURE(error))
+	if (error)
 		return error;
 
 	return 0;
