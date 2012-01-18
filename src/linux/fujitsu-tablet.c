@@ -36,6 +36,8 @@
 #define INVERT_TABLET_MODE_BIT      0x01
 #define FORCE_TABLET_MODE_IF_UNDOCK 0x02
 
+#define KEYMAP_LEN 16
+
 static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "FUJ02BD" },
 	{ .id = "FUJ02BF" },
@@ -43,11 +45,11 @@ static const struct acpi_device_id fujitsu_ids[] = {
 };
 
 struct fujitsu_config {
-	unsigned short keymap[16];
+	unsigned short keymap[KEYMAP_LEN];
 	unsigned int quirks;
 };
 
-static unsigned short keymap_Lifebook_Tseries[16] __initconst = {
+static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -66,7 +68,7 @@ static unsigned short keymap_Lifebook_Tseries[16] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Lifebook_U810[] __initconst = {
+static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -85,7 +87,7 @@ static unsigned short keymap_Lifebook_U810[] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_Tseries[] __initconst = {
+static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -104,7 +106,7 @@ static unsigned short keymap_Stylistic_Tseries[] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_ST5xxx[] __initconst = {
+static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -263,7 +265,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	if (changed) {
 		fujitsu.prev_keymask = keymask;
 
-		for_each_set_bit(i, &changed, 16) {
+		for_each_set_bit(i, &changed, KEYMAP_LEN) {
 			keycode = fujitsu.config.keymap[i];
 			pressed = keymask & changed & BIT(i);
 
@@ -282,8 +284,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
 {
 	printk(KERN_DEBUG MODULENAME ": %s\n", dmi->ident);
-	memcpy(&fujitsu.config.keymap, dmi->driver_data,
-			sizeof(fujitsu.config.keymap));
+	memcpy(&fujitsu.config.keymap, dmi->driver_data, KEYMAP_LEN);
 	return 1;
 }
 
