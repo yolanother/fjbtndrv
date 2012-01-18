@@ -114,17 +114,17 @@ static struct {						/* fujitsu_t */
 	int io_length;
 } fujitsu;
 
-static inline u8 fujitsu_ack(void)
+static u8 fujitsu_ack(void)
 {
 	return inb(fujitsu.io_base + 2);
 }
 
-static inline u8 fujitsu_status(void)
+static u8 fujitsu_status(void)
 {
 	return inb(fujitsu.io_base + 6);
 }
 
-static inline u8 fujitsu_read_register(const u8 addr)
+static u8 fujitsu_read_register(const u8 addr)
 {
 	outb(addr, fujitsu.io_base);
 	return inb(fujitsu.io_base + 4);
