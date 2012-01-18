@@ -282,7 +282,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 
 static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
 {
-	printk(KERN_DEBUG MODULENAME ": %s\n", dmi->ident);
+	printk(KERN_INFO MODULENAME ": %s\n", dmi->ident);
 	memcpy(&fujitsu.config.keymap, dmi->driver_data, KEYMAP_LEN);
 	return 1;
 }
