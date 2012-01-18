@@ -242,8 +242,10 @@ static void input_fujitsu_remove(void)
 
 static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 {
-	unsigned long keymask;
-	unsigned long changed;
+	unsigned long keymask, changed;
+	unsigned int keycode;
+	int pressed;
+	int i;
 
 	if (unlikely(!(fujitsu_status() & 0x01)))
 		return IRQ_NONE;
@@ -259,21 +261,18 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 
 	changed = keymask ^ fujitsu.prev_keymask;
 	if (changed) {
-		unsigned int keycode;
-		int pressed;
-		int x = 0;
-
 		fujitsu.prev_keymask = keymask;
 
-		x = find_first_bit(&changed, 16);
-		keycode = fujitsu.config.keymap[x];
-		pressed = keymask & changed;
+		for_each_set_bit(i, &changed, 16) {
+			keycode = fujitsu.config.keymap[i];
+			pressed = keymask & changed;
 
-		if (pressed)
-			input_event(fujitsu.idev, EV_MSC, MSC_SCAN, x);
+			if (pressed)
+				input_event(fujitsu.idev, EV_MSC, MSC_SCAN, i);
 
-		input_report_key(fujitsu.idev, keycode, pressed);
-		input_sync(fujitsu.idev);
+			input_report_key(fujitsu.idev, keycode, pressed);
+			input_sync(fujitsu.idev);
+		}
 	}
 
 	fujitsu_ack();
