@@ -371,7 +371,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	sprintf(acpi_device_class(adev), "%s", ACPI_FUJITSU_CLASS);
 
 	snprintf(fujitsu.phys, sizeof(fujitsu.phys),
-			"%s/video/input0", acpi_device_hid(adev));
+			"%s/input0", acpi_device_hid(adev));
 
 	error = input_fujitsu_setup(&adev->dev,
 		acpi_device_name(adev), fujitsu.phys);
