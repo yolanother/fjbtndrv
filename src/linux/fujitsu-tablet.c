@@ -238,8 +238,7 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 
 static void input_fujitsu_remove(void)
 {
-	if (fujitsu.idev)
-		input_unregister_device(fujitsu.idev);
+	input_unregister_device(fujitsu.idev);
 }
 
 static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
