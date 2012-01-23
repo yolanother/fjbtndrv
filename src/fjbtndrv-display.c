@@ -200,16 +200,12 @@ fjbtndrv_display_fake_event(FjbtndrvDisplay *this, FjbtndrvDeviceEvent *event)
 	FjbtndrvDisplayPrivate *priv = FJBTNDRV_DISPLAY_GET_PRIVATE(this);
 	Display *display = priv->display;
 
-	if (event->type == BUTTON) {
-		FjbtndrvDeviceButtonEvent *e = (FjbtndrvDeviceButtonEvent*) event;
+	debug("fjbtndrv_display_fake_event: key=%d value=%d",
+			event->code, event->value);
 
-		debug("fjbtndrv_display_fake_event: key=%d value=%d",
-				e->code, e->value);
-
-		XTestFakeKeyEvent(display,
-				e->code, (e->value ? True : False),
-				CurrentTime);
-	}
+	XTestFakeKeyEvent(display,
+			event->code, (event->value ? True : False),
+			CurrentTime);
 
 	XSync(display, False);
 }

@@ -35,9 +35,7 @@ typedef struct _FjbtndrvDevicePrivate FjbtndrvDevicePrivate;
 typedef struct _FjbtndrvDevice FjbtndrvDevice;
 
 typedef enum _FjbtndrvDeviceEventType FjbtndrvDeviceEventType;
-typedef union _FjbtndrvDeviceEvent FjbtndrvDeviceEvent;
-typedef struct _FjbtndrvDeviceButtonEvent FjbtndrvDeviceButtonEvent;
-typedef struct _FjbtndrvDeviceSwitchEvent FjbtndrvDeviceSwitchEvent;
+typedef struct _FjbtndrvDeviceEvent FjbtndrvDeviceEvent;
 
 struct _FjbtndrvDeviceClass
 {
@@ -49,36 +47,10 @@ struct _FjbtndrvDevice
 	GObject parent_instance;
 };
 
-enum _FjbtndrvDeviceEventType
+struct _FjbtndrvDeviceEvent
 {
-	BUTTON,
-	SWITCH,
-};
-
-struct _FjbtndrvDeviceButtonEvent
-{
-	FjbtndrvDeviceEventType type;
 	guint code;
 	guint value;
-};
-
-struct _FjbtndrvDeviceSwitchEvent
-{
-	FjbtndrvDeviceEventType type;
-	enum
-{
-		NONE,
-		TABLET_MODE,
-		DOCK_STATE,
-	} code;
-	gboolean value;
-};
-
-union _FjbtndrvDeviceEvent
-{
-	FjbtndrvDeviceEventType type;
-	FjbtndrvDeviceButtonEvent _button;
-	FjbtndrvDeviceSwitchEvent _switch;
 };
 
 GType fjbtndrv_device_get_type (void) G_GNUC_CONST;

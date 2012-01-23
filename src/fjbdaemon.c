@@ -21,6 +21,9 @@ fjbtndrv is free software: you can redistribute it and/or modify it
 #include <time.h>
 #include <sys/time.h>
 
+#include <glib.h>
+#include <gio/gio.h>
+
 #include <X11/keysym.h>
 #include <X11/XF86keysym.h>
 
@@ -198,7 +201,7 @@ toggle_lock_rotate(FjbtndrvDisplay *display)
 }
 
 static inline void
-button_pressed(FjbtndrvDeviceButtonEvent *event)
+button_pressed(FjbtndrvDeviceEvent *event)
 {
 	state.key_code = event->code;
 	state.key_time = current_time;
@@ -206,10 +209,16 @@ button_pressed(FjbtndrvDeviceButtonEvent *event)
 
 // TODO: cleanup
 static void
-on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
+on_button_event(FjbtndrvDeviceEvent *event, gpointer user_data)
 {
+	struct timeval tv;
+	FjbtndrvDisplay *display = (FjbtndrvDisplay*) user_data;
+
 	debug("on_button_event: code=%d value=%d mode=%d",
 			event->code, event->value, state.mode);
+
+	gettimeofday (&tv, NULL);
+	current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 
 	if ((event->value) && (state.mode_timeout < current_time)) {
 		state.mode = NORMAL;
@@ -419,29 +428,51 @@ on_button_event(FjbtndrvDeviceButtonEvent *event, FjbtndrvDisplay *display)
 }
 
 static void
-on_switch_event(FjbtndrvDeviceSwitchEvent *event, FjbtndrvDisplay *display)
+on_dbus_signal(GDBusProxy *proxy, char *sender, char *signal, GVariant *parameters, gpointer user_data)
 {
-	debug("on_switch_event: code=%d value=%d",
-			event->code, event->value);
+	//GMainLoop *mainloop = (GMainLoop*) user_data;
+
+	debug("on_dbus_signal: signal=%s sender=%s parameter=%s",
+			signal, sender, g_variant_print(parameters, FALSE));
+
+	if (g_strcmp0(signal, "TabletModeChanged") == 0) {
+		gboolean data;
+		g_variant_get(parameters, "(b)", &(data));
+
+		debug("TabletModeChanged: state=%s",
+				data ? "true" : "false");
+	}
+	else if (g_strcmp0(signal, "DockStateChanged") == 0) {
+		gboolean data;
+		g_variant_get(parameters, "(b)", &(data));
+
+		debug("DockStateChanged: state=%s",
+				data ? "true" : "false");
+	}
+	else {
+		debug("unknown signal - %s", signal);
+		return;
+	}
 }
 
 static void
-on_event(FjbtndrvDeviceEvent *event, gpointer data)
+on_system_bus_connected(GObject *source, GAsyncResult *result, gpointer user_data)
 {
-	struct timeval tv;
+	GDBusProxy *proxy;
+	GError *error = NULL;
+	GMainLoop *mainloop = (GMainLoop*) user_data;
 
-	gettimeofday (&tv, NULL);
-	current_time = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+	debug("fjbtndrv_daemon_system_bus_ready: system bus connected");
 
-	switch (event->type) {
-	case BUTTON:
-		on_button_event((FjbtndrvDeviceButtonEvent*)event, data);
-		break;
-
-	case SWITCH:
-		on_switch_event((FjbtndrvDeviceSwitchEvent*)event, data);
-		break;
+	proxy = g_dbus_proxy_new_for_bus_finish(result, &error);
+	if (error) {
+		g_error("%s", error->message);
+		g_error_free(error);
+		g_main_loop_quit(mainloop);
 	}
+
+	g_signal_connect(proxy, "g-signal",
+			G_CALLBACK(on_dbus_signal), mainloop);
 }
 
 // TODO
@@ -468,6 +499,16 @@ int main()
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 
+	g_dbus_proxy_new_for_bus(
+			G_BUS_TYPE_SYSTEM,
+			G_DBUS_PROXY_FLAGS_NONE,
+			NULL,
+			FJBTNDRV_DBUS_SERVICE_NAME,
+			FJBTNDRV_DBUS_SERVICE_PATH,
+			FJBTNDRV_DBUS_SERVICE_INTERFACE,
+			NULL,
+			on_system_bus_connected,
+			mainloop);
 
 	display = fjbtndrv_display_new(NULL);
 	if (!display) {
@@ -481,7 +522,7 @@ int main()
 		goto out;
 	}
 
-	fjbtndrv_device_set_callback(device, on_event, display);
+	fjbtndrv_device_set_callback(device, on_button_event, display);
 
 
 	debug(" * start");
