@@ -1,9 +1,7 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * main.c
- * Copyright (C) Robert Gerlach 2011 <r.gerlach@users.sourceforge.net>
+ * Copyright (C) Robert Gerlach 2012 <khnz@users.sourceforge.net>
  * 
-fjbtndrv is free software: you can redistribute it and/or modify it
+ * fjbtndrv is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
