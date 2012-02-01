@@ -4,5 +4,3 @@ dist_dbus_DATA = de.khnz.fjbtndrv.conf
 
 EXTRA_DIST = $(dist_dbus_DATA)
 
-DISTCLEANFILES = $(dist_dbus_DATA)
-
