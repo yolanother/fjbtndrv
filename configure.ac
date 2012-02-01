@@ -85,6 +85,11 @@ fi
 AM_CONDITIONAL(HAVE_XOSD, [test x$enable_xosd = xyes])
 
 
+if test "$prefix" = "/usr" -o "$prefix" = "/usr/local" ; then
+  sysconfdir=/etc
+fi
+AC_SUBST(sysconfdir)
+
 
 # udev rules go in /lib, not /usr/lib
 if test "$prefix" = "/usr" -o "$prefix" = "/usr/local" ; then
@@ -98,10 +103,11 @@ AC_SUBST(slashlibdir)
 
 AC_OUTPUT([
 Makefile
-contrib/Makefile
-po/Makefile.in
-rules/Makefile
 src/Makefile
+rules/Makefile
+data/Makefile
+po/Makefile.in
+contrib/Makefile
 ])
 
 
