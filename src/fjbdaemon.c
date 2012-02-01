@@ -1,6 +1,5 @@
 /*
- * main.c
- * Copyright (C) Robert Gerlach 2011 <r.gerlach@users.sourceforge.net>
+ * Copyright (C) Robert Gerlach 2012 <khnz@users.sourceforge.net>
  * 
  * fjbtndrv is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
