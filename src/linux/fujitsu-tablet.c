@@ -275,17 +275,23 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
+static void __devinit fujitsu_dmi_common(const struct dmi_system_id *dmi)
 {
 	printk(KERN_INFO MODULENAME ": %s\n", dmi->ident);
 	memcpy(fujitsu.config.keymap, dmi->driver_data,
 			sizeof(fujitsu.config.keymap));
+}
+
+static int __devinit fujitsu_dmi_tseries(const struct dmi_system_id *dmi)
+{
+	fujitsu_dmi_common(dmi);
+	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
 }
 
 static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 {
-	fujitsu_dmi_default(dmi);
+	fujitsu_dmi_common(dmi);
 	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
 	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
@@ -293,7 +299,7 @@ static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 
 static struct dmi_system_id dmi_ids[] __initconst = {
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_tseries,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -302,7 +308,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Lifebook_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_tseries,
 		.ident = "Fujitsu Lifebook T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -320,7 +326,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_tseries,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -347,7 +353,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_ST5xxx
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_tseries,
 		.ident = "Unknown (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
