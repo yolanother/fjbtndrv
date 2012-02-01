@@ -3,7 +3,7 @@ EXTRA_DIST = fscrotd.desktop.in fscd.desktop.in dkms.conf.in
 fscdscriptsdir = @scriptdir@
 dist_fscdscripts_SCRIPTS = rotate-wacom.sh switch-vkeyboard.sh
 
-all: dkms.conf udev.rules
+all: dkms.conf
 
 edit = sed \
 	-e 's|@bindir[@]|$(bindir)|g' \
@@ -15,4 +15,4 @@ edit = sed \
 	$(edit) $< >$@
 
 clean:
-	rm -f dkms.conf udev.rules
+	rm -f dkms.conf

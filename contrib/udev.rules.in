@@ -1,6 +1,0 @@
-ACTION!="add", GOTO="fjbtndrv_end"
-SUBSYSTEM!="input", GOTO="fjbtndrv_end"
-
-DRIVERS=="fujitsu-tablet", RUN+="@sbindir@/fjbproxy"
-
-LABEL="fjbtndrv_end"

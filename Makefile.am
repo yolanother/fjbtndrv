@@ -1,4 +1,4 @@
-SUBDIRS = src po contrib
+SUBDIRS = src rules po contrib 
 
 fjbtndrvdocdir = ${prefix}/doc/fjbtndrv
 fjbtndrvdoc_DATA = \
