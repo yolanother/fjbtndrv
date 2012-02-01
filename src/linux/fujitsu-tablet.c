@@ -184,8 +184,6 @@ static void fujitsu_reset(void)
 	while ((fujitsu_status() & 0x02) && (--timeout))
 		msleep(20);
 
-	printk(KERN_DEBUG MODULENAME ": fujitsu_reset: time left: %dx 20ms", timeout);
-
 	fujitsu_send_state();
 }
 
@@ -256,9 +254,6 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	keymask  = fujitsu_read_register(0xde);
 	keymask |= fujitsu_read_register(0xdf) << 8;
 	keymask ^= 0xffff;
-
-	printk(KERN_DEBUG MODULENAME ": state=0x%02x keymask=0x%04lx\n",
-			fujitsu_read_register(0xdd), keymask);
 
 	changed = keymask ^ fujitsu.prev_keymask;
 	if (changed) {
@@ -412,7 +407,6 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 		return error;
 
 	if (!request_region(fujitsu.io_base, fujitsu.io_length, MODULENAME)) {
-		dev_err(&adev->dev, "region 0x%04x-0x%04x busy\n", fujitsu.io_base, fujitsu.io_base+fujitsu.io_length);
 		input_fujitsu_remove();
 		return -EBUSY;
 	}
@@ -422,7 +416,6 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	error = request_irq(fujitsu.irq, fujitsu_interrupt,
 			IRQF_SHARED, MODULENAME, fujitsu_interrupt);
 	if (error) {
-		dev_err(&adev->dev, "unable to get irq %d\n", fujitsu.irq);
 		release_region(fujitsu.io_base, fujitsu.io_length);
 		input_fujitsu_remove();
 		return error;
