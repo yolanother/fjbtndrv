@@ -19,6 +19,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <syslog.h>
 #include <linux/input.h>
@@ -128,6 +130,9 @@ main(int argc, char *argv[])
 	FjbtndrvProxy *proxy = NULL;
 	GIOChannel *device = NULL;
 	GError *error = NULL;
+
+	if (daemon(0, 0) < 0)
+		return errno;
 
 	g_type_init();
 
