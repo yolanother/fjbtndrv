@@ -573,6 +573,6 @@ module_exit(fujitsu_module_exit);
 MODULE_AUTHOR("Robert Gerlach <khnz@gmx.de>");
 MODULE_DESCRIPTION("Fujitsu tablet pc extras driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("2.4");
+MODULE_VERSION("git");
 
 MODULE_DEVICE_TABLE(acpi, fujitsu_ids);
