@@ -83,7 +83,7 @@ static keymap_entry keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
-	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
+	{ KEY_LEFTALT,         KEY_SETUP,           KEY_LEFTALT         }
 };
 
 static keymap_entry keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
@@ -102,7 +102,7 @@ static keymap_entry keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
 	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
-	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
+	{ KEY_LEFTALT,         KEY_SETUP,           KEY_LEFTALT         }
 };
 
 static keymap_entry keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
@@ -121,7 +121,7 @@ static keymap_entry keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
 	{ KEY_SCROLLUP,        KEY_HOME,            KEY_RESERVED        },
 	{ KEY_SCROLLDOWN,      KEY_END,             KEY_RESERVED        },
 	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
-	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
+	{ KEY_LEFTALT,         KEY_SETUP,           KEY_LEFTALT         }
 };
 
 static keymap_entry keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
@@ -140,7 +140,7 @@ static keymap_entry keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
 	{ KEY_SCROLLUP,        KEY_HOME,            KEY_RESERVED        },
 	{ KEY_SCROLLDOWN,      KEY_END,             KEY_RESERVED        },
 	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
-	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
+	{ KEY_LEFTALT,         KEY_SETUP,           KEY_LEFTALT         }
 };
 
 static struct {
