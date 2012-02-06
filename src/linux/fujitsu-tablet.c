@@ -54,11 +54,6 @@ typedef enum {
 
 typedef unsigned short keymap_entry[MODIFIER_MAX];
 
-struct fujitsu_config {
-	keymap_entry keymap[KEYMAP_LEN];
-	unsigned int quirks;
-};
-
 static keymap_entry keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
 	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
@@ -140,6 +135,11 @@ static unsigned short modifier_keycode[MODIFIER_MAX] = {
 	KEY_RESERVED,	/* MODIFIER_NONE */
 	KEY_FN,
 	KEY_LEFTALT
+};
+
+struct fujitsu_config {
+	keymap_entry keymap[KEYMAP_LEN];
+	unsigned int quirks;
 };
 
 static struct {
