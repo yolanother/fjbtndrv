@@ -135,6 +135,13 @@ static keymap_entry keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
 	{ KEY_LEFTALT,         KEY_SETUP,           KEY_LEFTALT         }
 };
 
+/* keycode of the (sticky) modifier keys */
+static unsigned short modifier_keycode[MODIFIER_MAX] = {
+	KEY_RESERVED,	/* MODIFIER_NONE */
+	KEY_FN,
+	KEY_LEFTALT
+};
+
 static struct {
 	struct input_dev *idev;
 	struct fujitsu_config config;
@@ -290,39 +297,41 @@ static void fujitsu_start_sticky_modifier_timer(unsigned long keycode)
 
 static void fujitsu_handle_key(int keycode, int pressed)
 {
+	keymap_modifier modifier;
+
 	del_timer(&fujitsu.sticky_timer);
 
 	printk(KERN_DEBUG MODULENAME ": fujitsu_handle_key: keycode=%d pressed=%d",
 			keycode, pressed);
 
-	switch (keycode) {
-	case KEY_FN:
-		if (pressed) {
-			keymap_modifier m = !fujitsu.modifier ?
-					MODIFIER_FN : MODIFIER_NONE;
-			fujitsu_set_modifier(m);
-		}
-		else if (fujitsu.prev_key == keycode)
-			fujitsu_start_sticky_modifier_timer(keycode);
-		break;
+	modifier = MODIFIER_MAX;
+	while (--modifier > 0) {
+		if (keycode == modifier_keycode[modifier])
+			break;
+	}
 
-	case KEY_LEFTALT:
-		if (pressed) {
-			keymap_modifier m = !fujitsu.modifier ?
-					MODIFIER_ALT : MODIFIER_NONE;
-			fujitsu_set_modifier(m);
-		}
-		else if (fujitsu.prev_key == keycode)
-			fujitsu_start_sticky_modifier_timer(keycode);
-		break;
-
-	default:
+	switch (modifier) {
+	case MODIFIER_NONE:
 		input_report_key(fujitsu.idev, keycode, pressed);
 		input_sync(fujitsu.idev);
 
 		if ((!pressed) && (fujitsu.modifier))
 			fujitsu_set_modifier(MODIFIER_NONE);
 
+		break;
+
+	default:
+		if (pressed) {
+			/* unset modifier is another modifier active */
+			if (fujitsu.modifier)
+				modifier = MODIFIER_NONE;
+			fujitsu_set_modifier(modifier);
+		} else {
+			/* start sticky timer if no other key pressed
+			 * while modifier key was hold down */
+			if (fujitsu.prev_key == keycode)
+				fujitsu_start_sticky_modifier_timer(keycode);
+		}
 		break;
 	}
 
