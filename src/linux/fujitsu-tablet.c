@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 
@@ -44,85 +45,102 @@ static const struct acpi_device_id fujitsu_ids[] = {
 	{ .id = "" }
 };
 
+typedef enum {
+	MODIFIER_NONE = 0,
+	MODIFIER_FN,
+	MODIFIER_ALT,
+	MODIFIER_MAX
+} keymap_modifier;
+
+/*
+static unsigned short modifier_keycode[MODIFIER_MAX] = {
+	KEY_RESERVED,
+	KEY_FN,
+	KEY_LEFTALT
+};
+*/
+
+typedef unsigned short keymap_entry[MODIFIER_MAX];
+
 struct fujitsu_config {
-	unsigned short keymap[KEYMAP_LEN];
+	keymap_entry keymap[KEYMAP_LEN];
 	unsigned int quirks;
 };
 
-static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_SCROLLDOWN,
-	KEY_SCROLLUP,
-	KEY_DIRECTION,
-	KEY_LEFTCTRL,
-	KEY_BRIGHTNESSUP,
-	KEY_BRIGHTNESSDOWN,
-	KEY_BRIGHTNESS_ZERO,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_LEFTALT
+static keymap_entry keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_SCROLLDOWN,      KEY_CALC,            KEY_PROG1           },
+	{ KEY_SCROLLUP,        KEY_OPEN,            KEY_PROG2           },
+	{ KEY_DIRECTION,       KEY_DASHBOARD,       KEY_PROG3           },
+	{ KEY_FN,              KEY_FN,              KEY_PROG4           },
+	{ KEY_BRIGHTNESSUP,    KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_BRIGHTNESSDOWN,  KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_BRIGHTNESS_ZERO, KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
 };
 
-static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_PROG1,
-	KEY_PROG2,
-	KEY_DIRECTION,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_UP,
-	KEY_DOWN,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_LEFTCTRL,
-	KEY_LEFTALT
+static keymap_entry keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_PROG1,           KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_PROG2,           KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_DIRECTION,       KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_UP,              KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_DOWN,            KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
+	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
 };
 
-static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_PRINT,
-	KEY_BACKSPACE,
-	KEY_SPACE,
-	KEY_ENTER,
-	KEY_BRIGHTNESSUP,
-	KEY_BRIGHTNESSDOWN,
-	KEY_DOWN,
-	KEY_UP,
-	KEY_SCROLLUP,
-	KEY_SCROLLDOWN,
-	KEY_LEFTCTRL,
-	KEY_LEFTALT
+static keymap_entry keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_PRINT,           KEY_WWW,             KEY_PROG1           },
+	{ KEY_BACKSPACE,       KEY_SCREEN,          KEY_PROG2           },
+	{ KEY_SPACE,           KEY_CALC,            KEY_PROG3           },
+	{ KEY_ENTER,           KEY_OPEN,            KEY_PROG4           },
+	{ KEY_BRIGHTNESSUP,    KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_BRIGHTNESSDOWN,  KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_DOWN,            KEY_RIGHT,           KEY_RESERVED        },
+	{ KEY_UP,              KEY_LEFT,            KEY_RESERVED        },
+	{ KEY_SCROLLUP,        KEY_HOME,            KEY_RESERVED        },
+	{ KEY_SCROLLDOWN,      KEY_END,             KEY_RESERVED        },
+	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
+	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
 };
 
-static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_MAIL,
-	KEY_DIRECTION,
-	KEY_ESC,
-	KEY_ENTER,
-	KEY_BRIGHTNESSUP,
-	KEY_BRIGHTNESSDOWN,
-	KEY_DOWN,
-	KEY_UP,
-	KEY_SCROLLUP,
-	KEY_SCROLLDOWN,
-	KEY_LEFTCTRL,
-	KEY_LEFTALT
+static keymap_entry keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_RESERVED,        KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_MAIL,            KEY_WWW,             KEY_PROG1           },
+	{ KEY_DIRECTION,       KEY_SCREEN,          KEY_PROG2           },
+	{ KEY_ESC,             KEY_CALC,            KEY_PROG3           },
+	{ KEY_ENTER,           KEY_OPEN,            KEY_PROG4           },
+	{ KEY_BRIGHTNESSUP,    KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_BRIGHTNESSDOWN,  KEY_RESERVED,        KEY_RESERVED        },
+	{ KEY_DOWN,            KEY_RIGHT,           KEY_RESERVED        },
+	{ KEY_UP,              KEY_LEFT,            KEY_RESERVED        },
+	{ KEY_SCROLLUP,        KEY_HOME,            KEY_RESERVED        },
+	{ KEY_SCROLLDOWN,      KEY_END,             KEY_RESERVED        },
+	{ KEY_FN,              KEY_FN,              KEY_RESERVED        },
+	{ KEY_LEFTALT,         KEY_LEFTALT,         KEY_LEFTALT         }
 };
 
 static struct {
@@ -135,6 +153,10 @@ static struct {
 	int irq;
 	int io_base;
 	int io_length;
+
+	unsigned short prev_key;
+	keymap_modifier modifier;
+	struct timer_list sticky_timer;
 } fujitsu;
 
 static u8 fujitsu_ack(void)
@@ -212,14 +234,14 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 
 	__set_bit(EV_REP, idev->evbit);
 
-	for (i = 0; i < ARRAY_SIZE(fujitsu.config.keymap); i++)
-		if (fujitsu.config.keymap[i])
-			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i]);
+	for (i = 0; i < ARRAY_SIZE(fujitsu.config.keymap); i++) {
+		input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i][0]);
+		input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i][1]);
+		input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i][2]);
+	}
 
 	input_set_capability(idev, EV_MSC, MSC_SCAN);
-
-	input_set_capability(idev, EV_SW, SW_DOCK);
-	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
+	input_set_capability(idev, EV_MSC, MSC_RAW);
 
 	input_set_capability(idev, EV_SW, SW_DOCK);
 	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
@@ -237,6 +259,98 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 static void input_fujitsu_remove(void)
 {
 	input_unregister_device(fujitsu.idev);
+}
+
+static void fujitsu_set_modifier(keymap_modifier modifier)
+{
+//	unsigned short keycode;
+
+	printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: modifier is %d, will set to %d\n",
+			fujitsu.modifier, modifier);
+
+/*
+	keycode = modifier_keycode[fujitsu.modifier];
+	if (keycode) {
+		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: release %d\n", keycode);
+		input_report_key(fujitsu.idev, keycode, 0);
+		input_sync(fujitsu.idev);
+	}
+
+	keycode = modifier_keycode[modifier];
+	if (keycode) {
+		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: press %d\n", keycode);
+		input_report_key(fujitsu.idev, keycode, 1);
+		input_sync(fujitsu.idev);
+	}
+*/
+
+	if (fujitsu.modifier) {
+		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: release: 0\n");
+		input_event(fujitsu.idev, EV_MSC, MSC_RAW, 0);
+		input_sync(fujitsu.idev);
+	}
+
+	if (modifier) {
+		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: pressed: %d\n", modifier);
+		input_event(fujitsu.idev, EV_MSC, MSC_RAW, modifier);
+		input_sync(fujitsu.idev);
+	}
+
+	fujitsu.modifier = modifier;
+}
+
+static void fujitsu_sticky_modifier_timeout(unsigned long keycode)
+{
+	fujitsu_set_modifier(MODIFIER_NONE);
+}
+
+static void fujitsu_start_sticky_modifier_timer(unsigned long keycode)
+{
+	fujitsu.sticky_timer.data = keycode;
+	fujitsu.sticky_timer.function = fujitsu_sticky_modifier_timeout;
+	fujitsu.sticky_timer.expires = jiffies + (1400*HZ)/1000;
+	add_timer(&fujitsu.sticky_timer);
+}
+
+static void fujitsu_handle_key(int keycode, int pressed)
+{
+	del_timer(&fujitsu.sticky_timer);
+
+	printk(KERN_DEBUG MODULENAME ": fujitsu_handle_key: keycode=%d pressed=%d",
+			keycode, pressed);
+
+	switch (keycode) {
+	case KEY_FN:
+		if (pressed) {
+			keymap_modifier m = !fujitsu.modifier ?
+					MODIFIER_FN : MODIFIER_NONE;
+			fujitsu_set_modifier(m);
+		}
+		else if (fujitsu.prev_key == keycode)
+			fujitsu_start_sticky_modifier_timer(keycode);
+		break;
+
+	case KEY_LEFTALT:
+		if (pressed) {
+			keymap_modifier m = !fujitsu.modifier ?
+					MODIFIER_ALT : MODIFIER_NONE;
+			fujitsu_set_modifier(m);
+		}
+		else if (fujitsu.prev_key == keycode)
+			fujitsu_start_sticky_modifier_timer(keycode);
+		break;
+
+	default:
+		input_report_key(fujitsu.idev, keycode, pressed);
+		input_sync(fujitsu.idev);
+
+		if ((!pressed) && (fujitsu.modifier))
+			fujitsu_set_modifier(MODIFIER_NONE);
+
+		break;
+	}
+
+	fujitsu.prev_key = (pressed) ? keycode : 0;
 }
 
 static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
@@ -260,14 +374,13 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 		fujitsu.prev_keymask = keymask;
 
 		for_each_set_bit(i, &changed, KEYMAP_LEN) {
-			keycode = fujitsu.config.keymap[i];
+			keycode = fujitsu.config.keymap[i][fujitsu.modifier];
 			pressed = keymask & changed & BIT(i);
 
 			if (pressed)
 				input_event(fujitsu.idev, EV_MSC, MSC_SCAN, i);
 
-			input_report_key(fujitsu.idev, keycode, pressed);
-			input_sync(fujitsu.idev);
+			fujitsu_handle_key(keycode, pressed);
 		}
 	}
 
@@ -461,9 +574,13 @@ static int __init fujitsu_module_init(void)
 
 	dmi_check_system(dmi_ids);
 
+	init_timer(&fujitsu.sticky_timer);
+
 	error = acpi_bus_register_driver(&acpi_fujitsu_driver);
-	if (error)
+	if (error) {
+		del_timer_sync(&fujitsu.sticky_timer);
 		return error;
+	}
 
 	return 0;
 }
@@ -471,6 +588,7 @@ static int __init fujitsu_module_init(void)
 static void __exit fujitsu_module_exit(void)
 {
 	acpi_bus_unregister_driver(&acpi_fujitsu_driver);
+	del_timer_sync(&fujitsu.sticky_timer);
 }
 
 module_init(fujitsu_module_init);
