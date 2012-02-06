@@ -52,14 +52,6 @@ typedef enum {
 	MODIFIER_MAX
 } keymap_modifier;
 
-/*
-static unsigned short modifier_keycode[MODIFIER_MAX] = {
-	KEY_RESERVED,
-	KEY_FN,
-	KEY_LEFTALT
-};
-*/
-
 typedef unsigned short keymap_entry[MODIFIER_MAX];
 
 struct fujitsu_config {
@@ -267,22 +259,6 @@ static void fujitsu_set_modifier(keymap_modifier modifier)
 
 	printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: modifier is %d, will set to %d\n",
 			fujitsu.modifier, modifier);
-
-/*
-	keycode = modifier_keycode[fujitsu.modifier];
-	if (keycode) {
-		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: release %d\n", keycode);
-		input_report_key(fujitsu.idev, keycode, 0);
-		input_sync(fujitsu.idev);
-	}
-
-	keycode = modifier_keycode[modifier];
-	if (keycode) {
-		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: press %d\n", keycode);
-		input_report_key(fujitsu.idev, keycode, 1);
-		input_sync(fujitsu.idev);
-	}
-*/
 
 	if (fujitsu.modifier) {
 		printk(KERN_DEBUG MODULENAME ": fujitsu_set_modifier: release: 0\n");
