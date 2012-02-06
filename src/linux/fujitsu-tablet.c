@@ -155,6 +155,7 @@ static struct {
 
 	unsigned short prev_key;
 	keymap_modifier modifier;
+	int modifier_down;
 	struct timer_list sticky_timer;
 } fujitsu;
 
@@ -315,18 +316,22 @@ static void fujitsu_handle_key(int keycode, int pressed)
 		input_report_key(fujitsu.idev, keycode, pressed);
 		input_sync(fujitsu.idev);
 
-		if ((!pressed) && (fujitsu.modifier))
+		if ((!pressed) && (!fujitsu.modifier_down))
 			fujitsu_set_modifier(MODIFIER_NONE);
 
 		break;
 
 	default:
 		if (pressed) {
+			fujitsu.modifier_down++;
+
 			/* unset modifier is another modifier active */
 			if (fujitsu.modifier)
 				modifier = MODIFIER_NONE;
 			fujitsu_set_modifier(modifier);
 		} else {
+			fujitsu.modifier_down--;
+
 			/* start sticky timer if no other key pressed
 			 * while modifier key was hold down */
 			if (fujitsu.prev_key == keycode)
