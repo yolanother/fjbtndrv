@@ -5,15 +5,7 @@ endif
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
-	$(GIO_CFLAGS) \
-	$(GLIB_CFLAGS) \
-	$(X11_CFLAGS) \
-	$(XI_CFLAGS) \
-	$(XTST_CFLAGS) \
-	$(XRANDR_CFLAGS) \
-	$(LIBXOSD_CFLAGS) 
-
+	-DPACKAGE_DATA_DIR=\""$(datadir)"\"
 
 if DEBUG
 AM_CFLAGS = \
@@ -26,9 +18,11 @@ sbin_PROGRAMS = fjbproxy
 
 fjbproxy_SOURCES = \
 	fjbtndrv.h \
-	fjbtndrv-proxy.h \
-	fjbtndrv-proxy.c \
 	fjbproxy.c
+
+fjbproxy_CFLAGS = \
+	$(GIO_CFLAGS) \
+	$(GLIB_CFLAGS)
 
 fjbproxy_LDADD = \
 	$(GIO_LIBS) \
