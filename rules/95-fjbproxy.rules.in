@@ -1,7 +1,0 @@
-ACTION!="add", GOTO="fjbproxy_end"
-SUBSYSTEM!="input", GOTO="fjbproxy_end"
-KERNEL!="event*", GOTO="fjbproxy_end"
-
-DRIVERS=="fujitsu-tablet", RUN+="@sbindir@/fjbproxy /dev/input/%k"
-
-LABEL="fjbproxy_end"
